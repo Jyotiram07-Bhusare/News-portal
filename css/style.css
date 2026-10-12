@@ -146,31 +146,34 @@ button, input {
   color: var(--header-hover-color);
 }
 
-/* Brand Logo (Matching Xapify font weight and dot accent) */
+/* Brand Logo */
 .brand-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-family: 'Roboto', 'Noto Sans Devanagari', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--header-color);
-  letter-spacing: -0.3px;
   position: relative;
   overflow: hidden;
   padding: 2px 4px;
+  text-decoration: none;
 }
 
-.brand-logo .logo-dot {
-  color: var(--main-color);
+.brand-logo .brand-logo-img {
+  height: 42px;
+  max-height: 46px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+  border: none;
+  border-radius: 0;
+  transition: transform 0.2s ease;
 }
 
-.brand-logo img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1.5px solid var(--main-color);
+.brand-logo:hover .brand-logo-img {
+  transform: scale(1.02);
+}
+
+html.is-dark .brand-logo .brand-logo-img {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.45));
 }
 
 /* Logo shine animation from Xapify */

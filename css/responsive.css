@@ -297,18 +297,13 @@ button:focus-visible,
   .brand-logo {
     min-height: 44px;
     min-width: 0;
-    padding: 2px 6px;
-    font-size: 22px;
+    padding: 2px 4px;
   }
 
-  .brand-logo img {
-    width: 34px;
-    height: 34px;
+  .brand-logo .brand-logo-img {
+    height: 36px;
+    max-width: 170px;
     flex-shrink: 0;
-  }
-
-  .brand-logo > span {
-    white-space: nowrap;
   }
 
   .header-right {
@@ -1767,14 +1762,9 @@ button:focus-visible,
     height: 40px;
   }
 
-  .brand-logo {
-    gap: 6px;
-    font-size: 19px;
-  }
-
-  .brand-logo img {
-    width: 28px;
-    height: 28px;
+  .brand-logo .brand-logo-img {
+    height: 30px;
+    max-width: 140px;
   }
 
   .article-action-buttons {
