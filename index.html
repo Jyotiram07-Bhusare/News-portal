@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="mr" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit=cover lets the page use the full screen on notched phones (safe-area insets are handled in css/responsive.css) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <title>लोकमंगल न्यूज पोर्टल | Lokmangal News Portal</title>
+
+  <meta name="description"
+    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
+  <!-- Browser bar colour on phones: matches the header (white / dark). app.js switches it with the theme. -->
+  <meta name="theme-color" content="#ffffff" id="meta-theme-color" />
+  <script>
+    /* Apply the saved dark theme before first paint (no white flash at night) */
+    try {
+      if (localStorage.getItem("lokmangal-theme") === "dark") {
+        document.documentElement.classList.add("is-dark");
+        document.getElementById("meta-theme-color").setAttribute("content", "#202020");
+      }
+    } catch (e) { /* private mode: ignore */ }
+  </script>
+
+  <!-- Icons: small copies — the 700 KB original logo was being downloaded for a 32px icon -->
+  <link rel="icon" type="image/jpeg" href="assets/logo-192.jpg" />
+  <link rel="apple-touch-icon" href="assets/logo-192.jpg" />
+
+  <!-- Warm up the connections the page needs right away (fonts, icons, photos) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://images.unsplash.com" />
+
+  <!-- Fonts: Roboto + Noto Sans Devanagari (moved here from a CSS @import so they load in parallel) -->
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" />
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Main Stylesheet + phone/tablet layer -->
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+
+<body>
+
+  <!-- ==========================================================================
+       1. STREAMLINED UNIFIED HEADER (Matching Screenshot Exactly)
+       ☰  लोकमंगल.    Home  Weekly publication  News ˅  Blogs       🌙  🔍
+       ========================================================================== -->
+  <header class="main-header">
+    <div class="container header-container">
+
+      <!-- Left: Hamburger + Brand Logo -->
+      <div class="header-left">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="मेनू उघडा" aria-controls="mobile-drawer"
+          aria-expanded="false">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <a href="javascript:void(0)" class="brand-logo" onclick="setCategoryFilter('all')">
+          <img src="assets/logo-192.jpg" alt="Lokmangal Logo" width="34" height="34" />
+          <span>लोकमंगल<span class="logo-dot">.</span></span>
+        </a>
+      </div>
+
+      <!-- Center: Navigation Menu -->
+      <nav class="header-nav">
+        <!-- 1. Home -->
+        <div class="nav-item active" data-nav="home">
+          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
+        </div>
+
+        <!-- 2. Weekly publication -->
+        <div class="nav-item" data-nav="weekly">
+          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
+            Weekly publication
+          </a>
+        </div>
+
+        <!-- 3. News (Dropdown containing Samajik and Rajkiy) -->
+        <div class="nav-item has-dropdown" data-nav="news">
+          <a href="javascript:void(0)" class="nav-link">
+            News <i class="fa-solid fa-chevron-down dropdown-caret"></i>
+          </a>
+          <div class="dropdown-menu">
+            <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('samajik')">
+              <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> Samajik (सामाजिक)
+              <span class="dropdown-badge">अपडेट्स</span>
+            </a>
+            <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
+              <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> Rajkiy (राजकीय)
+              <span class="dropdown-badge">विशेष</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- 4. Blogs -->
+        <div class="nav-item" data-nav="blogs">
+          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">Blogs</a>
+        </div>
+      </nav>
+
+      <!-- Right: Theme Switch + Search -->
+      <div class="header-right">
+        <button class="icon-btn" id="theme-toggle-btn" title="डार्क/लाईट मोड बदला" aria-label="Theme">
+          <i class="fa-regular fa-moon"></i>
+        </button>
+        <button class="icon-btn" id="search-toggle-btn" title="शोधा" aria-label="Search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Search Overlay Form -->
+    <div class="search-overlay-bar" id="search-overlay-bar">
+      <div class="container">
+        <form class="search-form-flex" id="search-form">
+          <input type="text" id="search-input" enterkeyhint="search" autocomplete="off"
+            placeholder="लोकमंगल पोर्टलवर बातम्या शोधा (उदा. राजकीय, सामाजिक, निवडणूक)..." />
+          <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> शोधा</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <!-- Category chips: the phone / tablet replacement for the desktop nav (hidden above 980px).
+       Swipe sideways; the active chip is kept in view by app.js -->
+  <nav class="mobile-chips" aria-label="विभाग">
+    <div class="mobile-chips-track" id="mobile-chips-track">
+      <button type="button" class="chip active" data-cat="all" aria-current="true"
+        onclick="setCategoryFilter('all')">होम</button>
+      <button type="button" class="chip" data-cat="weekly" onclick="setCategoryFilter('weekly')">साप्ताहिक
+        आवृत्ती</button>
+      <button type="button" class="chip" data-cat="samajik" onclick="setCategoryFilter('samajik')">सामाजिक</button>
+      <button type="button" class="chip" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</button>
+      <button type="button" class="chip" data-cat="blogs" onclick="setCategoryFilter('blogs')">ब्लॉग्स</button>
+      <button type="button" class="chip" data-cat="review" onclick="setCategoryFilter('review')">रिव्ह्यू</button>
+    </div>
+  </nav>
+
+  <!-- ==========================================================================
+       2. THREE-COLUMN XAPIFY LAYOUT (Exact Alignment from Screenshot)
+       Left Sidebar (Popular Posts) | Center (Main Post/Feed) | Right Sidebar (Random Posts)
+       ========================================================================== -->
+  <div id="content-wrapper">
+    <div class="container">
+      <div class="content-3col-grid">
+
+        <!-- ====================================================================
+             COLUMN 1: LEFT SIDEBAR (Popular Posts + Labels)
+             ==================================================================== -->
+        <aside id="sidebar-wrappers">
+
+          <!-- Widget: Popular Posts -->
+          <div class="widget-box" id="widget-popular">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Popular Posts</h3>
+            </div>
+
+            <div class="popular-posts-wrap" id="popular-posts-container">
+              <!-- Populated by JS: Item 0 large card + Item 1, Item 2 list cards -->
+            </div>
+          </div>
+
+          <!-- Widget: Responsive Ads (Matching User Image Exactly) -->
+          <div class="widget-box" id="widget-ads">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Responsive Ads</h3>
+            </div>
+            <div class="responsive-ads-widget">
+              <a href="javascript:void(0)" onclick="openWeeklyModal()" title="Responsive Ads">
+                <img src="assets/responsive-ad-720.jpg" alt="Responsive Ads" class="responsive-ads-img" width="720"
+                  height="720" loading="lazy" decoding="async" />
+              </a>
+            </div>
+          </div>
+
+          <!-- Widget: Labels / Categories -->
+          <div class="widget-box" id="widget-labels">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Labels</h3>
+            </div>
+            <div class="label-list">
+              <div class="label-item active" onclick="setCategoryFilter('all')">
+                <span>सर्व बातम्या (All)</span>
+                <span class="label-count" data-count="all">(१६)</span>
+              </div>
+              <div class="label-item" onclick="setCategoryFilter('rajkiy')">
+                <span>राजकीय (Political)</span>
+                <span class="label-count" data-count="rajkiy">(२)</span>
+              </div>
+              <div class="label-item" onclick="setCategoryFilter('samajik')">
+                <span>सामाजिक (Social)</span>
+                <span class="label-count" data-count="samajik">(२)</span>
+              </div>
+              <div class="label-item" onclick="setCategoryFilter('weekly')">
+                <span>साप्ताहिक आवृत्ती (Weekly)</span>
+                <span class="label-count" data-count="weekly">(४२)</span>
+              </div>
+              <div class="label-item" onclick="setCategoryFilter('blogs')">
+                <span>ब्लॉग्स (Blogs)</span>
+                <span class="label-count" data-count="blogs">(२)</span>
+              </div>
+              <div class="label-item" onclick="setCategoryFilter('review')">
+                <span>रिव्ह्यू (Reviews)</span>
+                <span class="label-count" data-count="review">(४)</span>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- ====================================================================
+             COLUMN 2: MIDDLE MAIN CONTENT (Main Featured Story / Feed)
+             ==================================================================== -->
+        <main id="main-wrapper">
+          <div class="main-content-box view-home" id="main-content-container">
+
+            <!-- Breadcrumb Line -->
+            <div class="breadcrumb-bar" id="main-breadcrumb">
+              <a href="javascript:void(0)" onclick="returnToHomeFeed()">Home</a>
+              <i class="fa-solid fa-chevron-right"></i>
+              <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">साप्ताहिक आवृत्ती</a>
+              <i class="fa-solid fa-chevron-right"></i>
+              <span id="breadcrumb-current-cat" class="crumb-current">नवीनतम अंक (Latest Issue)</span>
+            </div>
+
+            <!-- Big Headline (Matching Screenshot Typography) -->
+            <h1 class="main-post-headline" id="main-headline-text" onclick="openArticleModal(3)" style="cursor:pointer">
+              लोकमंगल साप्ताहिक विशेषांक (अंक ४२): 'महाराष्ट्राचा विकासाचा महामार्ग आणि नवी आव्हाने'
+            </h1>
+
+            <!-- Author Byline Bar -->
+            <div class="author-meta-bar">
+              <div class="author-info-left">
+                <div class="author-circle-avatar">संम</div>
+                <div class="author-byline-text">
+                  by <a href="javascript:void(0)">संपादकीय मंडळ</a> - <span id="main-article-date">१२ ऑक्टोबर
+                    २०२६</span>
+                </div>
+              </div>
+              <div class="author-meta-right">
+                <span><i class="fa-regular fa-comment"></i> ६ प्रतिक्रिया</span>
+                <span><i class="fa-regular fa-eye"></i> २२.५K वाचक</span>
+              </div>
+            </div>
+
+            <!-- Main Big Featured Image -->
+            <div class="main-featured-media" id="main-featured-img-wrap" onclick="openArticleModal(3)">
+              <img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80"
+                srcset="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=480&q=80 480w, https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80 800w, https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80 1200w"
+                sizes="(max-width: 980px) 100vw, 700px" alt="लोकमंगल साप्ताहिक विशेषांक अंक ४२" id="main-story-image"
+                decoding="async" fetchpriority="high" />
+              <span class="category-tag-badge hero-badge">साप्ताहिक आवृत्ती</span>
+            </div>
+
+            <!-- Article Body Summary -->
+            <div class="main-article-body" id="main-story-body">
+              <p><strong>साप्ताहिक आवृत्ती विशेष अहवाल:</strong> या आठवड्याच्या लोकमंगल साप्ताहिकात वाचा: उद्योग, शेती
+                आणि शिक्षण क्षेत्रातील आमूलाग्र बदल, विशेष स्तंभलेख आणि थेट लोकप्रतिनिधींशी संवाद. मोफत ई-पेपर डाऊनलोड
+                करा.</p>
+              <p>प्रिय वाचकांनो, या आठवड्याचा विशेष अंक आता डिजिटल स्वरूपात उपलब्ध झाला आहे. राज्याच्या आर्थिक, सामाजिक
+                आणि राजकीय स्थितीचा सखोल वेध घेणारे हे अंक वाचकांसाठी संग्राह्य ठरणार आहे.</p>
+            </div>
+
+            <!-- Read More & Xapify Social Share Bar (Matching User Screenshot 2 & 3) -->
+            <div class="home-post-footer-bar">
+              <div class="footer-readmore-wrap">
+                <button class="btn-xapify-readmore" onclick="openArticleModal(3)">
+                  Read More <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+              <div class="footer-share-wrap" id="home-share-container">
+                <div class="xapify-share-pills">
+                  <!-- Facebook -->
+                  <a href="https://www.facebook.com/sharer/sharer.php?u=https://lokmangalnews.com/#post-3"
+                    target="_blank" rel="noopener noreferrer" class="x-share-btn share-fb" title="Facebook वर शेअर करा">
+                    <i class="fa-brands fa-facebook-f"></i>
+                    <span class="x-share-divider">|</span>
+                    <span class="x-share-text">Facebook</span>
+                  </a>
+
+                  <!-- X (Twitter) -->
+                  <a href="https://twitter.com/intent/tweet?text=लोकमंगल%20साप्ताहिक%20विशेषांक" target="_blank"
+                    rel="noopener noreferrer" class="x-share-btn share-x" title="X (Twitter) वर शेअर करा">
+                    <i class="fa-brands fa-x-twitter"></i>
+                  </a>
+
+                  <!-- WhatsApp -->
+                  <a href="https://api.whatsapp.com/send?text=लोकमंगल%20साप्ताहिक%20विशेषांक" target="_blank"
+                    rel="noopener noreferrer" class="x-share-btn share-wa" title="WhatsApp वर शेअर करा">
+                    <i class="fa-brands fa-whatsapp"></i>
+                  </a>
+
+                  <!-- Pinterest -->
+                  <a href="https://pinterest.com/pin/create/button/" target="_blank" rel="noopener noreferrer"
+                    class="x-share-btn share-pin" title="Pinterest वर शेअर करा">
+                    <i class="fa-brands fa-pinterest-p"></i>
+                  </a>
+
+                  <!-- Extra Expandable Icons (Image 3: Reddit, LinkedIn, Tumblr, Telegram) -->
+                  <div class="x-share-more-group" id="x-share-more-group" style="display:none;">
+                    <a href="https://reddit.com/submit" target="_blank" rel="noopener noreferrer"
+                      class="x-share-btn share-reddit" title="Reddit वर शेअर करा">
+                      <i class="fa-brands fa-reddit-alien"></i>
+                    </a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/" target="_blank" rel="noopener noreferrer"
+                      class="x-share-btn share-linkedin" title="LinkedIn वर शेअर करा">
+                      <i class="fa-brands fa-linkedin-in"></i>
+                    </a>
+                    <a href="https://www.tumblr.com/widgets/share/tool" target="_blank" rel="noopener noreferrer"
+                      class="x-share-btn share-tumblr" title="Tumblr वर शेअर करा">
+                      <i class="fa-brands fa-tumblr"></i>
+                    </a>
+                    <a href="https://t.me/share/url" target="_blank" rel="noopener noreferrer"
+                      class="x-share-btn share-telegram" title="Telegram वर शेअर करा">
+                      <i class="fa-brands fa-telegram"></i>
+                    </a>
+                  </div>
+
+                  <!-- Email -->
+                  <a href="mailto:?subject=लोकमंगल साप्ताहिक विशेषांक" class="x-share-btn share-email"
+                    title="Email द्वारे शेअर करा">
+                    <i class="fa-solid fa-envelope"></i>
+                  </a>
+
+                  <!-- Plus / Minus Toggle Button -->
+                  <button type="button" class="x-share-btn share-toggle-more" id="share-toggle-more-btn"
+                    onclick="toggleExtraShareIcons()" title="अधिक पर्याय" aria-label="More share buttons">
+                    <i class="fa-solid fa-plus" id="share-toggle-icon"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Secondary Feed inside Main Column -->
+            <div class="more-posts-header">
+              <h2 class="more-posts-title"><i class="fa-solid fa-book-open"
+                  style="color:var(--main-color); margin-right:6px"></i> इतर साप्ताहिक आवृत्त्या (More Weekly Editions)
+              </h2>
+            </div>
+            <div id="secondary-posts-feed">
+              <!-- Populated by JS -->
+            </div>
+
+          </div>
+        </main>
+
+        <!-- ====================================================================
+             COLUMN 3: RIGHT SIDEBAR (Random Posts 2x2 Grid + Weekly Showcase)
+             ==================================================================== -->
+        <aside id="sidebar-wrapper">
+
+          <!-- Widget: Random Posts (Exact 2x2 Grid from Screenshot) -->
+          <div class="widget-box" id="widget-random">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Random Posts</h3>
+            </div>
+            <div class="random-posts-grid" id="random-posts-grid">
+              <!-- Populated by JS: 4 items in 2x2 layout -->
+            </div>
+          </div>
+
+          <!-- Widget: Latest Reviews (Matching Popular Posts Exactly: 4 items) -->
+          <div class="widget-box" id="widget-reviews">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Latest Reviews</h3>
+            </div>
+            <div class="popular-posts-wrap" id="latest-reviews-container">
+              <!-- Populated by JS: Item 0 large card + Item 1, Item 2, Item 3 list cards -->
+            </div>
+          </div>
+
+          <!-- Widget: Social Follow ("Follow Us"). On phones / tablets app.js moves it right under the Labels widget. -->
+          <div class="widget-box widget-follow" id="widget-follow">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Follow Us</h3>
+            </div>
+            <p class="follow-intro">ताज्या बातम्यांसाठी लोकमंगलशी जोडले राहा</p>
+            <div class="social-icons-grid">
+              <a href="javascript:void(0)" class="social-icon-box follow-card fb" onclick="showToast('लोकमंगल फेसबुक')">
+                <span class="follow-ic"><i class="fa-brands fa-facebook-f"></i></span>
+                <span class="follow-txt"><span class="follow-name">Facebook</span><span class="follow-sub">फॉलो
+                    करा</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card tw"
+                onclick="showToast('लोकमंगल ट्विटर (X)')">
+                <span class="follow-ic"><i class="fa-brands fa-x-twitter"></i></span>
+                <span class="follow-txt"><span class="follow-name">Twitter</span><span class="follow-sub">फॉलो
+                    करा</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card yt"
+                onclick="showToast('लोकमंगल यूट्यूब')">
+                <span class="follow-ic"><i class="fa-brands fa-youtube"></i></span>
+                <span class="follow-txt"><span class="follow-name">YouTube</span><span
+                    class="follow-sub">सबस्क्राईब</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card wa"
+                onclick="showToast('लोकमंगल व्हॉट्सअ‍ॅप')">
+                <span class="follow-ic"><i class="fa-brands fa-whatsapp"></i></span>
+                <span class="follow-txt"><span class="follow-name">WhatsApp</span><span class="follow-sub">जॉईन
+                    करा</span></span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Widget: Featured Videos (4 Video Posts with Play Overlay) -->
+          <div class="widget-box" id="widget-videos">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">Featured Videos</h3>
+            </div>
+            <div class="popular-posts-wrap" id="featured-videos-container">
+              <!-- Populated by JS: Item 0 large card + Item 1, Item 2, Item 3 list cards -->
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       3. FOOTER
+       ========================================================================== -->
+  <footer class="site-footer">
+    <div class="container footer-inner-flex">
+      <div class="footer-copy">
+        © २०२६ <strong>लोकमंगल न्यूज पोर्टल (Lokmangal News Portal)</strong>. सर्व हक्क राखीव.
+      </div>
+      <div class="footer-links-row">
+        <a href="javascript:void(0)" onclick="setCategoryFilter('all')">Home</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">Weekly publication</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">Samajik</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">Rajkiy</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">Blogs</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       4. MODALS (Article Reader & Weekly E-Paper)
+       ========================================================================== -->
+  <!-- Article Reader Modal -->
+  <div class="modal-overlay" id="article-reader-modal" role="dialog" aria-modal="true" aria-label="लोकमंगल डिजिटल वाचक">
+    <div class="modal-card">
+      <div class="modal-header-bar">
+        <strong class="modal-title">
+          <i class="fa-solid fa-book-open" style="color:var(--main-color); margin-right:6px"></i>
+          लोकमंगल डिजिटल वाचक
+        </strong>
+        <button class="modal-close-icon" onclick="closeModals()" aria-label="बंद करा">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body-pad" id="article-modal-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly e-paper PDF reader (bottom sheet on phones). pdf.js draws the pages - see js/app.js -->
+  <div class="modal-overlay" id="weekly-epaper-modal" role="dialog" aria-modal="true" aria-labelledby="reader-title">
+    <div class="modal-card modal-card--epaper modal-card--reader">
+      <div class="modal-header-bar">
+        <strong class="modal-title" id="reader-title">साप्ताहिक ई-पेपर (PDF)</strong>
+        <button class="modal-close-icon" onclick="closeModals()" aria-label="बंद करा">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="reader-body" id="reader-body">
+        <div class="reader-status" id="reader-status" role="status" aria-live="polite" hidden></div>
+        <div class="reader-pages" id="reader-pages"></div>
+      </div>
+      <div class="reader-footer">
+        <span class="reader-page-ind" id="reader-page-ind" aria-live="polite"></span>
+        <div class="reader-actions">
+          <a class="btn-reader primary" id="reader-download" href="#" download><i class="fa-solid fa-download"></i>
+            डाउनलोड</a>
+          <a class="btn-reader" id="reader-open" href="#" target="_blank" rel="noopener"><i
+              class="fa-solid fa-up-right-from-square"></i> नवीन टॅब</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div class="modal-overlay" id="video-player-modal" role="dialog" aria-modal="true" aria-label="लोकमंगल व्हिडिओ विशेष">
+    <div class="modal-card modal-card--video">
+      <div class="modal-header-bar">
+        <strong class="modal-title">
+          <i class="fa-solid fa-circle-play" style="color:var(--accent-red); margin-right:6px"></i>
+          लोकमंगल व्हिडिओ विशेष
+        </strong>
+        <button class="modal-close-icon" onclick="closeModals()" aria-label="बंद करा">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body-pad" id="video-modal-body">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide-Out Drawer (Exact Xapify Popular Items Matching Image 2) -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <aside class="mobile-drawer" id="mobile-drawer" aria-label="मेनू">
+
+    <!-- Top Header: Search bar + Close (✕) action -->
+    <div class="slide-menu-header">
+      <div class="drawer-search-box">
+        <input type="text" id="drawer-search-input" placeholder="Search" autocomplete="off" enterkeyhint="search" />
+        <button class="drawer-search-btn" id="drawer-search-action-btn" title="Search" aria-label="शोधा">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </div>
+      <button class="drawer-close-action" id="drawer-close-btn" title="Close" aria-label="मेनू बंद करा">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Main navigation (phones / tablets: the header nav is hidden there). Kept in sync by app.js -->
+    <nav class="drawer-nav" aria-label="मुख्य मेनू">
+      <div class="drawer-section-title">मेनू</div>
+
+      <button type="button" class="drawer-nav-link active" data-cat="all" onclick="setCategoryFilter('all')">
+        <i class="fa-solid fa-house lead"></i><span>Home</span>
+      </button>
+
+      <button type="button" class="drawer-nav-link" data-cat="weekly" onclick="setCategoryFilter('weekly')">
+        <i class="fa-solid fa-newspaper lead"></i><span>Weekly publication</span>
+      </button>
+
+      <div class="drawer-nav-group" id="drawer-news-group">
+        <button type="button" class="drawer-nav-link drawer-nav-toggle" id="drawer-news-toggle" aria-expanded="false"
+          aria-controls="drawer-news-sub">
+          <i class="fa-solid fa-layer-group lead"></i><span>News</span>
+          <i class="fa-solid fa-chevron-down drawer-caret"></i>
+        </button>
+        <div class="drawer-subnav" id="drawer-news-sub">
+          <button type="button" class="drawer-nav-link sub" data-cat="samajik" onclick="setCategoryFilter('samajik')">
+            <i class="fa-solid fa-users lead" style="color:var(--accent-green)"></i><span>Samajik (सामाजिक)</span>
+          </button>
+          <button type="button" class="drawer-nav-link sub" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">
+            <i class="fa-solid fa-landmark lead" style="color:var(--main-color)"></i><span>Rajkiy (राजकीय)</span>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" class="drawer-nav-link" data-cat="blogs" onclick="setCategoryFilter('blogs')">
+        <i class="fa-solid fa-pen-nib lead"></i><span>Blogs</span>
+      </button>
+
+      <button type="button" class="drawer-nav-link" data-cat="review" onclick="setCategoryFilter('review')">
+        <i class="fa-solid fa-star lead"></i><span>Reviews (रिव्ह्यू)</span>
+      </button>
+    </nav>
+
+    <!-- Popular Items Section (Matching Image 2) -->
+    <div class="drawer-popular-section">
+      <div class="drawer-popular-title">Popular Items</div>
+      <div class="drawer-popular-list" id="drawer-popular-list">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Back to top -->
+  <button type="button" id="back-top" aria-label="वर जा" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+    <i class="fa-solid fa-chevron-up"></i>
+  </button>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>

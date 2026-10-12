@@ -1,0 +1,1864 @@
+/* ==========================================================================
+   LOKMANGAL NEWS PORTAL — RESPONSIVE / MOBILE LAYER
+   Loaded AFTER css/style.css. Everything phone- and tablet-specific lives here.
+
+   Breakpoints
+     ≤1100px  tablet landscape  : 2 columns (sidebar | story), extra widgets underneath
+     ≤ 980px  tablet / phone    : single column, header nav -> category chips + slide-out menu
+     601–980  tablet portrait   : cards with side gutters, sidebar widgets in 2 columns
+     ≤ 600px  phones            : edge-to-edge cards, bottom-sheet modals, big tap targets
+     ≤ 400px / ≤ 340px / ≤ 300px  small phones (iPhone SE, Galaxy A, Fold cover screen)
+     landscape phones           : header stops being sticky, modals use the full height
+   ========================================================================== */
+
+
+/* ==========================================================================
+   A. TOUCH & DEVICE POLISH (all screen sizes)
+   ========================================================================== */
+html {
+  -webkit-text-size-adjust: 100%;      /* stop iOS from inflating text in landscape */
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: light;                 /* native scrollbars / inputs follow the site theme */
+}
+
+html.is-dark {
+  color-scheme: dark;
+}
+
+a, button, input, textarea, [onclick], .label-item, .chip {
+  touch-action: manipulation;          /* no 300ms tap delay / double-tap zoom on controls */
+}
+
+a:focus-visible,
+button:focus-visible,
+[onclick]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--main-color);
+  outline-offset: 2px;
+}
+
+/* Grey placeholder while a photo loads (no white flash, no layout jump) */
+.popular-card-large,
+.popular-sub-thumb,
+.secondary-post-thumb,
+.random-grid-thumb,
+.related-post-thumb,
+.main-featured-media,
+.single-post-media {
+  background-color: var(--body-bg-color);
+}
+
+/* The mobile-only helpers are hidden on desktop */
+.mobile-chips,
+.drawer-nav,
+.hero-badge {
+  display: none;
+}
+
+.drawer-nav-link {
+  font-family: inherit;
+}
+
+/* Touch screens: no "stuck hover" after a tap, instead a quick press feedback */
+@media (hover: none) {
+  .popular-card-large:hover img,
+  .popular-sub-item:hover .popular-sub-thumb img,
+  .secondary-post-item:hover .secondary-post-thumb img,
+  .random-grid-item:hover .random-grid-thumb img,
+  .related-post-card:hover .related-post-thumb img,
+  .main-featured-media:hover img {
+    transform: none;
+  }
+
+  .related-post-card:hover,
+  .post-nav-item:hover,
+  .btn-submit-comment:hover {
+    transform: none;
+  }
+
+  .popular-card-large:hover .popular-card-title {
+    color: #ffffff;
+  }
+
+  .video-card-large:hover .video-play-center-btn {
+    transform: translate(-50%, -50%);
+  }
+
+  .popular-card-large,
+  .popular-sub-item,
+  .secondary-post-item,
+  .random-grid-item,
+  .related-post-card,
+  .post-nav-item,
+  .label-item,
+  .responsive-ad-banner,
+  .main-featured-media {
+    transition: opacity 0.15s ease;
+  }
+
+  .popular-card-large:active,
+  .popular-sub-item:active,
+  .secondary-post-item:active,
+  .random-grid-item:active,
+  .related-post-card:active,
+  .post-nav-item:active,
+  .label-item:active,
+  .responsive-ad-banner:active,
+  .main-featured-media:active {
+    opacity: 0.78;
+  }
+
+  .btn-read-full:active,
+  .btn-listen-audio:active,
+  .btn-submit-comment:active,
+  .social-icon-box:active,
+  .chip:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Any touch screen, whatever its width (tablets, landscape phones, iPad with the desktop layout):
+   comfortable tap targets. Phones get the bigger versions further below. */
+@media (pointer: coarse) {
+  .mobile-menu-toggle,
+  .icon-btn,
+  .modal-close-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .label-item,
+  .btn-read-full,
+  .btn-listen-audio,
+  .social-icon-box,
+  .dropdown-link {
+    min-height: 44px;
+  }
+
+  .comment-action-btn {
+    min-height: 40px;
+  }
+
+  .post-nav-item {
+    min-height: 56px;
+  }
+
+  .footer-links-row a {
+    padding: 10px 4px;
+  }
+
+  /* breadcrumb links fill the (taller) bar, so the whole strip is really tappable */
+  .breadcrumb-bar {
+    min-height: 44px;
+  }
+
+  .breadcrumb-bar a {
+    display: inline-flex;
+    align-items: center;
+    align-self: stretch;
+    padding: 0 2px;
+  }
+
+  /* the new Home / Weekly / issue controls, finger-sized on every touch screen (tablets, landscape phones too) */
+  .btn-xapify-pdf,
+  .btn-pdf-read,
+  .btn-pdf-dl,
+  .btn-pdf-open,
+  .btn-card-read,
+  .btn-card-pdf,
+  .btn-reader,
+  .btn-submit-comment,
+  .btn-archive-pill {
+    min-height: 44px;
+  }
+
+  .news-pill {
+    min-height: 40px;
+    padding: 0 18px;
+    font-size: 14px;
+  }
+
+  .weekly-latest-title {
+    min-height: 44px;
+  }
+
+  .weekly-search-input-wrap input,
+  .comment-name-input {
+    min-height: 44px;
+  }
+
+  /* Home "Read More + share" bar: same look as on desktop, but finger-sized (the pills are 29px there) */
+  .btn-xapify-readmore {
+    min-height: 44px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .xapify-share-pills,
+  .x-share-more-group {
+    gap: 8px;
+  }
+
+  .xapify-share-pills .x-share-btn {
+    width: auto;
+    min-width: 40px;
+    height: 40px;
+    border-radius: 6px;
+  }
+
+  .xapify-share-pills .x-share-btn i {
+    font-size: 16px;
+  }
+
+  .xapify-share-pills .x-share-btn.share-fb {
+    padding: 0 14px;
+  }
+
+  .xapify-share-pills .x-share-btn .x-share-text {
+    font-size: 13px;
+  }
+}
+
+/* Scroll lock while the menu / a sheet is open (touch layouts only; desktop is unchanged) */
+@media (max-width: 980px), (hover: none) {
+  html.scroll-locked,
+  html.scroll-locked body {
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ==========================================================================
+   B. TABLET LANDSCAPE  (≤1100px)  — sidebar | story, extra widgets below
+   ========================================================================== */
+@media (max-width: 1100px) {
+  .content-3col-grid {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .content-3col-grid > * {
+    min-width: 0;
+  }
+
+  #sidebar-wrapper {
+    grid-column: 1 / 3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+
+/* ==========================================================================
+   C. TABLET + PHONE  (≤980px)  — single column, app-style navigation
+   ========================================================================== */
+@media (max-width: 980px) {
+
+  /* ---- Header ---------------------------------------------------------- */
+  .header-nav {
+    display: none;
+  }
+
+  .main-header {
+    height: auto;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .container.header-container {
+    height: 56px;
+    padding-left: max(6px, env(safe-area-inset-left, 0px));
+    padding-right: max(6px, env(safe-area-inset-right, 0px));
+  }
+
+  .header-left {
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mobile-menu-toggle {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .brand-logo {
+    min-height: 44px;
+    min-width: 0;
+    padding: 2px 6px;
+    font-size: 22px;
+  }
+
+  .brand-logo img {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+  }
+
+  .brand-logo > span {
+    white-space: nowrap;
+  }
+
+  .header-right {
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+    border-radius: 50%;
+  }
+
+  .icon-btn:active,
+  .mobile-menu-toggle:active {
+    background: rgba(0, 123, 255, 0.12);
+  }
+
+  /* ---- Search overlay (16px inputs: iOS zooms the page on anything smaller) ---- */
+  .search-overlay-bar {
+    padding: 10px 0;
+  }
+
+  .search-form-flex {
+    gap: 8px;
+  }
+
+  .search-form-flex input {
+    min-width: 0;
+    min-height: 46px;
+    padding: 10px 14px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+
+  .search-form-flex button {
+    min-height: 46px;
+    padding: 0 16px;
+    font-size: 15px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  /* ---- Category chips (replaces the desktop nav) ----------------------- */
+  .mobile-chips {
+    display: block;
+    position: relative;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .mobile-chips-track {
+    position: relative;                /* offsetParent for centering the active chip */
+    display: flex;
+    gap: 8px;
+    padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* soft fade at both edges = "there is more to swipe" */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  }
+
+  .mobile-chips-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--body-bg-color);
+    color: var(--title-color);
+    font-size: 14.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    scroll-snap-align: center;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  }
+
+  .chip i {
+    font-size: 12px;
+  }
+
+  .chip.active {
+    background: var(--main-color);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  /* ---- Page grid: ONE column. minmax(0,1fr) is the important bit — a plain 1fr
+          lets a long breadcrumb / title widen the whole page past the screen. ------ */
+  #content-wrapper {
+    padding: 14px 0 28px;
+  }
+
+  .content-3col-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .content-3col-grid > * {
+    min-width: 0;
+  }
+
+  #main-wrapper { order: 1; }
+  #sidebar-wrappers { order: 2; }
+
+  #sidebar-wrapper {
+    order: 3;
+    grid-column: auto;
+    display: block;
+  }
+
+  .main-content-box {
+    margin-bottom: 20px;
+  }
+
+  .hero-badge {
+    display: block;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  /* ---- Breadcrumb never forces the page wider ------------------------- */
+  .breadcrumb-bar {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .breadcrumb-bar > * {
+    flex: 0 0 auto;
+  }
+
+  .breadcrumb-bar .crumb-current,
+  .breadcrumb-bar .crumb-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- Story typography / media on tablets ---------------------------- */
+  .main-post-headline {
+    line-height: 1.38;
+    text-wrap: balance;
+  }
+
+  .main-featured-media,
+  .single-post-media {
+    height: auto;
+    max-height: none;
+    aspect-ratio: 16 / 9;
+  }
+
+  .main-featured-media img,
+  .single-post-media img,
+  .popular-card-large img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .single-post-headline {
+    line-height: 1.4;
+    text-wrap: balance;
+  }
+
+  .main-article-body,
+  .single-article-content,
+  .comment-text-content {
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- Slide-out menu -------------------------------------------------- */
+  .mobile-drawer {
+    width: min(86vw, 340px);
+    max-width: none;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .slide-menu-header {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 8px 10px 12px;
+    gap: 6px;
+  }
+
+  .drawer-search-box {
+    height: 46px;
+    padding: 0 4px 0 12px;
+    border-radius: 8px;
+  }
+
+  .drawer-search-box input {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .drawer-search-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .drawer-close-action {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .drawer-nav {
+    display: block;
+    padding: 4px 8px 10px;
+    border-bottom: 8px solid var(--body-bg-color);
+  }
+
+  .drawer-section-title {
+    padding: 12px 12px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--meta-color);
+  }
+
+  .drawer-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: none;
+    color: var(--title-color);
+    font-size: 16px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .drawer-nav-link .lead {
+    width: 22px;
+    text-align: center;
+    font-size: 16px;
+    color: var(--meta-color);
+  }
+
+  .drawer-nav-link:active {
+    background: rgba(0, 123, 255, 0.14);
+  }
+
+  .drawer-nav-link.active {
+    background: rgba(0, 123, 255, 0.1);
+    color: var(--main-color);
+    font-weight: 700;
+  }
+
+  .drawer-nav-link.active .lead {
+    color: var(--main-color);
+  }
+
+  .drawer-caret {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--meta-color);
+    transition: transform 0.25s ease;
+  }
+
+  .drawer-nav-group.open .drawer-caret {
+    transform: rotate(180deg);
+  }
+
+  .drawer-subnav {
+    max-height: 0;
+    overflow: hidden;
+    padding-left: 18px;
+    transition: max-height 0.28s ease;
+  }
+
+  .drawer-nav-group.open .drawer-subnav {
+    max-height: 140px;
+  }
+
+  .drawer-nav-link.sub {
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 400;
+  }
+
+  /* ---- Floating controls ------------------------------------------------ */
+  #back-top {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    right: max(14px, env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    font-size: 16px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  }
+
+  .toast-bar {
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  .modal-close-icon {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .video-player-screen {
+    height: auto;
+    aspect-ratio: 16 / 9;
+    max-height: 62vh;
+  }
+
+  .video-poster-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    inset: 0;
+  }
+}
+
+
+/* ==========================================================================
+   D. TABLET PORTRAIT  (601–980px)
+   ========================================================================== */
+@media (min-width: 601px) and (max-width: 980px) {
+  .container {
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+
+  .main-content-box {
+    padding: 22px;
+  }
+
+  .main-post-headline {
+    font-size: 28px;
+  }
+
+  .single-post-headline {
+    font-size: 26px;
+  }
+
+  .related-posts-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Sidebar widgets on tablets: a tidy 2-column grid — the lead widget spans the full width,
+     the others sit in pairs of similar height (no ragged empty gaps like a masonry/column layout) */
+  #sidebar-wrappers,
+  #sidebar-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 20px;
+  }
+
+  #sidebar-wrappers .widget-box,
+  #sidebar-wrapper .widget-box {
+    margin-bottom: 0;
+  }
+
+  /* Popular Posts, Follow Us and Random Posts run the full width; Ads | Labels and
+     Latest Reviews | Featured Videos then pair up on their own (app.js keeps Follow Us under Labels) */
+  #widget-popular,
+  #widget-follow,
+  #widget-random {
+    grid-column: 1 / -1;
+  }
+
+  #widget-popular .popular-card-large {
+    height: 260px;
+  }
+
+  #sidebar-wrapper .random-posts-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .random-grid-thumb {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    position: relative;
+  }
+
+  .random-grid-thumb img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+
+/* ==========================================================================
+   E. PHONES  (≤600px) — edge-to-edge cards, big tap targets, bottom sheets
+   ========================================================================== */
+@media (max-width: 600px) {
+
+  :root {
+    --gutter: 14px;
+    --pad-l: max(var(--gutter), env(safe-area-inset-left, 0px));
+    --pad-r: max(var(--gutter), env(safe-area-inset-right, 0px));
+  }
+
+  /* ---- Page + card shell ---------------------------------------------- */
+  #content-wrapper {
+    padding: 8px 0 24px;
+  }
+
+  #content-wrapper > .container {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .main-content-box,
+  .widget-box {
+    margin-bottom: 8px;
+    padding-left: var(--pad-l);
+    padding-right: var(--pad-r);
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .main-content-box {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+
+  .widget-box {
+    padding-top: 16px;
+    padding-bottom: 18px;
+  }
+
+  .widget-title-wrap {
+    margin-bottom: 14px;
+  }
+
+  /* ---- Lead story on the home feed: photo first, then headline ---------- */
+  .main-content-box.view-home {
+    display: flex;
+    flex-direction: column;
+    padding-top: 0;
+  }
+
+  .view-home .breadcrumb-bar {
+    display: none;                     /* the active chip already says where you are */
+  }
+
+  .view-home .main-featured-media {
+    order: 1;
+    width: auto;
+    margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-l) * -1);
+    border-radius: 0;
+    aspect-ratio: 16 / 10;
+  }
+
+  .view-home .main-post-headline {
+    order: 2;
+    margin: 14px 0 12px;
+    font-size: clamp(21px, 5.8vw, 25px);
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+
+  .view-home .author-meta-bar     { order: 3; }
+  .view-home .main-article-body   { order: 4; }
+  .view-home .home-post-footer-bar { order: 5; }
+  .view-home .more-posts-header   { order: 6; }
+  .view-home #secondary-posts-feed { order: 7; }
+
+  .hero-badge {
+    top: 12px;
+    left: max(12px, var(--pad-l));
+  }
+
+  .author-meta-bar {
+    gap: 8px 14px;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .author-byline-text,
+  .author-meta-right {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .author-meta-right {
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+
+  .main-article-body {
+    margin-bottom: 16px;
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  /* summary only on phones — the full text is one tap away */
+  .view-home .main-article-body p:nth-child(n+2) {
+    display: none;
+  }
+
+  .home-post-footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 10px 0 22px;
+    padding-top: 12px;
+  }
+
+  .btn-xapify-readmore {
+    padding: 8px 20px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .btn-read-full,
+  .btn-listen-audio {
+    justify-content: center;
+    min-height: 48px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .responsive-ad-banner {
+    margin: 0 0 18px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px dashed rgba(0, 123, 255, 0.4);
+    background: rgba(0, 123, 255, 0.06);
+    color: var(--main-color);
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 1.55;
+  }
+
+  /* ---- Story list: headline on the left, small photo on the right ------- */
+  .more-posts-header {
+    padding-top: 16px;
+    margin-bottom: 2px;
+  }
+
+  .more-posts-title {
+    font-size: 17px;
+  }
+
+  .secondary-post-item {
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 14px;
+    padding: 14px 0;
+  }
+
+  .secondary-post-thumb {
+    order: 2;
+    width: 104px;
+    height: 78px;
+    border-radius: 6px;
+  }
+
+  .secondary-post-details {
+    order: 1;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .secondary-post-title {
+    font-size: 15.5px;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 6;           /* safety net only — normal headlines show in full */
+    line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .secondary-post-meta {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    margin-top: 0;
+    font-size: 12px;
+  }
+
+  .secondary-post-meta .meta-dot {
+    display: none;
+  }
+
+  /* ---- Sidebar widgets -------------------------------------------------- */
+  .popular-card-large {
+    height: auto;
+    aspect-ratio: 16 / 10;
+    border-radius: 6px;
+  }
+
+  .popular-card-title {
+    line-height: 1.4;
+  }
+
+  .popular-posts-wrap {
+    gap: 14px;
+  }
+
+  .popular-sub-thumb {
+    width: 88px;
+    height: 66px;
+    border-radius: 6px;
+  }
+
+  .popular-sub-title {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .popular-sub-date {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .random-posts-grid {
+    gap: 16px 12px;
+  }
+
+  .random-grid-thumb {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    position: relative;
+    border-radius: 6px;
+  }
+
+  .random-grid-thumb img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .random-grid-title {
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+
+  .random-grid-date {
+    font-size: 12px;
+  }
+
+  .responsive-ads-widget {
+    max-width: 340px;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+
+  .label-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .label-item {
+    min-height: 46px;
+    padding: 8px 12px;
+    gap: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+
+  .label-item.active {
+    border-color: rgba(0, 123, 255, 0.35);
+  }
+
+  .social-icon-box {
+    min-height: 46px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .video-play-center-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  /* ---- Single article page --------------------------------------------- */
+  .main-content-box.view-article {
+    padding-top: 8px;
+  }
+
+  .view-article .breadcrumb-bar {
+    min-height: 40px;
+    margin-bottom: 4px;
+  }
+
+  .view-article .breadcrumb-bar a {
+    padding: 10px 2px;
+  }
+
+  .view-article .crumb-title,
+  .view-article .crumb-sep-title {
+    display: none;                     /* the headline right below says it already */
+  }
+
+  .single-post-headline {
+    margin-bottom: 12px;
+    font-size: clamp(21px, 5.9vw, 26px);
+    line-height: 1.4;
+  }
+
+  .single-post-media {
+    margin: 0 calc(var(--pad-r) * -1) 18px calc(var(--pad-l) * -1);
+    border-radius: 0;
+    aspect-ratio: 16 / 10;
+  }
+
+  .single-article-content {
+    font-size: 16.5px;
+    line-height: 1.85;
+  }
+
+  .single-article-content blockquote {
+    margin: 18px 0;
+    padding: 12px 14px;
+    font-size: 15.5px;
+    line-height: 1.7;
+  }
+
+  .single-share-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 20px 0;
+  }
+
+  .single-share-bar .share-label {
+    grid-column: 1 / -1;
+    margin: 0 0 2px;
+  }
+
+  .single-share-bar .share-btn {
+    justify-content: center;
+    min-height: 46px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .author-bio-box {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 8px;
+  }
+
+  .post-navigation-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .post-nav-item {
+    min-height: 64px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .post-nav-item.next {
+    text-align: left;
+  }
+
+  /* related stories become a swipeable strip */
+  .related-posts-grid {
+    display: flex;
+    gap: 12px;
+    margin: 12px calc(var(--pad-r) * -1) 0 calc(var(--pad-l) * -1);
+    padding: 2px var(--pad-r) 12px var(--pad-l);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding: 0 var(--pad-l);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .related-posts-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .related-post-card {
+    flex: 0 0 74%;
+    max-width: 300px;
+    scroll-snap-align: start;
+    border-radius: 8px;
+  }
+
+  .related-post-thumb {
+    height: 128px;
+  }
+
+  .related-post-title {
+    padding: 10px 12px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .comments-section-wrap {
+    margin-top: 22px;
+    padding-top: 18px;
+  }
+
+  .comments-heading {
+    font-size: 17px;
+  }
+
+  .comment-item-card {
+    gap: 10px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .comment-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .comment-text-content {
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+
+  .comment-action-btn {
+    min-height: 40px;
+    padding: 6px 10px 6px 0;
+    font-size: 12.5px;
+  }
+
+  .add-comment-wrapper {
+    padding: 14px;
+    border-radius: 8px;
+  }
+
+  .comment-name-input,
+  .comment-textarea-input {
+    max-width: none;
+    font-size: 16px;               /* >=16px or iOS zooms the page when the field is focused */
+    border-radius: 8px;
+  }
+
+  .comment-name-input {
+    min-height: 46px;
+  }
+
+  .comment-textarea-input {
+    min-height: 112px;
+  }
+
+  .btn-submit-comment {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .comment-submit-row {
+    display: block;
+  }
+
+  .back-home-wrap .btn-read-full {
+    width: 100%;
+  }
+
+  /* ---- Footer ---------------------------------------------------------- */
+  .site-footer {
+    margin-top: 0;                    /* #content-wrapper already leaves 24px of breathing room */
+    padding: 22px 0 calc(22px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .footer-inner-flex {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .footer-copy {
+    line-height: 1.6;
+  }
+
+  .footer-links-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .footer-links-row a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  /* ---- Modals become bottom sheets -------------------------------------- */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;           /* blur is expensive on budget phones */
+  }
+
+  .modal-card {
+    max-width: none;
+    width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    border-radius: 16px 16px 0 0;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .modal-overlay.active .modal-card {
+    animation: sheetUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .modal-header-bar {
+    min-height: 60px;
+    padding: 16px 6px 8px 16px;
+    gap: 8px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-header-bar::before {          /* grab handle: swipe the title bar down to close */
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 4px;
+    background: var(--meta-color);
+    opacity: 0.4;
+  }
+
+  .modal-title {
+    font-size: 14.5px;
+    line-height: 1.4;
+  }
+
+  .modal-body-pad {
+    padding: 14px var(--gutter) 20px;
+  }
+
+  .epaper-sheet {
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .epaper-name {
+    font-size: 22px;
+  }
+
+  .epaper-meta {
+    justify-content: center;
+    font-size: 11.5px;
+  }
+
+  .epaper-headline {
+    font-size: 15.5px;
+    line-height: 1.5;
+  }
+
+  .epaper-photo {
+    height: 140px;
+  }
+
+  .epaper-actions {
+    flex-direction: column;
+  }
+
+  .epaper-actions button {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    border-radius: 8px;
+  }
+
+  .video-details-pad .btn-read-full,
+  .video-details-pad .btn-listen-audio {
+    flex: 1 1 140px;
+  }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(36px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* Very old phone browsers without CSS aspect-ratio: keep the photo boxes from collapsing to 0px */
+@supports not (aspect-ratio: 1 / 1) {
+  .main-featured-media,
+  .single-post-media { min-height: 200px; }
+  .popular-card-large { min-height: 200px; }
+  .random-grid-thumb { min-height: 90px; }
+  .video-player-screen { min-height: 200px; }
+}
+
+
+/* ==========================================================================
+   E2. FOLLOW US WIDGET  (phones + tablets)
+   Brand-coloured cards with an icon badge and a one-line call to action.
+   app.js places this widget right under "Labels" on these layouts; on desktop it
+   stays in the right column and keeps the original plain buttons (style.css).
+   ========================================================================== */
+@media (max-width: 980px) {
+  .follow-intro {
+    display: block;
+    margin: -4px 0 14px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--meta-color);
+  }
+
+  .widget-follow .social-icons-grid {
+    gap: 10px;
+  }
+
+  .follow-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 64px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    color: #ffffff;
+    box-shadow: 0 8px 16px -8px var(--follow-glow, rgba(0, 0, 0, 0.45));
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* soft light disc in the corner = depth without a heavy gradient */
+  .follow-card::after {
+    content: "";
+    position: absolute;
+    top: -28px;
+    right: -24px;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.13);
+    pointer-events: none;
+  }
+
+  /* deeper tone on the text side (white text stays readable), brand colour on the far side */
+  .follow-card.fb { background: linear-gradient(135deg, #2b4a8a 0%, #4267b2 100%); --follow-glow: rgba(43, 74, 138, 0.75); }
+  .follow-card.tw { background: linear-gradient(135deg, #1479c4 0%, #1da1f2 100%); --follow-glow: rgba(20, 121, 196, 0.75); }
+  .follow-card.yt { background: linear-gradient(135deg, #b50e0e 0%, #e62d2d 100%); --follow-glow: rgba(181, 14, 14, 0.75); }
+  .follow-card.wa { background: linear-gradient(135deg, #0f8a6e 0%, #25d366 100%); --follow-glow: rgba(15, 138, 110, 0.75); }
+
+  .follow-ic {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 18px;
+  }
+
+  .follow-txt {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    line-height: 1.25;
+  }
+
+  .follow-name {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .follow-sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* tablets / landscape phones: the full-width widget shows all four cards in one row */
+@media (min-width: 601px) and (max-width: 980px) {
+  #widget-follow .social-icons-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* small phones: slightly tighter cards so "WhatsApp" never gets clipped */
+@media (max-width: 360px) {
+  .follow-card {
+    gap: 10px;
+    min-height: 60px;
+    padding: 10px 12px;
+  }
+
+  .follow-ic {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .follow-name {
+    font-size: 14px;
+  }
+}
+
+
+/* ==========================================================================
+   E3. VIEWS ON PHONES / TABLETS
+   Home "News" section · Weekly publication section · weekly issue page · PDF reader
+   ========================================================================== */
+@media (max-width: 980px) {
+  /* the blue badge on the photo already says "नवीनतम अंक" on these layouts */
+  .main-featured-media .latest-ribbon {
+    display: none;
+  }
+
+  .weekly-latest {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .weekly-latest-cover,
+  .issue-pdf-cover {
+    aspect-ratio: 16 / 9;
+  }
+
+  .issue-pdf-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .issue-pdf-actions,
+  .weekly-latest-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .issue-pdf-actions > *,
+  .weekly-latest-actions > * {
+    flex: 1 1 170px;
+    justify-content: center;
+  }
+
+  .news-featured {
+    height: 270px;
+  }
+
+  .weekly-search-input-wrap {
+    min-width: 0;
+  }
+
+  .weekly-search-input-wrap input {
+    min-height: 44px;
+    font-size: 16px;                 /* >=16px: iOS does not zoom the page on focus */
+    border-radius: 8px;
+  }
+
+  .modal-card--reader {
+    height: min(92vh, 940px);
+    height: min(92dvh, 940px);
+  }
+}
+
+@media (max-width: 600px) {
+  /* ---- Home: News section ---- */
+  .news-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .news-pills {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .news-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .news-pill {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 18px;
+    font-size: 14px;
+  }
+
+  .news-featured {
+    height: auto;
+    aspect-ratio: 16 / 10;
+    margin: 8px calc(var(--pad-r) * -1) 6px calc(var(--pad-l) * -1);
+    border-radius: 0;
+  }
+
+  .news-featured .popular-card-overlay {
+    padding: 14px var(--pad-l);
+  }
+
+  .news-featured .popular-card-title {
+    font-size: 18px;
+  }
+
+  .btn-xapify-pdf {
+    min-height: 44px;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  /* ---- Weekly publication section ---- */
+  .weekly-section-head {
+    margin: 0 calc(var(--pad-r) * -1) 16px calc(var(--pad-l) * -1);
+    padding: 18px var(--pad-l);
+    border-radius: 0;
+  }
+
+  .weekly-section-title {
+    font-size: 26px;
+  }
+
+  .weekly-latest {
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .weekly-latest-cover {
+    aspect-ratio: 16 / 10;
+    margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-l) * -1);
+    border-radius: 0;
+  }
+
+  .weekly-latest-title {
+    font-size: 18px;
+  }
+
+  .weekly-latest-actions,
+  .issue-pdf-actions {
+    flex-direction: column;
+  }
+
+  .weekly-latest-actions .btn-pdf-read,
+  .weekly-latest-actions .btn-card-read,
+  .weekly-latest-actions .btn-pdf-dl,
+  .issue-pdf-actions > * {
+    flex: 0 0 auto;   /* stacked: let the buttons keep their own height */
+  }
+
+  /* issue titles are long ("लोकमंगल साप्ताहिक विशेषांक (अंक ४२): '...'") — give the strip cards room for 3 lines */
+  .related-post-title {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .btn-pdf-read,
+  .btn-pdf-dl,
+  .btn-pdf-open {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  .weekly-card-actions {
+    gap: 10px;
+  }
+
+  .btn-card-read,
+  .btn-card-pdf {
+    min-height: 40px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .weekly-search-filter-bar {
+    gap: 8px;
+  }
+
+  /* ---- One weekly issue ---- */
+  .issue-pdf-card {
+    gap: 12px;
+    margin: 0 calc(var(--pad-r) * -1) 18px calc(var(--pad-l) * -1);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .issue-pdf-cover {
+    aspect-ratio: 16 / 10;
+    border-radius: 0;
+  }
+
+  .issue-pdf-info {
+    padding: 0 var(--pad-l);
+  }
+
+  .issue-all-link .btn-archive-pill {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+  }
+
+  .back-home-wrap {
+    flex-direction: column;
+  }
+
+  .back-home-wrap > button {
+    width: 100%;
+  }
+
+  /* ---- PDF reader: a full-height sheet ---- */
+  .modal-card--reader {
+    height: 94vh;
+    height: 94dvh;
+    max-height: none;
+  }
+
+  .reader-body {
+    padding: 8px;
+  }
+
+  .reader-status {
+    min-height: 46vh;
+  }
+
+  .reader-footer {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .btn-reader {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+}
+
+
+/* ==========================================================================
+   F. SMALL PHONES
+   ========================================================================== */
+@media (max-width: 400px) {
+  :root {
+    --gutter: 12px;
+  }
+
+  .brand-logo {
+    font-size: 21px;
+  }
+
+  .chip {
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .secondary-post-item {
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 12px;
+  }
+
+  .secondary-post-thumb {
+    width: 92px;
+    height: 70px;
+  }
+
+  .popular-sub-thumb {
+    width: 80px;
+    height: 60px;
+  }
+
+  .related-post-card {
+    flex-basis: 80%;
+  }
+}
+
+@media (max-width: 340px) {
+  :root {
+    --gutter: 10px;
+  }
+
+  .mobile-menu-toggle,
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-logo {
+    gap: 6px;
+    font-size: 19px;
+  }
+
+  .brand-logo img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .article-action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .label-list {
+    grid-template-columns: 1fr;
+  }
+
+  /* very narrow screens: photo on top, headline underneath (a 190px text column would chop headlines) */
+  .secondary-post-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .secondary-post-thumb {
+    order: 0;
+    position: relative;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .secondary-post-thumb img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    inset: 0;
+  }
+
+  .secondary-post-details {
+    order: 1;
+  }
+
+  .related-post-card {
+    flex-basis: 86%;
+  }
+}
+
+@media (max-width: 300px) {
+  .random-posts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .social-icons-grid,
+  .single-share-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .single-share-bar .share-label {
+    grid-column: auto;
+  }
+
+  .popular-sub-thumb {
+    width: 72px;
+    height: 54px;
+  }
+}
+
+
+/* ==========================================================================
+   G. PHONES IN LANDSCAPE  — give the short screen its height back
+   ========================================================================== */
+@media (max-width: 980px) and (max-height: 520px) and (orientation: landscape) {
+  .main-header {
+    position: relative;               /* a sticky bar would eat ~15% of the screen */
+  }
+
+  .main-featured-media,
+  .single-post-media {
+    max-height: 62vh;                 /* a 16:9 photo at landscape width would be taller than the screen */
+  }
+
+  .modal-overlay {
+    padding: 8px max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-card {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .video-player-screen {
+    max-height: 48vh;
+  }
+}
