@@ -48,99 +48,101 @@
 <body>
 
   <!-- ==========================================================================
-       1. STREAMLINED UNIFIED HEADER (Matching Screenshot Exactly)
+       1. STREAMLINED UNIFIED HEADER (Sticky Auto-Hide/Show Wrapper)
        ☰  लोकमंगल.    Home  Weekly publication  News ˅  Blogs       🌙  🔍
        ========================================================================== -->
-  <header class="main-header">
-    <div class="container header-container">
+  <div class="site-header-wrapper" id="site-header-wrapper">
+    <header class="main-header">
+      <div class="container header-container">
 
-      <!-- Left: Hamburger + Brand Logo -->
-      <div class="header-left">
-        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="मेनू उघडा" aria-controls="mobile-drawer"
-          aria-expanded="false">
-          <i class="fa-solid fa-bars"></i>
-        </button>
+        <!-- Left: Hamburger + Brand Logo -->
+        <div class="header-left">
+          <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="मेनू उघडा" aria-controls="mobile-drawer"
+            aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+          </button>
 
-        <a href="javascript:void(0)" class="brand-logo" onclick="setCategoryFilter('all')" title="लोकमंगल वृत्तांत">
-          <img src="assets/logo.png" alt="लोकमंगल वृत्तांत" class="brand-logo-img" />
-        </a>
-      </div>
-
-      <!-- Center: Navigation Menu -->
-      <nav class="header-nav">
-        <!-- 1. Home -->
-        <div class="nav-item active" data-nav="home">
-          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
-        </div>
-
-        <!-- 2. Weekly publication -->
-        <div class="nav-item" data-nav="weekly">
-          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
-            Weekly publication
+          <a href="javascript:void(0)" class="brand-logo" onclick="setCategoryFilter('all')" title="लोकमंगल वृत्तांत">
+            <img src="assets/logo.png" alt="लोकमंगल वृत्तांत" class="brand-logo-img" />
           </a>
         </div>
 
-        <!-- 3. News (Dropdown containing Samajik and Rajkiy) -->
-        <div class="nav-item has-dropdown" data-nav="news">
-          <a href="javascript:void(0)" class="nav-link">
-            News <i class="fa-solid fa-chevron-down dropdown-caret"></i>
-          </a>
-          <div class="dropdown-menu">
-            <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('samajik')">
-              <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> Samajik (सामाजिक)
-              <span class="dropdown-badge">अपडेट्स</span>
-            </a>
-            <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
-              <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> Rajkiy (राजकीय)
-              <span class="dropdown-badge">विशेष</span>
+        <!-- Center: Navigation Menu -->
+        <nav class="header-nav">
+          <!-- 1. Home -->
+          <div class="nav-item active" data-nav="home">
+            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
+          </div>
+
+          <!-- 2. Weekly publication -->
+          <div class="nav-item" data-nav="weekly">
+            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
+              Weekly publication
             </a>
           </div>
+
+          <!-- 3. News (Dropdown containing Samajik and Rajkiy) -->
+          <div class="nav-item has-dropdown" data-nav="news">
+            <a href="javascript:void(0)" class="nav-link">
+              News <i class="fa-solid fa-chevron-down dropdown-caret"></i>
+            </a>
+            <div class="dropdown-menu">
+              <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('samajik')">
+                <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> Samajik (सामाजिक)
+                <span class="dropdown-badge">अपडेट्स</span>
+              </a>
+              <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
+                <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> Rajkiy (राजकीय)
+                <span class="dropdown-badge">विशेष</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- 4. Blogs -->
+          <div class="nav-item" data-nav="blogs">
+            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">Blogs</a>
+          </div>
+        </nav>
+
+        <!-- Right: Theme Switch + Search -->
+        <div class="header-right">
+          <button class="icon-btn" id="theme-toggle-btn" title="डार्क/लाईट मोड बदला" aria-label="Theme">
+            <i class="fa-regular fa-moon"></i>
+          </button>
+          <button class="icon-btn" id="search-toggle-btn" title="शोधा" aria-label="Search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
         </div>
 
-        <!-- 4. Blogs -->
-        <div class="nav-item" data-nav="blogs">
-          <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">Blogs</a>
+      </div>
+
+      <!-- Search Overlay Form -->
+      <div class="search-overlay-bar" id="search-overlay-bar">
+        <div class="container">
+          <form class="search-form-flex" id="search-form">
+            <input type="text" id="search-input" enterkeyhint="search" autocomplete="off"
+              placeholder="लोकमंगल पोर्टलवर बातम्या शोधा (उदा. राजकीय, सामाजिक, निवडणूक)..." />
+            <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> शोधा</button>
+          </form>
         </div>
-      </nav>
-
-      <!-- Right: Theme Switch + Search -->
-      <div class="header-right">
-        <button class="icon-btn" id="theme-toggle-btn" title="डार्क/लाईट मोड बदला" aria-label="Theme">
-          <i class="fa-regular fa-moon"></i>
-        </button>
-        <button class="icon-btn" id="search-toggle-btn" title="शोधा" aria-label="Search">
-          <i class="fa-solid fa-magnifying-glass"></i>
-        </button>
       </div>
+    </header>
 
-    </div>
-
-    <!-- Search Overlay Form -->
-    <div class="search-overlay-bar" id="search-overlay-bar">
-      <div class="container">
-        <form class="search-form-flex" id="search-form">
-          <input type="text" id="search-input" enterkeyhint="search" autocomplete="off"
-            placeholder="लोकमंगल पोर्टलवर बातम्या शोधा (उदा. राजकीय, सामाजिक, निवडणूक)..." />
-          <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> शोधा</button>
-        </form>
+    <!-- Category chips: the phone / tablet replacement for the desktop nav (hidden above 980px).
+         Swipe sideways; the active chip is kept in view by app.js -->
+    <nav class="mobile-chips" aria-label="विभाग">
+      <div class="mobile-chips-track" id="mobile-chips-track">
+        <button type="button" class="chip active" data-cat="all" aria-current="true"
+          onclick="setCategoryFilter('all')">होम</button>
+        <button type="button" class="chip" data-cat="weekly" onclick="setCategoryFilter('weekly')">साप्ताहिक
+          आवृत्ती</button>
+        <button type="button" class="chip" data-cat="samajik" onclick="setCategoryFilter('samajik')">सामाजिक</button>
+        <button type="button" class="chip" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</button>
+        <button type="button" class="chip" data-cat="blogs" onclick="setCategoryFilter('blogs')">ब्लॉग्स</button>
+        <button type="button" class="chip" data-cat="review" onclick="setCategoryFilter('review')">रिव्ह्यू</button>
       </div>
-    </div>
-  </header>
-
-  <!-- Category chips: the phone / tablet replacement for the desktop nav (hidden above 980px).
-       Swipe sideways; the active chip is kept in view by app.js -->
-  <nav class="mobile-chips" aria-label="विभाग">
-    <div class="mobile-chips-track" id="mobile-chips-track">
-      <button type="button" class="chip active" data-cat="all" aria-current="true"
-        onclick="setCategoryFilter('all')">होम</button>
-      <button type="button" class="chip" data-cat="weekly" onclick="setCategoryFilter('weekly')">साप्ताहिक
-        आवृत्ती</button>
-      <button type="button" class="chip" data-cat="samajik" onclick="setCategoryFilter('samajik')">सामाजिक</button>
-      <button type="button" class="chip" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</button>
-      <button type="button" class="chip" data-cat="blogs" onclick="setCategoryFilter('blogs')">ब्लॉग्स</button>
-      <button type="button" class="chip" data-cat="review" onclick="setCategoryFilter('review')">रिव्ह्यू</button>
-    </div>
-  </nav>
+    </nav>
+  </div>
 
   <!-- ==========================================================================
        2. THREE-COLUMN XAPIFY LAYOUT (Exact Alignment from Screenshot)
@@ -224,53 +226,48 @@
             <div class="breadcrumb-bar" id="main-breadcrumb">
               <a href="javascript:void(0)" onclick="returnToHomeFeed()">Home</a>
               <i class="fa-solid fa-chevron-right"></i>
-              <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">साप्ताहिक आवृत्ती</a>
+              <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
               <i class="fa-solid fa-chevron-right"></i>
-              <span id="breadcrumb-current-cat" class="crumb-current">नवीनतम अंक (Latest Issue)</span>
+              <span id="breadcrumb-current-cat" class="crumb-current">प्रमुख बातमी (Lead Story)</span>
             </div>
 
-            <!-- Big Headline (Matching Screenshot Typography) -->
-            <h1 class="main-post-headline" id="main-headline-text" onclick="openArticleModal(3)" style="cursor:pointer">
-              लोकमंगल साप्ताहिक विशेषांक (अंक ४२): 'महाराष्ट्राचा विकासाचा महामार्ग आणि नवी आव्हाने'
+            <!-- Big Headline -->
+            <h1 class="main-post-headline" id="main-headline-text" onclick="openArticlePage(1)" style="cursor:pointer">
+              सोलापूर दक्षिण विधानसभा निवडणूक: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय; ७७ हजारांहून अधिक मताधिक्याने विरोधकांचा पराभव
             </h1>
 
             <!-- Author Byline Bar -->
             <div class="author-meta-bar">
               <div class="author-info-left">
-                <div class="author-circle-avatar">संम</div>
+                <div class="author-circle-avatar">विरा</div>
                 <div class="author-byline-text">
-                  by <a href="javascript:void(0)">संपादकीय मंडळ</a> - <span id="main-article-date">१२ ऑक्टोबर
-                    २०२६</span>
+                  by <span class="author-name">विशेष राजकीय प्रतिनिधी</span> - <span id="main-article-date">१३ ऑक्टोबर २०२६</span>
                 </div>
               </div>
               <div class="author-meta-right">
-                <span><i class="fa-regular fa-comment"></i> ६ प्रतिक्रिया</span>
-                <span><i class="fa-regular fa-eye"></i> २२.५K वाचक</span>
+                <span><i class="fa-regular fa-comment"></i> १३ प्रतिक्रिया</span>
+                <span><i class="fa-regular fa-eye"></i> ३४.८K वाचक</span>
               </div>
             </div>
 
             <!-- Main Big Featured Image -->
-            <div class="main-featured-media" id="main-featured-img-wrap" onclick="openArticleModal(3)">
-              <img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80"
-                srcset="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=480&q=80 480w, https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80 800w, https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80 1200w"
-                sizes="(max-width: 980px) 100vw, 700px" alt="लोकमंगल साप्ताहिक विशेषांक अंक ४२" id="main-story-image"
+            <div class="main-featured-media" id="main-featured-img-wrap" onclick="openArticlePage(1)">
+              <img src="assets/images/bapu_portrait_lead.jpg"
+                alt="आमदार सुभाष बापू देशमुख विजय" id="main-story-image"
                 decoding="async" fetchpriority="high" />
-              <span class="category-tag-badge hero-badge">साप्ताहिक आवृत्ती</span>
+              <span class="category-tag-badge hero-badge">ताज्या घडामोडी • राजकीय</span>
             </div>
 
             <!-- Article Body Summary -->
             <div class="main-article-body" id="main-story-body">
-              <p><strong>साप्ताहिक आवृत्ती विशेष अहवाल:</strong> या आठवड्याच्या लोकमंगल साप्ताहिकात वाचा: उद्योग, शेती
-                आणि शिक्षण क्षेत्रातील आमूलाग्र बदल, विशेष स्तंभलेख आणि थेट लोकप्रतिनिधींशी संवाद. मोफत ई-पेपर डाऊनलोड
-                करा.</p>
-              <p>प्रिय वाचकांनो, या आठवड्याचा विशेष अंक आता डिजिटल स्वरूपात उपलब्ध झाला आहे. राज्याच्या आर्थिक, सामाजिक
-                आणि राजकीय स्थितीचा सखोल वेध घेणारे हे अंक वाचकांसाठी संग्राह्य ठरणार आहे.</p>
+              <p><strong>राजकीय विशेष अहवाल:</strong> सोलापूर दक्षिण विधानसभा मतदारसंघात महायुती व भारतीय जनता पक्षाचे उमेदवार आमदार सुभाष (बापू) देशमुख यांनी १,१६,९३२ मते मिळवत तब्बल ७७,१२७ मतांच्या विक्रमी फरकाने दणदणीत विजय संपादन केला.</p>
+              <p>सुभाष बापू देशमुख यांचा सोलापूर दक्षिण मतदारसंघातील हा सलग तिसरा विजय असून, त्यांच्या नेतृत्वावर जनतेने पुन्हा एकदा दृढ विश्वास व्यक्त केला आहे. निकालाची घोषणा होताच सोलापूर शहरात जल्लोष करण्यात आला.</p>
             </div>
 
-            <!-- Read More & Xapify Social Share Bar (Matching User Screenshot 2 & 3) -->
+            <!-- Read More & Xapify Social Share Bar -->
             <div class="home-post-footer-bar">
               <div class="footer-readmore-wrap">
-                <button class="btn-xapify-readmore" onclick="openArticleModal(3)">
+                <button class="btn-xapify-readmore" onclick="openArticlePage(1)">
                   Read More <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
@@ -478,11 +475,14 @@
       </div>
       <div class="reader-footer">
         <span class="reader-page-ind" id="reader-page-ind" aria-live="polite"></span>
+        <div class="reader-zoom" role="group" aria-label="झूम">
+          <button type="button" class="btn-reader icon" id="reader-zoom-out" onclick="readerZoomBy(-1)" aria-label="लहान करा" title="लहान करा (-)" disabled><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+          <span class="reader-zoom-val" id="reader-zoom-val" aria-live="polite">१००%</span>
+          <button type="button" class="btn-reader icon" id="reader-zoom-in" onclick="readerZoomBy(1)" aria-label="मोठे करा" title="मोठे करा (+)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+        </div>
         <div class="reader-actions">
-          <a class="btn-reader primary" id="reader-download" href="#" download><i class="fa-solid fa-download"></i>
-            डाउनलोड</a>
-          <a class="btn-reader" id="reader-open" href="#" target="_blank" rel="noopener"><i
-              class="fa-solid fa-up-right-from-square"></i> नवीन टॅब</a>
+          <a class="btn-reader primary" id="reader-download" href="#" download aria-label="PDF डाउनलोड करा"><i class="fa-solid fa-download"></i><span class="lbl"> डाउनलोड</span><span class="sz" id="reader-size"></span></a>
+          <a class="btn-reader" id="reader-open" href="#" target="_blank" rel="noopener" aria-label="PDF नवीन टॅबमध्ये उघडा"><i class="fa-solid fa-up-right-from-square"></i><span class="lbl"> नवीन टॅब</span></a>
         </div>
       </div>
     </div>
@@ -558,6 +558,7 @@
       <button type="button" class="drawer-nav-link" data-cat="review" onclick="setCategoryFilter('review')">
         <i class="fa-solid fa-star lead"></i><span>Reviews (रिव्ह्यू)</span>
       </button>
+
     </nav>
 
     <!-- Popular Items Section (Matching Image 2) -->

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>लोकमंगल न्यूज पोर्टल | Admin Dashboard (प्रशासकीय कक्ष)</title>
+  <link rel="icon" type="image/png" href="/assets/logo-icon.png">
+  <!-- Google Fonts: Inter & Noto Sans Devanagari for Marathi -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <style>
+    /* Immediate Layout & Tab Protection */
+    .admin-tab { display: none !important; }
+    .admin-tab.active { display: block !important; }
+    .admin-modal-backdrop { display: none !important; position: fixed; inset: 0; }
+    .admin-modal-backdrop.open { display: flex !important; }
+  </style>
+</head>
+<body class="admin-body">
+  <div class="admin-layout">
+    <!-- Left Navigation Sidebar -->
+    <aside class="admin-sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo-wrap">
+          <img src="/assets/logo-icon.png" alt="Lokmangal Logo" class="brand-icon">
+          <div class="brand-text">
+            <h3>लोकमंगल</h3>
+            <span class="brand-badge">ADMIN PANEL</span>
+          </div>
+        </div>
+        <button class="sidebar-toggle-btn" id="sidebar-collapse-btn" title="मेनू छोटा करा">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">मुख्य मेनू</div>
+        <a href="#dashboard" class="nav-item active" data-tab="tab-dashboard">
+          <i class="fa-solid fa-gauge-high"></i>
+          <span>डॅशबोर्ड (Dashboard)</span>
+        </a>
+        <a href="#articles" class="nav-item" data-tab="tab-articles">
+          <i class="fa-regular fa-newspaper"></i>
+          <span>बातम्या व्यवस्थापन (News)</span>
+          <span class="nav-badge" id="sidebar-articles-count">18</span>
+        </a>
+        <a href="#weekly" class="nav-item" data-tab="tab-weekly">
+          <i class="fa-regular fa-file-pdf"></i>
+          <span>साप्ताहिक ई-पेपर (Weekly PDF)</span>
+          <span class="nav-badge" id="sidebar-weekly-count">42</span>
+        </a>
+        <a href="#media" class="nav-item" data-tab="tab-media">
+          <i class="fa-regular fa-images"></i>
+          <span>मीडिया लायब्ररी (Media)</span>
+        </a>
+
+        <div class="nav-section-title">थेट पोर्टल</div>
+        <a href="/" target="_blank" class="nav-item nav-item-external">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          <span>थेट वेबसाईट पहा (Live Site)</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="server-status">
+          <span class="status-indicator-dot online"></span>
+          <div class="server-info">
+            <span class="server-name">Python Flask API</span>
+            <span class="server-port">Port 8000 • Active</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="admin-main">
+      <!-- Top Bar -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu-btn" id="mobile-menu-toggle">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="breadcrumb" id="topbar-breadcrumb">
+            <span class="crumb-parent">प्रशासकीय कक्ष</span>
+            <i class="fa-solid fa-chevron-right crumb-sep"></i>
+            <span class="crumb-active" id="breadcrumb-current">डॅशबोर्ड</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="topbar-date" id="topbar-date-display">
+            <i class="fa-regular fa-calendar-days"></i>
+            <span id="current-date-text">१३ ऑक्टोबर २०२६</span>
+          </div>
+
+          <button class="btn btn-outline" id="theme-toggle-btn" title="थीम बदला">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+
+          <button class="btn btn-primary" onclick="switchTab('tab-articles'); openNewArticleModal();">
+            <i class="fa-solid fa-plus"></i>
+            <span>नवीन बातमी</span>
+          </button>
+
+          <button class="btn btn-secondary" onclick="switchTab('tab-weekly'); openNewWeeklyModal();">
+            <i class="fa-solid fa-file-arrow-up"></i>
+            <span>PDF अपलोड</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <div class="admin-content-wrap">
+        <!-- ============================================== -->
+        <!-- TAB 1: DASHBOARD -->
+        <!-- ============================================== -->
+        <section class="admin-tab active" id="tab-dashboard">
+          <div class="dashboard-header">
+            <div>
+              <h1 class="page-title">लोकमंगल न्यूज पोर्टल — डॅशबोर्ड</h1>
+              <p class="page-subtitle">ताज्या बातम्या, साप्ताहिक ई-पेपर व आकडेवारीचे थेट नियंत्रण</p>
+            </div>
+            <button class="btn btn-refresh" onclick="refreshDashboardData()">
+              <i class="fa-solid fa-rotate"></i> रिफ्रेश करा
+            </button>
+          </div>
+
+          <!-- 4 Key Stat Cards -->
+          <div class="stats-grid">
+            <div class="stat-card" style="--accent-color: #d32f2f;">
+              <div class="stat-icon-wrap">
+                <i class="fa-solid fa-newspaper"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">एकूण बातम्या (Articles)</span>
+                <h2 class="stat-value" id="stat-total-articles">18</h2>
+                <span class="stat-hint"><i class="fa-solid fa-check"></i> सर्व श्रेणींमध्ये प्रकाशित</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="--accent-color: #e65100;">
+              <div class="stat-icon-wrap">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">साप्ताहिक PDF अंक (Weekly)</span>
+                <h2 class="stat-value" id="stat-total-weekly">42</h2>
+                <span class="stat-hint"><i class="fa-solid fa-download"></i> ई-पेपर संग्रह उपलब्ध</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="--accent-color: #1976d2;">
+              <div class="stat-icon-wrap">
+                <i class="fa-solid fa-landmark"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">राजकीय बातम्या (Rajkiy)</span>
+                <h2 class="stat-value" id="stat-total-rajkiy">8</h2>
+                <span class="stat-hint">आमदार सुभाष बापू देशमुख</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="--accent-color: #2e7d32;">
+              <div class="stat-icon-wrap">
+                <i class="fa-solid fa-hands-holding-child"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">सामाजिक बातम्या (Samajik)</span>
+                <h2 class="stat-value" id="stat-total-samajik">8</h2>
+                <span class="stat-hint">लोकमंगल फाऊंडेशन प्रकल्प</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section Placement Overview Banner -->
+          <div class="placement-stats-row">
+            <div class="placement-stat-card">
+              <div class="stat-badge gold"><i class="fa-solid fa-star"></i> प्रमुख बातमी (Lead Story)</div>
+              <div class="lead-active-info" id="dash-current-lead-title">लोड होत आहे...</div>
+            </div>
+            <div class="placement-stat-card">
+              <div class="stat-badge red"><i class="fa-solid fa-fire"></i> लोकप्रिय बातम्या (Popular Posts)</div>
+              <div class="placement-count"><strong id="stat-total-popular">3</strong> बातम्या निवडल्या आहेत</div>
+            </div>
+            <div class="placement-stat-card">
+              <div class="stat-badge green"><i class="fa-solid fa-shuffle"></i> यादृच्छिक बातम्या (Random Posts)</div>
+              <div class="placement-count"><strong id="stat-total-random">4</strong> बातम्या निवडल्या आहेत</div>
+            </div>
+          </div>
+
+          <!-- Dashboard Quick Split Tables -->
+          <div class="dash-columns">
+            <div class="dash-panel">
+              <div class="panel-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> नुकत्याच प्रकाशित बातम्या</h3>
+                <a href="#articles" onclick="switchTab('tab-articles')" class="panel-link">सर्व पहा &rarr;</a>
+              </div>
+              <div class="recent-list" id="dash-recent-articles">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <div class="dash-panel">
+              <div class="panel-header">
+                <h3><i class="fa-solid fa-book-open"></i> नुकतेच साप्ताहिक अंक</h3>
+                <a href="#weekly" onclick="switchTab('tab-weekly')" class="panel-link">सर्व पहा &rarr;</a>
+              </div>
+              <div class="recent-list" id="dash-recent-weekly">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: ARTICLES (NEWS) MANAGER -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-articles">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">बातम्या व्यवस्थापन (News Manager)</h2>
+              <div class="table-search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="article-search-input" placeholder="शीर्षक, प्रतिनिधी किंवा मजकूर शोधा..." oninput="handleArticleSearch()">
+              </div>
+              <div class="filter-dropdown-wrap">
+                <select id="article-category-filter" onchange="filterArticlesByCategory()">
+                  <option value="all">सर्व श्रेणी (All Categories)</option>
+                  <option value="rajkiy">राजकीय (Rajkiy)</option>
+                  <option value="samajik">सामाजिक (Samajik)</option>
+                  <option value="blogs">ब्लॉग्स (Blogs)</option>
+                  <option value="reviews">परीक्षण (Reviews)</option>
+                </select>
+              </div>
+              <div class="filter-dropdown-wrap">
+                <select id="article-placement-filter" onchange="filterArticlesByPlacement()">
+                  <option value="all">सर्व विभाग स्थान (All Placements)</option>
+                  <option value="lead">⭐ मुख्य बातमी (Lead Story)</option>
+                  <option value="popular">🔥 लोकप्रिय (Popular Posts)</option>
+                  <option value="random">🎲 यादृच्छिक (Random Posts)</option>
+                </select>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn btn-primary" onclick="openNewArticleModal()">
+                <i class="fa-solid fa-plus"></i> नवीन बातमी जोडा
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="articles-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th style="width: 80px;">फोटो</th>
+                    <th>शीर्षक (Headline)</th>
+                    <th style="width: 110px;">श्रेणी</th>
+                    <th style="width: 190px;">विभाग स्थान (Section Placements)</th>
+                    <th style="width: 120px;">तारीख</th>
+                    <th style="width: 80px;">वाचक</th>
+                    <th style="width: 130px; text-align: center;">कृती (Actions)</th>
+                  </tr>
+                </thead>
+                <tbody id="articles-table-body">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: WEEKLY E-PAPER / PDF MANAGER -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-weekly">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">साप्ताहिक ई-पेपर व PDF व्यवस्थापन</h2>
+              <p class="tab-desc">लोकमंगल साप्ताहिक अंकांचे मुखपृष्ठ, तारीख, तपशील आणि थेट PDF फाईल्स अपलोड करा.</p>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn btn-primary" onclick="openNewWeeklyModal()">
+                <i class="fa-solid fa-file-arrow-up"></i> नवीन अंक अपलोड करा
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="weekly-table">
+                <thead>
+                  <tr>
+                    <th style="width: 70px;">अंक क्र.</th>
+                    <th style="width: 90px;">कव्हर</th>
+                    <th>अंकाचे नाव व शीर्षक</th>
+                    <th style="width: 130px;">प्रकाशन तारीख</th>
+                    <th style="width: 140px;">PDF फाईल</th>
+                    <th style="width: 90px;">वाचक</th>
+                    <th style="width: 120px; text-align: center;">कृती</th>
+                  </tr>
+                </thead>
+                <tbody id="weekly-table-body">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: MEDIA LIBRARY -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-media">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">मीडिया लायब्ररी (Media Files)</h2>
+              <p class="tab-desc">पोर्टलवरील सर्व फोटो व PDF दस्तऐवज संग्रह.</p>
+            </div>
+            <div class="toolbar-right">
+              <input type="file" id="media-quick-upload-input" accept="image/*,application/pdf" style="display:none;" onchange="handleMediaQuickUpload(this)">
+              <button class="btn btn-primary" onclick="document.getElementById('media-quick-upload-input').click()">
+                <i class="fa-solid fa-cloud-arrow-up"></i> थेट फाईल अपलोड करा
+              </button>
+            </div>
+          </div>
+
+          <div class="media-tabs-nav">
+            <button class="media-tab-btn active" id="btn-show-images" onclick="toggleMediaTab('images')">
+              <i class="fa-regular fa-image"></i> फोटो संग्रह (<span id="media-images-count">0</span>)
+            </button>
+            <button class="media-tab-btn" id="btn-show-pdfs" onclick="toggleMediaTab('pdfs')">
+              <i class="fa-regular fa-file-pdf"></i> PDF दस्तऐवज (<span id="media-pdfs-count">0</span>)
+            </button>
+          </div>
+
+          <div class="media-grid" id="media-images-grid">
+            <!-- Injected via JS -->
+          </div>
+
+          <div class="media-grid" id="media-pdfs-grid" style="display: none;">
+            <!-- Injected via JS -->
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ADD / EDIT ARTICLE -->
+  <!-- ========================================================= -->
+  <div class="admin-modal-backdrop" id="article-modal">
+    <div class="admin-modal modal-large">
+      <div class="modal-header">
+        <h3 id="article-modal-title"><i class="fa-solid fa-pen-to-square"></i> नवीन बातमी तयार करा</h3>
+        <button class="modal-close-btn" onclick="closeArticleModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="article-form" onsubmit="handleArticleFormSubmit(event)">
+          <input type="hidden" id="form-article-id">
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="form-article-title">बातमीचे मुख्य शीर्षक (Headline) <span class="req">*</span></label>
+              <input type="text" id="form-article-title" required placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control">
+            </div>
+            <div class="form-group flex-1">
+              <label for="form-article-category">बातमीची श्रेणी (Category) <span class="req">*</span></label>
+              <select id="form-article-category" required class="form-control" onchange="autoSetCategoryLabel()">
+                <option value="rajkiy">राजकीय (आमदार सुभाष बापू देशमुख)</option>
+                <option value="samajik">सामाजिक (लोकमंगल प्रकल्प)</option>
+                <option value="blogs">ब्लॉग्स (विचारमंथन)</option>
+                <option value="reviews">परीक्षण (साहित्य/कला)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Website Section Placements Selection -->
+          <div class="form-group placement-box-group">
+            <label class="form-group-title"><i class="fa-solid fa-layer-group"></i> पोर्टलवरील स्थान व विभाग व्यवस्थापन (Section Placements)</label>
+            <div class="placement-cards-grid">
+              <label class="placement-card" for="form-article-is-lead">
+                <input type="checkbox" id="form-article-is-lead">
+                <div class="placement-card-content">
+                  <div class="placement-card-head">
+                    <span class="badge-icon gold"><i class="fa-solid fa-star"></i></span>
+                    <strong>मुख्य प्रमुख बातमी (Lead Story)</strong>
+                  </div>
+                  <p>होम पेजच्या सर्वात वर ठळक मुख्य बातमी म्हणून दिसेल.</p>
+                </div>
+              </label>
+
+              <label class="placement-card" for="form-article-is-popular">
+                <input type="checkbox" id="form-article-is-popular">
+                <div class="placement-card-content">
+                  <div class="placement-card-head">
+                    <span class="badge-icon red"><i class="fa-solid fa-fire"></i></span>
+                    <strong>लोकप्रिय बातम्या (Popular Posts)</strong>
+                  </div>
+                  <p>डाव्या बाजूच्या 'लोकप्रिय बातम्या' विजेटमध्ये दिसेल.</p>
+                </div>
+              </label>
+
+              <label class="placement-card" for="form-article-is-random">
+                <input type="checkbox" id="form-article-is-random">
+                <div class="placement-card-content">
+                  <div class="placement-card-head">
+                    <span class="badge-icon green"><i class="fa-solid fa-shuffle"></i></span>
+                    <strong>यादृच्छिक बातम्या (Random Posts)</strong>
+                  </div>
+                  <p>उजव्या बाजूच्या 2x2 यादृच्छिक ग्रीडमध्ये दिसेल.</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-article-author">बातमीदार / प्रतिनिधी <span class="req">*</span></label>
+              <input type="text" id="form-article-author" value="विशेष प्रतिनिधी" required class="form-control">
+            </div>
+            <div class="form-group flex-1">
+              <label for="form-article-date">प्रकाशन तारीख <span class="req">*</span></label>
+              <input type="text" id="form-article-date" required class="form-control" placeholder="उदा. १३ ऑक्टोबर २०२६">
+            </div>
+            <div class="form-group flex-1">
+              <label for="form-article-views">वाचक संख्या (Views)</label>
+              <input type="text" id="form-article-views" value="1.5K" class="form-control">
+            </div>
+          </div>
+
+          <!-- Image Upload & URL Selection -->
+          <div class="form-group">
+            <label>बातमीचा फोटो (Image) <span class="req">*</span></label>
+            <div class="image-uploader-box">
+              <div class="uploader-preview-wrap" id="article-img-preview-wrap">
+                <img src="../assets/images/bapu_portrait_lead.jpg" id="article-img-preview" alt="Preview">
+              </div>
+              <div class="uploader-inputs-wrap">
+                <div class="file-drop-area" onclick="document.getElementById('article-file-input').click()">
+                  <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                  <span>संगणकातून फोटो निवडा (Upload Image)</span>
+                  <small>JPG, PNG, WebP सपोर्टेड</small>
+                </div>
+                <input type="file" id="article-file-input" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(this)">
+                
+                <div class="url-divider">किंवा थेट URL / मार्ग टाका:</div>
+                <input type="text" id="form-article-image" class="form-control" placeholder="assets/images/... किंवा https://..." oninput="updateArticleImgPreview(this.value)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Excerpt -->
+          <div class="form-group">
+            <label for="form-article-excerpt">थोडक्यात सारांश (Excerpt / Lead Summary) <span class="req">*</span></label>
+            <textarea id="form-article-excerpt" rows="2" class="form-control" required placeholder="बातमीचा संक्षिप्त सारांश जो मुख्य पानावर दिसेल..."></textarea>
+          </div>
+
+          <!-- Content with Rich Helpers -->
+          <div class="form-group">
+            <div class="editor-header">
+              <label for="form-article-content">सविस्तर बातमी मजकूर (Full Content / HTML) <span class="req">*</span></label>
+              <div class="editor-toolbar">
+                <button type="button" class="btn-tool" onclick="insertContentTag('p')" title="परिच्छेद (Paragraph)">&lt;p&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('strong')" title="ठळक (Bold)">&lt;b&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('h4')" title="उपशीर्षक (Subheading)">&lt;h4&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('blockquote')" title="उद्धरण (Quote)">&lt;quote&gt;</button>
+              </div>
+            </div>
+            <textarea id="form-article-content" rows="6" class="form-control font-code" required placeholder="<p><strong>सोलापूर:</strong> बातमीचा सविस्तर मजकूर येथे लिहा...</p>"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeArticleModal()">रद्द करा</button>
+            <button type="button" class="btn btn-secondary" onclick="previewArticleBeforeSubmit()">
+              <i class="fa-regular fa-eye"></i> पूर्वावलोकन (Preview)
+            </button>
+            <button type="submit" class="btn btn-primary" id="btn-save-article">
+              <i class="fa-solid fa-check"></i> बातमी प्रकाशित करा
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ADD / UPLOAD WEEKLY PDF -->
+  <!-- ========================================================= -->
+  <div class="admin-modal-backdrop" id="weekly-modal">
+    <div class="admin-modal">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड</h3>
+        <button class="modal-close-btn" onclick="closeWeeklyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="weekly-form" onsubmit="handleWeeklyFormSubmit(event)">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="form-weekly-no">अंक क्रमांक (Issue No.) <span class="req">*</span></label>
+              <input type="number" id="form-weekly-no" required min="1" max="999" class="form-control" placeholder="उदा. ४३">
+            </div>
+            <div class="form-group flex-2">
+              <label for="form-weekly-date">प्रकाशन तारीख <span class="req">*</span></label>
+              <input type="text" id="form-weekly-date" required class="form-control" placeholder="उदा. २० ऑक्टोबर २०२६">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-weekly-title">अंकाचे शीर्षक / विशेषांक नाव <span class="req">*</span></label>
+            <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. लोकमंगल साप्ताहिक विशेषांक (अंक ४३): '...' ">
+          </div>
+
+          <!-- PDF Upload Field -->
+          <div class="form-group">
+            <label>PDF ई-पेपर फाईल <span class="req">*</span></label>
+            <div class="file-drop-area pdf-drop-area" onclick="document.getElementById('weekly-pdf-file-input').click()">
+              <i class="fa-solid fa-file-pdf drop-icon"></i>
+              <span id="weekly-pdf-filename-display">PDF फाईल निवडा किंवा ड्रॅग करा (Upload PDF)</span>
+              <small>कमाल मर्यादा ५० MB • आपोआप assets/pdf/ मध्ये जतन होईल</small>
+            </div>
+            <input type="file" id="weekly-pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleWeeklyPdfUpload(this)">
+            <input type="hidden" id="form-weekly-pdffilename">
+          </div>
+
+          <!-- Cover Image Upload -->
+          <div class="form-group">
+            <label>मुखपृष्ठ फोटो (Cover Image)</label>
+            <div class="uploader-inputs-wrap">
+              <input type="file" id="weekly-img-file-input" accept="image/*" style="display:none;" onchange="handleWeeklyCoverUpload(this)">
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="form-weekly-image" class="form-control" placeholder="assets/images/... किंवा थेट URL">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('weekly-img-file-input').click()">
+                  <i class="fa-solid fa-upload"></i> फोटो निवडा
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-weekly-desc">अंकाचा थोडक्यात परिचय / वर्णन</label>
+            <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="या अंकामधील विशेष लेख, स्तंभ आणि मुलाखतींचा सारांश..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeWeeklyModal()">रद्द करा</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-weekly">
+              <i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ARTICLE PREVIEW -->
+  <!-- ========================================================= -->
+  <div class="admin-modal-backdrop" id="preview-modal">
+    <div class="admin-modal modal-large">
+      <div class="modal-header">
+        <h3><i class="fa-regular fa-eye"></i> बातमी पूर्वावलोकन (Live Preview)</h3>
+        <button class="modal-close-btn" onclick="closePreviewModal()">&times;</button>
+      </div>
+      <div class="modal-body preview-modal-body">
+        <div class="preview-article-header">
+          <span class="preview-badge" id="prev-badge">राजकीय</span>
+          <h2 class="preview-title" id="prev-title">बातमी शीर्षक</h2>
+          <div class="preview-byline">
+            by <span id="prev-author">प्रतिनिधी</span> • <span id="prev-date">तारीख</span> • <span id="prev-views">वाचक</span>
+          </div>
+        </div>
+        <div class="preview-image-wrap">
+          <img src="" id="prev-img" alt="Preview Image">
+        </div>
+        <div class="preview-content" id="prev-content">
+          <!-- Injected -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closePreviewModal()">बंद करा</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Admin JS Engine -->
+  <script src="/admin/admin.js"></script>
+</body>
+</html>
