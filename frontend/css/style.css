@@ -3167,6 +3167,20 @@ html.is-dark .reader-progress {
   to   { transform: translateX(290%); }
 }
 
+.reader-slow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--meta-color);
+}
+
+.reader-slow[hidden] {
+  display: none;
+}
+
 .reader-fallback {
   display: flex;
   flex-wrap: wrap;

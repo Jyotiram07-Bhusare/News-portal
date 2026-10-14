@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.pyc
 
+# Half-finished uploads (the backend writes name.pdf.part first, then renames it)
+*.part
+
 # Environment & IDE
 .env
 .venv/

@@ -15,6 +15,10 @@ let appState = {
   editingArticleId: null
 };
 
+// Where the Python backend lives (js/config.js). "" = same address as this page.
+const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
+const apiFetch = (path, options) => fetch(API_BASE + path, options);
+
 // URL Helpers for consistent assets
 function formatAssetUrl(url) {
   if (!url) return '/assets/images/lokmangal_what_we_do.jpg';
@@ -187,8 +191,32 @@ function initDateDisplay() {
 // -------------------------------------------------------------
 // Data Fetching: REST API Calls
 // -------------------------------------------------------------
+// Sidebar footer: the real state of the backend (address + MySQL), asked from /api/health
+async function checkServerStatus() {
+  const dot = document.getElementById('server-status-dot');
+  const text = document.getElementById('server-status-text');
+  const box = document.getElementById('server-status');
+  if (!dot || !text) return;
+  let where = window.location.host;
+  try { if (API_BASE) where = new URL(API_BASE).host; } catch (e) { /* keep the page's own address */ }
+  const show = (state, label, tip) => {
+    dot.className = 'status-indicator-dot ' + state;
+    text.textContent = `${where} • ${label}`;
+    if (box) box.title = tip || '';
+  };
+  try {
+    const res = await apiFetch('/api/health');
+    const data = await res.json();
+    if (res.ok && data.success) show('online', 'सुरू', 'MySQL database: ' + data.database);
+    else show('offline', 'MySQL बंद', data.error || '');
+  } catch (err) {
+    show('offline', 'बंद (बॅकएंड चालू नाही)', String(err));
+  }
+}
+
 async function loadAllData() {
   await Promise.all([
+    checkServerStatus(),
     fetchStats(),
     fetchArticles(),
     fetchWeekly()
@@ -203,7 +231,7 @@ async function refreshDashboardData() {
 
 async function fetchStats() {
   try {
-    const res = await fetch('/api/stats');
+    const res = await apiFetch('/api/stats');
     const data = await res.json();
     if (data.success) {
       appState.stats = data.stats;
@@ -216,7 +244,7 @@ async function fetchStats() {
 
 async function fetchArticles() {
   try {
-    const res = await fetch('/api/articles');
+    const res = await apiFetch('/api/articles');
     const data = await res.json();
     if (data.success) {
       appState.articles = data.articles;
@@ -231,7 +259,7 @@ async function fetchArticles() {
 
 async function fetchWeekly() {
   try {
-    const res = await fetch('/api/weekly');
+    const res = await apiFetch('/api/weekly');
     const data = await res.json();
     if (data.success) {
       appState.weekly = data.issues;
@@ -452,7 +480,7 @@ function filterArticlesByPlacement() {
 
 async function toggleArticlePlacement(articleId, field) {
   try {
-    const res = await fetch(`/api/articles/${articleId}/toggle-placement`, {
+    const res = await apiFetch(`/api/articles/${articleId}/toggle-placement`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ field })
@@ -552,7 +580,7 @@ async function handleArticleImageUpload(input) {
   showToast('फोटो अपलोड होत आहे...', 'info');
 
   try {
-    const res = await fetch('/api/upload/image', {
+    const res = await apiFetch('/api/upload/image', {
       method: 'POST',
       body: formData
     });
@@ -601,6 +629,16 @@ function insertContentTag(tag) {
   textarea.setSelectionRange(start + openTag.length, start + openTag.length + selected.length);
 }
 
+// The content box takes HTML. If the editor typed plain text (no tags at all), turn it into paragraphs so the website
+// does not show it as one block: a blank line starts a new paragraph, a single line break becomes <br>.
+// Text that already contains HTML tags is kept exactly as typed.
+function plainTextToParagraphs(text) {
+  if (!text || /<[a-z!\/][^>]*>/i.test(text)) return text;
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return text.split(/\r?\n\s*\r?\n/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p>${esc(p).replace(/\r?\n/g, '<br>')}</p>`).join('\n');
+}
+
 // Form Submit: Create or Update Article
 async function handleArticleFormSubmit(e) {
   e.preventDefault();
@@ -612,7 +650,7 @@ async function handleArticleFormSubmit(e) {
   const views = document.getElementById('form-article-views').value.trim() || '1.5K';
   const image = document.getElementById('form-article-image').value.trim() || 'assets/images/lokmangal_what_we_do.jpg';
   const excerpt = document.getElementById('form-article-excerpt').value.trim();
-  const content = document.getElementById('form-article-content').value.trim();
+  const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim());
 
   // Placement checkbox states
   const is_lead = document.getElementById('form-article-is-lead')?.checked ? 1 : 0;
@@ -623,7 +661,7 @@ async function handleArticleFormSubmit(e) {
     rajkiy: 'राजकीय',
     samajik: 'सामाजिक',
     blogs: 'ब्लॉग्स',
-    reviews: 'परीक्षण'
+    review: 'रिव्ह्यू'          // the website calls this section "review" (#cat-review) - same word here
   };
 
   const payload = {
@@ -648,13 +686,13 @@ async function handleArticleFormSubmit(e) {
   try {
     let res;
     if (appState.editingArticleId) {
-      res = await fetch(`/api/articles/${appState.editingArticleId}`, {
+      res = await apiFetch(`/api/articles/${appState.editingArticleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
     } else {
-      res = await fetch('/api/articles', {
+      res = await apiFetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -688,7 +726,7 @@ async function confirmDeleteArticle(articleId, title) {
   showToast('बातमी हटवत आहे...', 'info');
 
   try {
-    const res = await fetch(`/api/articles/${articleId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/articles/${articleId}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
       showToast('बातमी यशस्वीरीत्या हटवली!', 'success');
@@ -729,7 +767,7 @@ function previewArticleBeforeSubmit() {
   const author = document.getElementById('form-article-author').value.trim() || 'प्रतिनिधी';
   const date = document.getElementById('form-article-date').value.trim() || 'आज';
   const image = document.getElementById('form-article-image').value.trim() || 'assets/images/bapu_portrait_lead.jpg';
-  const content = document.getElementById('form-article-content').value.trim() || '<p>बातमी मजकूर...</p>';
+  const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim()) || '<p>बातमी मजकूर...</p>';
 
   document.getElementById('prev-badge').textContent = cat;
   document.getElementById('prev-title').textContent = title;
@@ -828,7 +866,7 @@ async function handleWeeklyPdfUpload(input) {
   showToast('PDF फाईल अपलोड होत आहे...', 'info');
 
   try {
-    const res = await fetch('/api/upload/pdf', {
+    const res = await apiFetch('/api/upload/pdf', {
       method: 'POST',
       body: formData
     });
@@ -853,7 +891,7 @@ async function handleWeeklyCoverUpload(input) {
   formData.append('file', input.files[0]);
 
   try {
-    const res = await fetch('/api/upload/image', { method: 'POST', body: formData });
+    const res = await apiFetch('/api/upload/image', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
       document.getElementById('form-weekly-image').value = data.url;
@@ -890,7 +928,7 @@ async function handleWeeklyFormSubmit(e) {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> अपलोड होत आहे...';
 
   try {
-    const res = await fetch('/api/weekly', {
+    const res = await apiFetch('/api/weekly', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -918,7 +956,7 @@ async function confirmDeleteWeekly(issueNo) {
   if (!confirm(`तुम्हाला खात्री आहे की अंक ${issueNo} हटवायचा आहे?`)) return;
 
   try {
-    const res = await fetch(`/api/weekly/${issueNo}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/weekly/${issueNo}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
       showToast(`अंक ${issueNo} हटवला!`, 'success');
@@ -935,7 +973,7 @@ async function confirmDeleteWeekly(issueNo) {
 // -------------------------------------------------------------
 async function loadMediaData() {
   try {
-    const res = await fetch('/api/media');
+    const res = await apiFetch('/api/media');
     const data = await res.json();
     if (data.success) {
       renderMedia(data.images, data.pdfs);
@@ -1026,7 +1064,7 @@ async function handleMediaQuickUpload(input) {
   showToast('फाईल अपलोड होत आहे...', 'info');
 
   try {
-    const res = await fetch(endpoint, { method: 'POST', body: formData });
+    const res = await apiFetch(endpoint, { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
       showToast('फाईल यशस्वीरीत्या अपलोड झाली!', 'success');

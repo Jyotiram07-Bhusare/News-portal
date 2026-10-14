@@ -450,8 +450,10 @@ const PAST_WEEKLY_ISSUES = [
   { no: 1, date: "०१ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १): 'नवीन वर्ष विशेषांक २०२६: लोकमंगल साप्ताहिक शुभारंभ'", img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80", views: "26.0K" }
 ];
 
-PAST_WEEKLY_ISSUES.forEach(item => {
-  articlesData.push({
+// One weekly issue -> the article object the site renders. {no, date, title, img, views, desc}
+// The built-in list above and the issues that come from the API (Admin Panel) are both built with it.
+function makeWeeklyArticle(item) {
+  return {
     id: 1000 + item.no,
     title: item.title,
     category: "weekly",
@@ -462,8 +464,10 @@ PAST_WEEKLY_ISSUES.forEach(item => {
     excerpt: item.desc || `लोकमंगल साप्ताहिक अंक ${item.no} चा विशेष डिजिटल ई-पेपर अंक उपलब्ध. शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह. मोफत PDF डाऊनलोड करा.`,
     content: `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, हा अंक आता डिजिटल स्वरूपात उपलब्ध आहे. सविस्तर वाचनासाठी ई-पेपर डाऊनलोड करा किंवा ऑनलाईन वाचा.</p>`,
     views: item.views
-  });
-});
+  };
+}
+
+PAST_WEEKLY_ISSUES.forEach(item => articlesData.push(makeWeeklyArticle(item)));
 
 // --- Weekly issues -----------------------------------------------------------------------------------
 // Devanagari digits <-> plain numbers (the issue number lives inside the Marathi title: "अंक ४२")
@@ -1024,6 +1028,8 @@ function renderLatestReviews() {
 
   const reviewArticles = articlesData.filter(a => a.category === "review");
   if (reviewArticles.length < 4) return;
+  // reviews added in the Admin Panel have no star rating: show the stars only when there is one
+  const stars = (it) => (it.rating ? `<span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${it.rating}</span>` : "");
 
   const item0 = reviewArticles[0]; // Cinema review (Large top card)
   const item1 = reviewArticles[1]; // Tech drone review (Sub item 1)
@@ -1039,7 +1045,7 @@ function renderLatestReviews() {
         <h4 class="popular-card-title">${item0.title}</h4>
         <div class="popular-card-byline">
           by ${item0.author} - ${item0.date}
-          <span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${item0.rating}</span>
+          ${stars(item0)}
         </div>
       </div>
     </div>
@@ -1053,7 +1059,7 @@ function renderLatestReviews() {
         <h5 class="popular-sub-title">${item1.title}</h5>
         <div class="popular-sub-date">
           ${item1.date}
-          <span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${item1.rating}</span>
+          ${stars(item1)}
         </div>
       </div>
     </div>
@@ -1067,7 +1073,7 @@ function renderLatestReviews() {
         <h5 class="popular-sub-title">${item2.title}</h5>
         <div class="popular-sub-date">
           ${item2.date}
-          <span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${item2.rating}</span>
+          ${stars(item2)}
         </div>
       </div>
     </div>
@@ -1081,7 +1087,7 @@ function renderLatestReviews() {
         <h5 class="popular-sub-title">${item3.title}</h5>
         <div class="popular-sub-date">
           ${item3.date}
-          <span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${item3.rating}</span>
+          ${stars(item3)}
         </div>
       </div>
     </div>
@@ -1390,6 +1396,11 @@ function initSearch() {
 // Everything that navigates (menu, chips, labels, footer, cards, breadcrumbs, search ...) calls navigate().
 // =====================================================================================================
 let renderedRoute = null;      // canonical key of the view that is on screen
+// The backend (Admin Panel data) has not answered yet. Until it does, an address such as #post-10000 or #issue-43 may simply
+// belong to something the Admin Panel added, so it is not thrown away ("unknown address -> Home") too early.
+let apiSyncPending = true;
+let routeWaitingForApi = false;
+let routeWaitTimer = 0;
 let currentView = "home";
 let currentArticleId = null;
 
@@ -1451,6 +1462,22 @@ window.navigate = function(route) {
   });
 };
 
+// A short note while we wait for the backend's first answer (only for addresses we do not know yet)
+function showRouteLoading() {
+  routeWaitingForApi = true;
+  const container = document.getElementById("main-content-container");
+  if (container) container.innerHTML = `<p class="empty-note" role="status"><i class="fa-solid fa-spinner fa-spin"></i> लोड होत आहे…</p>`;
+  if (!routeWaitTimer) {
+    routeWaitTimer = setTimeout(() => {   // the backend is not answering: stop waiting and behave as before (unknown address -> Home)
+      if (apiSyncPending) {
+        apiSyncPending = false;
+        routeWaitingForApi = false;
+        renderRoute({ scroll: false });
+      }
+    }, 7000);
+  }
+}
+
 // Draw the view that belongs to the current address
 function renderRoute({ scroll = true, restoreY = null } = {}) {
   const r = parseRoute(window.location.hash);
@@ -1458,8 +1485,13 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
   if (r.type === "issue") article = issueByNo(r.no);
   if (r.type === "post") article = articlesData.find((a) => a.id === r.id);
 
-  // unknown / stale addresses fall back to Home (and the address bar is cleaned up)
+  // unknown / stale addresses fall back to Home (and the address bar is cleaned up) ...
   if ((r.type === "issue" || r.type === "post") && !article) {
+    // ... but not before the backend has answered: it may be an article / issue the Admin Panel added (shared link, refresh, bookmark)
+    if (apiSyncPending) {
+      showRouteLoading();
+      return;
+    }
     replaceUrl("");
     return renderRoute({ scroll, restoreY });
   }
@@ -1476,7 +1508,9 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     currentCategory = r.type === "weekly" ? "weekly" : r.type === "cat" ? r.cat : "all";
     const first = articlesData.find((a) => a.category === currentCategory);
     mainStoryId = currentCategory === "all"
-      ? (articlesData.find((a) => a.category === "rajkiy")?.id || 1)
+      // Home: the story marked "Lead Story" in the Admin Panel; without one, the first Rajkiy story
+      ? (articlesData.find((a) => Number(a.is_lead) === 1 && a.category !== "weekly")?.id
+         || articlesData.find((a) => a.category === "rajkiy")?.id || 1)
       : currentCategory === "weekly"
         ? latestIssue().id
         : (first ? first.id : 1);
@@ -2415,6 +2449,7 @@ let readerZoomIdx = 0;
 const readerRenders = new Set();   // page drawings in progress (cancelled when the reader closes)
 let readerQueue = [];              // pages waiting to be drawn (drawn one by one, the one nearest to the middle of the screen first)
 let readerDrawing = false;
+let readerSlowTimer = 0;
 
 function loadPdfJs() {
   if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
@@ -2457,11 +2492,25 @@ function setReaderSize(bytes) {
   if (el) el.textContent = bytes ? fmtSize(bytes) : "";
 }
 
-function showReaderLoading() {
+function showReaderLoading(url) {
   readerMessage(`<i class="fa-solid fa-spinner fa-spin reader-spin"></i>
     <span>PDF लोड होत आहे…</span>
     <div class="reader-progress indeterminate" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i id="reader-bar"></i></div>
-    <small id="reader-load-sub"></small>`);
+    <small id="reader-load-sub"></small>
+    <div class="reader-slow" id="reader-slow" hidden>
+      <span>कनेक्शन हळू आहे — थोडा वेळ लागू शकतो.</span>
+      <div class="reader-fallback">
+        <a class="btn-reader" href="${url}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> नवीन टॅबमध्ये उघडा</a>
+        <a class="btn-reader" href="${url}" download><i class="fa-solid fa-download"></i> डाउनलोड</a>
+      </div>
+    </div>`);
+  // still no document after 15 s (slow network, or the PDF library is slow to arrive): offer the other ways to read it
+  clearTimeout(readerSlowTimer);
+  const run = readerRun;
+  readerSlowTimer = setTimeout(() => {
+    const box = document.getElementById("reader-slow");
+    if (box && run === readerRun && !readerDoc) box.hidden = false;
+  }, 15000);
 }
 
 function updateReaderProgress(loaded, total) {
@@ -2482,6 +2531,7 @@ function updateReaderProgress(loaded, total) {
 // forget everything about the PDF that was open (frees the page canvases and stops any download too)
 function resetReader() {
   readerRun++;
+  clearTimeout(readerSlowTimer);
   if (readerPageObserver) { readerPageObserver.disconnect(); readerPageObserver = null; }
   if (readerResizeObserver) { readerResizeObserver.disconnect(); readerResizeObserver = null; }
   const { body, pages, status, ind } = readerParts();
@@ -2528,7 +2578,7 @@ async function loadReader(url) {
   body.scrollLeft = 0;
   readerZoomIdx = 0;
   applyReaderZoom();
-  showReaderLoading();
+  showReaderLoading(url);
 
   try {
     const lib = await loadPdfJs();
@@ -2539,6 +2589,7 @@ async function loadReader(url) {
     const doc = await task.promise;
     if (run !== readerRun) { Promise.resolve(task.destroy()).catch(() => {}); return; }
     readerDoc = doc;
+    clearTimeout(readerSlowTimer);
 
     const first = await doc.getPage(1);
     if (run !== readerRun) return;
@@ -2913,21 +2964,29 @@ window.showToast = function(msg) {
   }, 2500);
 };
 
+// Where the Python backend lives (js/config.js). "" = same address as this page.
+const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
+
 // ===================================================================
 // Sync Portal with Python Flask REST API (/api/articles & /api/weekly)
 // Allows newly created articles/editions in the Admin Panel to show immediately
 // ===================================================================
 async function syncPortalWithApi() {
   try {
+    // The four built-in reviews are not in the database; remember them before the database data is merged in.
+    const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
     const [artRes, weekRes] = await Promise.all([
-      fetch('/api/articles').catch(() => null),
-      fetch('/api/weekly').catch(() => null)
+      fetch(API_BASE + '/api/articles').catch(() => null),
+      fetch(API_BASE + '/api/weekly').catch(() => null)
     ]);
     let hasUpdates = false;
     if (artRes && artRes.ok) {
       const artJson = await artRes.json();
       if (artJson.success && Array.isArray(artJson.articles) && artJson.articles.length > 0) {
-        artJson.articles.forEach(dbArt => {
+        const dbIds = new Set(artJson.articles.map((a) => a.id));
+        // Oldest first: every NEW article is put at the front of the list, so the newest one ends up on top.
+        artJson.articles.slice().sort((a, b) => a.id - b.id).forEach((row) => {
+          const dbArt = { ...row, category: row.category === 'reviews' ? 'review' : row.category };   // older admin spelling
           const idx = articlesData.findIndex(a => a.id === dbArt.id);
           if (idx !== -1) {
             articlesData[idx] = { ...articlesData[idx], ...dbArt };
@@ -2936,26 +2995,47 @@ async function syncPortalWithApi() {
             hasUpdates = true;
           }
         });
+        // The database is the truth for what it holds: a built-in article that was DELETED in the Admin Panel
+        // leaves the website too. (The built-in reviews are not in the database, so they stay.)
+        articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id) || builtInReviewIds.has(a.id));
       }
     }
     if (weekRes && weekRes.ok) {
       const weekJson = await weekRes.json();
       if (weekJson.success && Array.isArray(weekJson.issues) && weekJson.issues.length > 0) {
-        weekJson.issues.forEach(dbIssue => {
-          const idx = articlesData.findIndex(a => a.category === 'weekly' && a.issue === dbIssue.issue);
+        const dbIssues = new Set();
+        weekJson.issues.forEach(row => {
+          const no = Number(row.issue_no);
+          if (!Number.isInteger(no) || no < 1) return;
+          dbIssues.add(no);
+          // API row (issue_no, pdf_filename, description ...) -> same shape as the built-in issues
+          const issue = {
+            ...makeWeeklyArticle({ no, date: row.date, title: row.title, img: row.image, views: row.views, desc: row.description }),
+            issue: no,
+          };
+          if (row.pdf_filename && row.pdf_filename !== pdfFileName(no)) issue.pdf = PDF_BASE + row.pdf_filename;
+          const idx = articlesData.findIndex(a => a.category === 'weekly' && a.issue === no);
           if (idx !== -1) {
-            articlesData[idx] = { ...articlesData[idx], ...dbIssue };
+            articlesData[idx] = { ...articlesData[idx], ...issue };
           } else {
-            articlesData.push(dbIssue);
+            articlesData.push(issue);
             hasUpdates = true;
           }
         });
+        // an issue deleted in the Admin Panel leaves the website too
+        articlesData = articlesData.filter((a) => a.category !== 'weekly' || dbIssues.has(a.issue));
       }
     }
     if (artRes && artRes.ok || weekRes && weekRes.ok) {
+      apiSyncPending = false;          // from now on an unknown address really is unknown
+      routeWaitingForApi = false;
+      if (typeof renderLabelCounts === 'function') renderLabelCounts();
       renderLeftSidebar();
       renderRightSidebar();
-      if (typeof renderDrawerPopularItems === 'function') {
+      renderLatestReviews();
+      // The slide-out "Popular Items" list is built when the menu is first opened (its photos are not
+      // downloaded before that). Refresh it here only if it was already built, so it shows the new data.
+      if (drawerPopularRendered && typeof renderDrawerPopularItems === 'function') {
         renderDrawerPopularItems();
       }
       if (typeof renderRoute === 'function') {
@@ -2964,6 +3044,14 @@ async function syncPortalWithApi() {
     }
   } catch (err) {
     console.warn('API sync fallback to local data:', err);
+  } finally {
+    if (apiSyncPending) {              // no usable answer (no backend / error): an address that was waiting for it falls back to Home now
+      apiSyncPending = false;
+      if (routeWaitingForApi) {
+        routeWaitingForApi = false;
+        if (typeof renderRoute === 'function') renderRoute({ scroll: false });
+      }
+    }
   }
 }
 

@@ -66,11 +66,11 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="server-status">
-          <span class="status-indicator-dot online"></span>
+        <div class="server-status" id="server-status">
+          <span class="status-indicator-dot" id="server-status-dot"></span>
           <div class="server-info">
-            <span class="server-name">Python Flask API</span>
-            <span class="server-port">Port 8000 • Active</span>
+            <span class="server-name">Python Flask API + MySQL</span>
+            <span class="server-port" id="server-status-text">तपासत आहे…</span>
           </div>
         </div>
       </div>
@@ -233,7 +233,7 @@
                   <option value="rajkiy">राजकीय (Rajkiy)</option>
                   <option value="samajik">सामाजिक (Samajik)</option>
                   <option value="blogs">ब्लॉग्स (Blogs)</option>
-                  <option value="reviews">परीक्षण (Reviews)</option>
+                  <option value="review">परीक्षण (Reviews)</option>
                 </select>
               </div>
               <div class="filter-dropdown-wrap">
@@ -367,7 +367,7 @@
           <div class="form-row">
             <div class="form-group flex-2">
               <label for="form-article-title">बातमीचे मुख्य शीर्षक (Headline) <span class="req">*</span></label>
-              <input type="text" id="form-article-title" required placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control">
+              <input type="text" id="form-article-title" required maxlength="500" placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-category">बातमीची श्रेणी (Category) <span class="req">*</span></label>
@@ -375,7 +375,7 @@
                 <option value="rajkiy">राजकीय (आमदार सुभाष बापू देशमुख)</option>
                 <option value="samajik">सामाजिक (लोकमंगल प्रकल्प)</option>
                 <option value="blogs">ब्लॉग्स (विचारमंथन)</option>
-                <option value="reviews">परीक्षण (साहित्य/कला)</option>
+                <option value="review">परीक्षण / रिव्ह्यू (साहित्य/कला)</option>
               </select>
             </div>
           </div>
@@ -422,15 +422,15 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="form-article-author">बातमीदार / प्रतिनिधी <span class="req">*</span></label>
-              <input type="text" id="form-article-author" value="विशेष प्रतिनिधी" required class="form-control">
+              <input type="text" id="form-article-author" value="विशेष प्रतिनिधी" required maxlength="200" class="form-control">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-date">प्रकाशन तारीख <span class="req">*</span></label>
-              <input type="text" id="form-article-date" required class="form-control" placeholder="उदा. १३ ऑक्टोबर २०२६">
+              <input type="text" id="form-article-date" required maxlength="100" class="form-control" placeholder="उदा. १३ ऑक्टोबर २०२६">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-views">वाचक संख्या (Views)</label>
-              <input type="text" id="form-article-views" value="1.5K" class="form-control">
+              <input type="text" id="form-article-views" value="1.5K" maxlength="20" class="form-control">
             </div>
           </div>
 
@@ -450,7 +450,7 @@
                 <input type="file" id="article-file-input" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(this)">
                 
                 <div class="url-divider">किंवा थेट URL / मार्ग टाका:</div>
-                <input type="text" id="form-article-image" class="form-control" placeholder="assets/images/... किंवा https://..." oninput="updateArticleImgPreview(this.value)">
+                <input type="text" id="form-article-image" class="form-control" maxlength="1000" placeholder="assets/images/... किंवा https://..." oninput="updateArticleImgPreview(this.value)">
               </div>
             </div>
           </div>
@@ -592,6 +592,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Admin JS Engine -->
+  <script src="/js/config.js"></script>
   <script src="/admin/admin.js"></script>
 </body>
 </html>

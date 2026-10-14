@@ -234,11 +234,17 @@ body.admin-body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  background: #94a3b8;          /* checking... */
 }
 
 .status-indicator-dot.online {
   background: #22c55e;
   box-shadow: 0 0 8px #22c55e;
+}
+
+.status-indicator-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
 }
 
 .server-info {
@@ -753,6 +759,7 @@ body.dark-theme .stat-icon-wrap {
   color: #0369a1;
 }
 
+.pill-review,
 .pill-reviews {
   background: #fef3c7;
   color: #92400e;
