@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title>लोकमंगल न्यूज पोर्टल | Admin Dashboard (प्रशासकीय कक्ष)</title>
   <link rel="icon" type="image/png" href="/assets/logo-icon.png">
   <!-- Google Fonts: Inter & Noto Sans Devanagari for Marathi -->
@@ -46,12 +47,12 @@
         <a href="#articles" class="nav-item" data-tab="tab-articles">
           <i class="fa-regular fa-newspaper"></i>
           <span>बातम्या व्यवस्थापन (News)</span>
-          <span class="nav-badge" id="sidebar-articles-count">18</span>
+          <span class="nav-badge" id="sidebar-articles-count">…</span>
         </a>
         <a href="#weekly" class="nav-item" data-tab="tab-weekly">
           <i class="fa-regular fa-file-pdf"></i>
           <span>साप्ताहिक ई-पेपर (Weekly PDF)</span>
-          <span class="nav-badge" id="sidebar-weekly-count">0</span>
+          <span class="nav-badge" id="sidebar-weekly-count">…</span>
         </a>
         <a href="#media" class="nav-item" data-tab="tab-media">
           <i class="fa-regular fa-images"></i>
@@ -115,6 +116,19 @@
 
       <!-- View Containers -->
       <div class="admin-content-wrap">
+        <!-- Shown when this page cannot reach the backend (Python + MySQL): then every number would be a wrong "0".
+             The text is filled in by showBackendBanner() in admin.js. -->
+        <div class="backend-banner" id="backend-banner" role="alert" hidden>
+          <i class="fa-solid fa-triangle-exclamation backend-banner-icon"></i>
+          <div class="backend-banner-body">
+            <strong id="backend-banner-title"></strong>
+            <p id="backend-banner-text"></p>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="refreshDashboardData()">
+            <i class="fa-solid fa-rotate"></i> पुन्हा तपासा
+          </button>
+        </div>
+
         <!-- ============================================== -->
         <!-- TAB 1: DASHBOARD -->
         <!-- ============================================== -->
@@ -137,7 +151,7 @@
               </div>
               <div class="stat-details">
                 <span class="stat-label">एकूण बातम्या (Articles)</span>
-                <h2 class="stat-value" id="stat-total-articles">18</h2>
+                <h2 class="stat-value" id="stat-total-articles">…</h2>
                 <span class="stat-hint"><i class="fa-solid fa-check"></i> सर्व श्रेणींमध्ये प्रकाशित</span>
               </div>
             </div>
@@ -148,7 +162,7 @@
               </div>
               <div class="stat-details">
                 <span class="stat-label">साप्ताहिक PDF अंक (Weekly)</span>
-                <h2 class="stat-value" id="stat-total-weekly">0</h2>
+                <h2 class="stat-value" id="stat-total-weekly">…</h2>
                 <span class="stat-hint"><i class="fa-solid fa-download"></i> ई-पेपर संग्रह उपलब्ध</span>
               </div>
             </div>
@@ -159,7 +173,7 @@
               </div>
               <div class="stat-details">
                 <span class="stat-label">राजकीय बातम्या (Rajkiy)</span>
-                <h2 class="stat-value" id="stat-total-rajkiy">8</h2>
+                <h2 class="stat-value" id="stat-total-rajkiy">…</h2>
                 <span class="stat-hint">आमदार सुभाष बापू देशमुख</span>
               </div>
             </div>
@@ -170,7 +184,7 @@
               </div>
               <div class="stat-details">
                 <span class="stat-label">सामाजिक बातम्या (Samajik)</span>
-                <h2 class="stat-value" id="stat-total-samajik">8</h2>
+                <h2 class="stat-value" id="stat-total-samajik">…</h2>
                 <span class="stat-hint">लोकमंगल फाऊंडेशन प्रकल्प</span>
               </div>
             </div>
@@ -184,11 +198,13 @@
             </div>
             <div class="placement-stat-card">
               <div class="stat-badge red"><i class="fa-solid fa-fire"></i> लोकप्रिय बातम्या (Popular Posts)</div>
-              <div class="placement-count"><strong id="stat-total-popular">3</strong> बातम्या निवडल्या आहेत</div>
+              <div class="placement-count"><strong id="stat-total-popular">…</strong> बातम्या निवडल्या आहेत</div>
+              <small class="form-hint">वेबसाईटवर ताज्या ३ दिसतात — नवीन निवडलेली वर येते, सर्वात जुनी जागा सोडते.</small>
             </div>
             <div class="placement-stat-card">
               <div class="stat-badge green"><i class="fa-solid fa-shuffle"></i> यादृच्छिक बातम्या (Random Posts)</div>
-              <div class="placement-count"><strong id="stat-total-random">4</strong> बातम्या निवडल्या आहेत</div>
+              <div class="placement-count"><strong id="stat-total-random">…</strong> बातम्या निवडल्या आहेत</div>
+              <small class="form-hint">वेबसाईटवर ताज्या ४ दिसतात — नवीन निवडलेली वर येते, सर्वात जुनी जागा सोडते.</small>
             </div>
           </div>
 
@@ -302,7 +318,7 @@
                     <th style="width: 130px;">प्रकाशन तारीख</th>
                     <th style="width: 140px;">PDF फाईल</th>
                     <th style="width: 90px;">वाचक</th>
-                    <th style="width: 120px; text-align: center;">कृती</th>
+                    <th style="width: 150px; text-align: center;">कृती</th>
                   </tr>
                 </thead>
                 <tbody id="weekly-table-body">
@@ -495,7 +511,7 @@
   <div class="admin-modal-backdrop" id="weekly-modal">
     <div class="admin-modal">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड</h3>
+        <h3 id="weekly-modal-title"><i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड</h3>
         <button class="modal-close-btn" onclick="closeWeeklyModal()">&times;</button>
       </div>
       <div class="modal-body">
@@ -504,11 +520,12 @@
             <div class="form-group flex-1">
               <label for="form-weekly-no">क्रम क्रमांक (तारखेनुसार) <span class="req">*</span></label>
               <input type="number" id="form-weekly-no" required min="1" max="9999" class="form-control" placeholder="उदा. ६९">
-              <small class="form-hint">पुढचा क्रमांक आपोआप येतो — सर्वात मोठा क्रमांक "नवीनतम अंक" होतो. साईटवर तो दिसत नाही, तारीख दिसते.</small>
+              <small class="form-hint" id="form-weekly-no-hint">पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन <b>तारीख</b> असलेला अंक "नवीनतम अंक" होतो.</small>
             </div>
             <div class="form-group flex-2">
               <label for="form-weekly-date">प्रकाशन तारीख <span class="req">*</span></label>
               <input type="text" id="form-weekly-date" required class="form-control" placeholder="उदा. २ सप्टेंबर २०२६">
+              <small class="form-hint">अंकांचा क्रम या तारखेवरून ठरतो (सर्वात नवीन वर). "२ सप्टेंबर २०२६", "2 September 2026", "02-09-2026" किंवा "2026-09-02" असे लिहा — इतर पद्धतीची तारीख वाचता आली नाही तर तो अंक सर्वात वर येतो.</small>
             </div>
           </div>
 

@@ -1516,3 +1516,68 @@ body.dark-theme .placement-card:has(input:checked) {
 .weekly-cover-preview[hidden] {
   display: none;
 }
+
+/* The Admin Panel cannot reach its backend (Python + MySQL): a clear notice instead of wrong zeros */
+.backend-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 5px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  color: #7f1d1d;
+  box-shadow: var(--shadow-sm);
+}
+
+.backend-banner[hidden] {
+  display: none;
+}
+
+.backend-banner-icon {
+  flex: none;
+  margin-top: 3px;
+  font-size: 1.25rem;
+  color: var(--brand-primary);
+}
+
+.backend-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.backend-banner-body strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.backend-banner-body p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.backend-banner-body a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.backend-banner .btn {
+  flex: none;
+}
+
+body.dark-theme .backend-banner {
+  background: rgba(211, 47, 47, 0.14);
+  border-color: rgba(248, 113, 113, 0.35);
+  border-left-color: var(--brand-primary);
+  color: #fecaca;
+}
+
+@media (max-width: 640px) {
+  .backend-banner {
+    flex-wrap: wrap;
+  }
+}

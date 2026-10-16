@@ -468,7 +468,9 @@ const MARATHI_MONTHS = ["जानेवारी", "फेब्रुवार
 const ENGLISH_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 function dateValue(text) {
   const t = devToAscii(String(text || "")).trim().toLowerCase();
-  let m = t.match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{4})/);          // 26-08-2026 (day, month, year)
+  let m = t.match(/(?:^|[^\d])(\d{4})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{1,2})(?!\d)/);   // 2026-08-26 (year, month, day)
+  if (m) return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+  m = t.match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{4})/);          // 26-08-2026 (day, month, year)
   if (m) return Number(m[3]) * 10000 + Number(m[2]) * 100 + Number(m[1]);
   m = t.match(/(\d{1,2})\s+([^\s\d,.]+)[.,]?\s+(\d{4})/);                          // 26 ऑगस्ट 2026 / 26 aug 2026
   if (!m) return null;
@@ -1011,8 +1013,9 @@ function renderLeftSidebar() {
   const container = document.getElementById("popular-posts-container");
   if (!container) return;
 
-  // Pick articles explicitly marked as popular in Admin Panel
-  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly");
+  // Pick articles explicitly marked as popular in Admin Panel - the newest (highest id) first, so a story marked now
+  // shows at once and the oldest marked one makes room (the widget has three places)
+  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => b.id - a.id);
   
   // If fewer than 3, top up with other non-weekly articles
   if (popularList.length < 3) {
@@ -1068,8 +1071,8 @@ function renderRightSidebar() {
   const container = document.getElementById("random-posts-grid");
   if (!container) return;
 
-  // Pick articles explicitly marked as random in Admin Panel
-  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly");
+  // Pick articles explicitly marked as random in Admin Panel - newest (highest id) first, four places (see Popular above)
+  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort((a, b) => b.id - a.id);
 
   // If fewer than 4, fill remaining slots with other non-weekly articles
   if (randomList.length < 4) {
@@ -3112,7 +3115,8 @@ async function syncPortalWithApi() {
     let hasUpdates = false;
     if (artRes && artRes.ok) {
       const artJson = await artRes.json();
-      if (artJson.success && Array.isArray(artJson.articles) && artJson.articles.length > 0) {
+      // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
+      if (artJson.success && Array.isArray(artJson.articles)) {
         const dbIds = new Set(artJson.articles.map((a) => a.id));
         // Oldest first: every NEW article is put at the front of the list, so the newest one ends up on top.
         artJson.articles.slice().sort((a, b) => a.id - b.id).forEach((row) => {
@@ -3132,7 +3136,8 @@ async function syncPortalWithApi() {
     }
     if (weekRes && weekRes.ok) {
       const weekJson = await weekRes.json();
-      if (weekJson.success && Array.isArray(weekJson.issues) && weekJson.issues.length > 0) {
+      // (an EMPTY list counts too: when the last issue is deleted in the Admin Panel the 68 built-in issues must not come back)
+      if (weekJson.success && Array.isArray(weekJson.issues)) {
         const dbIssues = new Set();
         weekJson.issues.forEach(row => {
           const no = Number(row.issue_no);

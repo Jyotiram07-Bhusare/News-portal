@@ -12,12 +12,27 @@ let appState = {
   searchQuery: '',
   categoryFilter: 'all',
   placementFilter: 'all',
-  editingArticleId: null
+  editingArticleId: null,
+  editingWeeklyNo: null,         // issue number while the weekly form edits an existing issue (null = a new issue)
+  articlesLoaded: false,         // true once the list really came from the backend (an empty list that failed to load is not "no news")
+  weeklyLoaded: false,
+  weeklyPdfChosen: false         // a PDF was uploaded in the open weekly form (an issue being edited already has its PDF)
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
-const apiFetch = (path, options) => fetch(API_BASE + path, options);
+// Reading is repeated once when the connection is dropped (a hiccup must not leave an empty list behind);
+// writing is never repeated by itself.
+const apiFetch = async (path, options) => {
+  const method = String((options && options.method) || 'GET').toUpperCase();
+  try {
+    return await fetch(API_BASE + path, options);
+  } catch (err) {
+    if (method !== 'GET') throw err;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return fetch(API_BASE + path, options);
+  }
+};
 
 // URL Helpers for consistent assets
 function formatAssetUrl(url) {
@@ -191,12 +206,13 @@ function initDateDisplay() {
 // -------------------------------------------------------------
 // Data Fetching: REST API Calls
 // -------------------------------------------------------------
-// Sidebar footer: the real state of the backend (address + MySQL), asked from /api/health
+// Sidebar footer: the real state of the backend (address + MySQL), asked from /api/health.
+// Answers 'online', 'database' (the backend answers, MySQL does not) or 'down' (nobody answers: no backend at this address).
 async function checkServerStatus() {
   const dot = document.getElementById('server-status-dot');
   const text = document.getElementById('server-status-text');
   const box = document.getElementById('server-status');
-  if (!dot || !text) return;
+  if (!dot || !text) return 'online';
   let where = window.location.host;
   try { if (API_BASE) where = new URL(API_BASE).host; } catch (e) { /* keep the page's own address */ }
   const show = (state, label, tip) => {
@@ -207,20 +223,98 @@ async function checkServerStatus() {
   try {
     const res = await apiFetch('/api/health');
     const data = await res.json();
-    if (res.ok && data.success) show('online', 'सुरू', 'MySQL database: ' + data.database);
-    else show('offline', 'MySQL बंद', data.error || '');
+    if (res.ok && data.success) {
+      show('online', 'सुरू', 'MySQL database: ' + data.database);
+      return 'online';
+    }
+    show('offline', 'MySQL बंद', data.error || '');
+    return 'database';
   } catch (err) {
     show('offline', 'बंद (बॅकएंड चालू नाही)', String(err));
+    return 'down';
   }
 }
 
 async function loadAllData() {
-  await Promise.all([
+  const [state] = await Promise.all([
     checkServerStatus(),
     fetchStats(),
     fetchArticles(),
     fetchWeekly()
   ]);
+  // the backend answers but a list did not arrive (a dropped connection): say so, never show a silent empty list
+  showBackendBanner(state === 'online' && !(appState.articlesLoaded && appState.weeklyLoaded) ? 'partial' : state);
+}
+
+// The numbers of the dashboard start as "…" (not as made-up numbers): a number that never arrives becomes "—", never a wrong "0".
+const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'stat-total-articles', 'stat-total-weekly',
+                       'stat-total-rajkiy', 'stat-total-samajik', 'stat-total-popular', 'stat-total-random'];
+
+function backendProblem(state) {
+  const host = window.location.hostname;
+  const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+  if (state === 'partial') {
+    return {
+      title: 'बातम्यांची / अंकांची यादी पूर्ण लोड झाली नाही',
+      text: 'बॅकएंड सुरू आहे, पण कनेक्शन तुटल्यामुळे काही माहिती मिळाली नाही — रिकामी दिसणारी यादी म्हणजे बातम्या / अंक नाहीत असे नाही. "पुन्हा तपासा" दाबा.'
+    };
+  }
+  if (state === 'database') {
+    return {
+      title: 'बॅकएंड सुरू आहे, पण MySQL डेटाबेसशी जोडणी नाही',
+      text: 'MySQL सेवा चालू आहे का ते तपासा आणि backend/.env मधील DB_* मूल्ये बरोबर आहेत का पाहा. डेटाबेस नवीन असेल तर backend फोल्डरमध्ये "python init_db.py --seed" चालवा. (बातम्या / अंक हरवलेले नाहीत.)'
+    };
+  }
+  if (window.location.protocol === 'file:') {
+    return {
+      title: 'हे पान फाईल म्हणून उघडले आहे',
+      text: 'Admin Panel ला बॅकएंड लागतो. backend फोल्डरमध्ये "python app.py" चालवा आणि हा पत्ता उघडा:',
+      link: 'http://localhost:5000/admin/'
+    };
+  }
+  if (local) {
+    return {
+      title: 'बॅकएंड (Python + MySQL) चालू नाही',
+      text: 'Admin Panel ला सर्व माहिती बॅकएंडकडूनच मिळते, म्हणून सध्या आकडे व याद्या रिकाम्या दिसतात — बातम्या / अंक हरवलेले नाहीत. backend फोल्डरमध्ये "python app.py" चालवा आणि "पुन्हा तपासा" दाबा.'
+    };
+  }
+  if (API_BASE) {
+    return {
+      title: 'बॅकएंडला पोहोचता आले नाही',
+      text: `${API_BASE} वरील बॅकएंड चालू नाही, किंवा त्याच्या CORS_ORIGINS मध्ये ही साईट नाही (backend/.env). बॅकएंड सुरू करून "पुन्हा तपासा" दाबा.`
+    };
+  }
+  return {
+    title: 'या पत्त्यावर बॅकएंड नाही',
+    text: `"${window.location.host}" वर फक्त वेबसाईट (static फाईल्स) ठेवली आहे; Python + MySQL बॅकएंड तिथे चालत नाही. म्हणून Admin Panel काहीही वाचू किंवा जतन करू शकत नाही आणि आकडे रिकामे दिसतात — बातम्या व अंक हरवलेले नाहीत, साईटवर ते जसेच्या तसे आहेत. अंक / बातम्या व्यवस्थापित करण्यासाठी बॅकएंड असलेला Admin उघडा. तुमच्या PC वर:`,
+    link: 'http://localhost:5000/admin/',
+    tail: 'बॅकएंड इंटरनेटवर ठेवल्यावर frontend/js/config.js मध्ये त्याचा पत्ता द्या (README: "इंटरनेटवर ठेवताना").'
+  };
+}
+
+function showBackendBanner(state) {
+  LIVE_COUNTERS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && el.textContent.trim() === '…') el.textContent = '—';
+  });
+  const lead = document.getElementById('dash-current-lead-title');
+  if (lead && /लोड होत आहे/.test(lead.textContent)) lead.textContent = 'माहिती मिळाली नाही.';
+
+  const banner = document.getElementById('backend-banner');
+  if (!banner) return;
+  if (state === 'online') { banner.hidden = true; return; }
+  const msg = backendProblem(state);
+  document.getElementById('backend-banner-title').textContent = msg.title;
+  const text = document.getElementById('backend-banner-text');
+  text.textContent = msg.text;
+  if (msg.link) {
+    const a = document.createElement('a');
+    a.href = msg.link;
+    a.textContent = msg.link;
+    text.append(' ', a);
+  }
+  if (msg.tail) text.append(' ', msg.tail);
+  banner.hidden = false;
 }
 
 async function refreshDashboardData() {
@@ -248,6 +342,7 @@ async function fetchArticles() {
     const data = await res.json();
     if (data.success) {
       appState.articles = data.articles;
+      appState.articlesLoaded = true;
       renderArticlesTable();
       renderRecentArticles();
       updateBadgeCounts();
@@ -263,6 +358,7 @@ async function fetchWeekly() {
     const data = await res.json();
     if (data.success) {
       appState.weekly = data.issues;
+      appState.weeklyLoaded = true;
       renderWeeklyTable();
       renderRecentWeekly();
       updateBadgeCounts();
@@ -321,13 +417,13 @@ function renderRecentArticles() {
 
   container.innerHTML = recents.map(a => `
     <div class="recent-item" onclick="openEditArticleModal(${a.id})" style="cursor: pointer;">
-      <img src="${formatAssetUrl(a.image)}" class="recent-thumb" alt="${a.title}">
+      <img src="${formatAssetUrl(a.image)}" class="recent-thumb" alt="${escapeHtml(a.title)}">
       <div class="recent-body">
-        <h4 class="recent-title">${a.title}</h4>
+        <h4 class="recent-title">${escapeHtml(a.title)}</h4>
         <div class="recent-meta">
-          <span class="category-pill pill-${a.category}">${a.categoryLabel || a.category}</span>
-          <span><i class="fa-regular fa-calendar"></i> ${a.date}</span>
-          <span><i class="fa-regular fa-eye"></i> ${a.views}</span>
+          <span class="category-pill pill-${a.category}">${escapeHtml(a.categoryLabel || a.category)}</span>
+          <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(a.date)}</span>
+          <span><i class="fa-regular fa-eye"></i> ${escapeHtml(a.views)}</span>
         </div>
       </div>
     </div>
@@ -348,11 +444,11 @@ function renderRecentWeekly() {
     <div class="recent-item">
       <img src="${formatAssetUrl(w.image)}" class="recent-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
       <div class="recent-body">
-        <h4 class="recent-title">${w.title}</h4>
+        <h4 class="recent-title">${escapeHtml(w.title)}</h4>
         <div class="recent-meta">
           <span class="category-pill pill-weekly">अंक ${w.issue_no}</span>
-          <span><i class="fa-regular fa-calendar"></i> ${w.date}</span>
-          <span><i class="fa-regular fa-eye"></i> ${w.views}</span>
+          <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(w.date)}</span>
+          ${w.views && w.views !== '—' ? `<span><i class="fa-regular fa-eye"></i> ${escapeHtml(w.views)}</span>` : ''}
         </div>
       </div>
       <a href="${formatPdfUrl(w.pdf_filename)}" target="_blank" class="action-btn" title="PDF पहा">
@@ -451,7 +547,7 @@ function renderArticlesTable() {
           <button class="action-btn" title="संपादित करा" onclick="openEditArticleModal(${a.id})">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
-          <button class="action-btn delete-btn" title="हटवा" onclick="confirmDeleteArticle(${a.id}, '${escapeHtml(a.title)}')">
+          <button class="action-btn delete-btn" title="हटवा" onclick="confirmDeleteArticle(${a.id})">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
@@ -717,8 +813,12 @@ async function handleArticleFormSubmit(e) {
   }
 }
 
-// Delete Article with confirmation
+// Delete Article with confirmation (the title for the question is looked up here, so no title has to travel through an onclick="...")
 async function confirmDeleteArticle(articleId, title) {
+  if (title === undefined) {
+    const known = (appState.articles || []).find((a) => a.id === articleId);
+    title = known ? known.title : '';
+  }
   if (!confirm(`तुम्हाला खात्री आहे की ही बातमी हटवायची आहे?\n\n"${title}"`)) {
     return;
   }
@@ -808,21 +908,24 @@ function renderWeeklyTable() {
           <img src="${formatAssetUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
         </td>
         <td>
-          <div style="font-weight: 600; color: var(--text-primary);">${w.title}</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">${w.description ? w.description.slice(0, 75) + '...' : ''}</div>
+          <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(w.title)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">${w.description ? escapeHtml(w.description.length > 75 ? w.description.slice(0, 75) + '…' : w.description) : ''}</div>
         </td>
-        <td style="font-size: 0.85rem;">${w.date}</td>
+        <td style="font-size: 0.85rem;">${escapeHtml(w.date)}</td>
         <td>
           <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline" style="color: #ea580c;">
-            <i class="fa-solid fa-file-pdf"></i> ${w.pdf_filename}
+            <i class="fa-solid fa-file-pdf"></i> ${escapeHtml(w.pdf_filename)}
           </a>
         </td>
-        <td style="font-weight: 600;">${w.views && w.views !== '—' ? w.views : '—'}</td>
+        <td style="font-weight: 600;">${w.views && w.views !== '—' ? escapeHtml(w.views) : '—'}</td>
         <td>
           <div class="table-actions">
             <a href="${pdfUrl}" target="_blank" class="action-btn" title="PDF पहा">
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
             </a>
+            <button class="action-btn" title="अंक संपादित करा" onclick="openEditWeeklyModal(${w.issue_no})">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
             <button class="action-btn delete-btn" title="अंक हटवा" onclick="confirmDeleteWeekly(${w.issue_no})">
               <i class="fa-regular fa-trash-can"></i>
             </button>
@@ -833,7 +936,56 @@ function renderWeeklyTable() {
   }).join('');
 }
 
+// The weekly form is used for a NEW issue and for EDITING one: the title, the number field and the save button follow the mode
+function setWeeklyFormMode(issueNo) {
+  appState.editingWeeklyNo = issueNo;
+  const editing = issueNo !== null;
+  appState.weeklyPdfChosen = editing;
+  document.getElementById('weekly-modal-title').innerHTML = editing
+    ? `<i class="fa-solid fa-pen-to-square"></i> साप्ताहिक अंक संपादित करा (क्र. ${issueNo})`
+    : '<i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड';
+  document.getElementById('form-weekly-no').readOnly = editing;      // the number is the key of the issue (its PDF is lokmangal-weekly-<no>.pdf)
+  document.getElementById('form-weekly-no-hint').innerHTML = editing
+    ? 'संपादन करताना क्रमांक बदलता येत नाही (PDF चे नाव त्यावर अवलंबून आहे). दुसरा क्रमांक हवा असेल तर नवीन अंक जोडा.'
+    : 'पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन <b>तारीख</b> असलेला अंक "नवीनतम अंक" होतो.';
+  document.getElementById('btn-save-weekly').innerHTML = editing
+    ? '<i class="fa-solid fa-check"></i> बदल जतन करा'
+    : '<i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा';
+}
+
+// Edit an issue that is already published: the form opens filled with what is saved (number, date, headline, cover, PDF, text).
+// Saving replaces that issue (same number) - the website shows the change at once.
+function openEditWeeklyModal(issueNo) {
+  const w = (appState.weekly || []).find((x) => Number(x.issue_no) === Number(issueNo));
+  if (!w) return;
+  setWeeklyFormMode(w.issue_no);
+  document.getElementById('form-weekly-no').value = w.issue_no;
+  const dateField = document.getElementById('form-weekly-date');
+  const imgField = document.getElementById('form-weekly-image');
+  dateField.value = w.date || '';
+  document.getElementById('form-weekly-title').value = w.title || '';
+  imgField.value = w.image || '';
+  document.getElementById('form-weekly-pdffilename').value = w.pdf_filename || `lokmangal-weekly-${w.issue_no}.pdf`;
+  document.getElementById('weekly-pdf-filename-display').innerHTML =
+    `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${escapeHtml(w.pdf_filename || '')} — सध्याची फाईल (बदलायची असेल तरच नवीन PDF निवडा)`;
+  document.getElementById('form-weekly-desc').value = w.description || '';
+  // what is saved is real: a PDF chosen now must not silently replace the date or the cover
+  dateField.dataset.auto = '';
+  imgField.dataset.auto = '';
+  imgField.oninput = () => { imgField.dataset.auto = ''; showWeeklyCoverPreview(imgField.value); };
+  dateField.oninput = () => { dateField.dataset.auto = ''; };
+  showWeeklyCoverPreview(w.image || '');
+  document.getElementById('weekly-modal').classList.add('open');
+}
+
 function openNewWeeklyModal() {
+  // The next number is worked out from the issues that are saved. Without that list it would be "1" - and saving
+  // "1" replaces the real first issue. So the form does not open until the list has really been loaded.
+  if (!appState.weeklyLoaded) {
+    showToast('अंकांची यादी अजून लोड झाली नाही — बॅकएंड तपासा आणि "पुन्हा तपासा" दाबा, मग नवीन अंक जोडा.', 'error');
+    return;
+  }
+  setWeeklyFormMode(null);
   // Suggest next issue number (the first issue of an empty Weekly publication is number 1)
   const maxIssue = appState.weekly && appState.weekly.length ? Math.max(...appState.weekly.map(w => w.issue_no)) : 0;
   const nextIssue = maxIssue + 1;
@@ -950,6 +1102,7 @@ async function handleWeeklyPdfUpload(input) {
     });
     const data = await res.json();
     if (data.success) {
+      appState.weeklyPdfChosen = true;
       document.getElementById('form-weekly-pdffilename').value = data.filename;
       document.getElementById('weekly-pdf-filename-display').innerHTML = `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${data.filename} (${Math.round(data.size / 1024)} KB)`;
       showToast('PDF यशस्वीरीत्या अपलोड झाली!', 'success');
@@ -963,7 +1116,13 @@ async function handleWeeklyPdfUpload(input) {
         showToast(`तारीख फाईलच्या नावावरून भरली: ${fileDate} (हवी तर बदला)`, 'info');
       }
       const imgField = document.getElementById('form-weekly-image');
-      if (imgField.dataset.auto === '1') {
+      // a new issue: the cover comes from the PDF unless it was chosen by hand; an issue that is being edited already has a real cover: ask first
+      let makeCover = imgField.dataset.auto === '1';
+      if (!makeCover && appState.editingWeeklyNo !== null &&
+          confirm('मुखपृष्ठ नव्या PDF च्या पहिल्या पानावरून बदलायचे का?\n\n(रद्द केल्यास आधीचे मुखपृष्ठ तसेच राहील.)')) {
+        makeCover = true;
+      }
+      if (makeCover) {
         const saveBtn = document.getElementById('btn-save-weekly');
         if (saveBtn) saveBtn.disabled = true;                 // not before the cover is ready, or the issue is saved without it
         try {
@@ -1009,9 +1168,12 @@ async function handleWeeklyCoverUpload(input) {
       imgField.dataset.auto = '';            // chosen by hand: a PDF uploaded later must not replace it
       showWeeklyCoverPreview(data.url);
       showToast('मुखपृष्ठ फोटो अपलोड झाला!', 'success');
+    } else {
+      showToast(data.error || 'फोटो अपलोड अयशस्वी.', 'error');
     }
   } catch (e) {
     console.error(e);
+    showToast('सर्व्हर त्रुटी: फोटो अपलोड होऊ शकला नाही.', 'error');
   }
 }
 
@@ -1025,6 +1187,13 @@ async function handleWeeklyFormSubmit(e) {
   const image = document.getElementById('form-weekly-image').value.trim() || 'assets/images/lokmangal_what_we_do.jpg';
   const pdf_filename = document.getElementById('form-weekly-pdffilename').value.trim() || `lokmangal-weekly-${issue_no}.pdf`;
   const description = document.getElementById('form-weekly-desc').value.trim();
+
+  // A new issue with a number that is already published would REPLACE that issue: ask first
+  const existing = appState.editingWeeklyNo === null && (appState.weekly || []).find((x) => Number(x.issue_no) === issue_no);
+  if (existing && !confirm(`अंक ${issue_no} (${existing.date}) आधीच प्रकाशित आहे.\n\nहा नवीन अंक त्याच्या जागी ठेवायचा का? (जुना अंक बदलला जाईल.)\n\nवेगळा अंक जोडायचा असेल तर "रद्द करा" दाबा आणि क्रमांक बदला.`)) return;
+
+  // No PDF chosen: the issue is saved, but the website can only say "the PDF will be available soon": ask, so it is not forgotten
+  if (!appState.weeklyPdfChosen && !confirm('PDF फाईल निवडलेली नाही.\n\nअंक PDF शिवाय प्रकाशित होईल — वेबसाईटवर "या अंकाचा PDF लवकरच उपलब्ध होईल" असे दिसेल. तरी जतन करायचे का?\n\n(PDF नंतर जोडायची असेल तर: अंकाच्या ओळीतील ✏️ संपादन बटण → PDF निवडा.)')) return;
 
   const payload = {
     issue_no,
@@ -1048,7 +1217,7 @@ async function handleWeeklyFormSubmit(e) {
     });
     const data = await res.json();
     if (data.success) {
-      showToast('साप्ताहिक अंक यशस्वीरीत्या प्रकाशित झाला!', 'success');
+      showToast(appState.editingWeeklyNo !== null ? 'अंकातील बदल जतन झाले!' : 'साप्ताहिक अंक यशस्वीरीत्या प्रकाशित झाला!', 'success');
       closeWeeklyModal();
       await fetchWeekly();
       await fetchStats();
@@ -1060,13 +1229,17 @@ async function handleWeeklyFormSubmit(e) {
     showToast('सर्व्हर त्रुटी: अंक जतन होऊ शकला नाही.', 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा';
+    btn.innerHTML = appState.editingWeeklyNo !== null
+      ? '<i class="fa-solid fa-check"></i> बदल जतन करा'
+      : '<i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा';
   }
 }
 
 // Delete Weekly Issue
 async function confirmDeleteWeekly(issueNo) {
-  if (!confirm(`तुम्हाला खात्री आहे की अंक ${issueNo} हटवायचा आहे?`)) return;
+  const known = (appState.weekly || []).find((x) => Number(x.issue_no) === Number(issueNo));
+  const what = known && known.date ? `अंक ${issueNo} (${known.date})` : `अंक ${issueNo}`;
+  if (!confirm(`तुम्हाला खात्री आहे की ${what} हटवायचा आहे?\n\nहा अंक वेबसाईटवरूनही निघून जाईल. (त्याची PDF फाईल व मुखपृष्ठ फोटो assets फोल्डरमध्ये तसेच राहतात.)`)) return;
 
   try {
     const res = await apiFetch(`/api/weekly/${issueNo}`, { method: 'DELETE' });
@@ -1075,9 +1248,12 @@ async function confirmDeleteWeekly(issueNo) {
       showToast(`अंक ${issueNo} हटवला!`, 'success');
       await fetchWeekly();
       await fetchStats();
+    } else {
+      showToast(data.error || 'हटवणे अयशस्वी.', 'error');
     }
   } catch (err) {
     console.error(err);
+    showToast('सर्व्हर त्रुटी: अंक हटवता आला नाही.', 'error');
   }
 }
 
@@ -1221,7 +1397,7 @@ function showToast(message, type = 'info') {
   }, 3500);
 }
 
+// Text for HTML (element content and attribute values): & < > " ' become entities, so a title like  'लोकमंगल' & "विवाह" <b>  shows as typed
 function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
