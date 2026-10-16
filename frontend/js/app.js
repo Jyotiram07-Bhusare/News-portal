@@ -1958,9 +1958,14 @@ window.loadMoreHomeNews = function() {
   }
 };
 
-function weeklyRowHTML(item) {
+// The Weekly page lists the latest WEEKLY_PAGE issues; "अधिक वाचा" shows the rest (a search always looks through all of them).
+// The choice is kept while the visitor opens an issue and comes back.
+const WEEKLY_PAGE = 10;
+let weeklyExpanded = false;
+
+function weeklyRowHTML(item, folded) {
   return `
-    <div class="secondary-post-item weekly-edition-item" data-search="${escText((item.title + " " + item.date + " " + (item.excerpt || "")).toLowerCase())}" onclick="openArticlePage(${item.id})">
+    <div class="secondary-post-item weekly-edition-item" data-search="${escText((item.title + " " + item.date + " " + (item.excerpt || "")).toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
         ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
         ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
@@ -1988,6 +1993,8 @@ function weeklyRowHTML(item) {
 
 function weeklyArchiveHTML() {
   const list = weeklyIssues();
+  const folded = !weeklyExpanded && list.length > WEEKLY_PAGE;      // only the latest WEEKLY_PAGE are shown
+  const isEn = (document.documentElement.lang || "").toLowerCase().startsWith("en");
   return `
     <div class="weekly-search-filter-bar">
       <div class="weekly-search-input-wrap">
@@ -1997,7 +2004,17 @@ function weeklyArchiveHTML() {
       <div class="weekly-count-tag"><span id="weekly-visible-count">${toDevanagari(list.length)}</span> अंक उपलब्ध</div>
     </div>
     <div class="weekly-editions-container" id="weekly-editions-list">
-      ${list.map(weeklyRowHTML).join("")}
+      ${list.map((item, i) => weeklyRowHTML(item, folded && i >= WEEKLY_PAGE)).join("")}
+    </div>
+    <div class="load-more-wrap" id="weekly-load-more-wrap"${folded ? "" : " hidden"}>
+      <button type="button" class="btn-load-more" onclick="showAllWeeklyIssues()">
+        <i class="fa-solid fa-angles-down"></i>
+        <span>${isEn ? "Read More" : "अधिक वाचा"}</span>
+        <span class="load-more-count">${toDevanagari(Math.max(0, list.length - WEEKLY_PAGE))} ${isEn ? "more" : "अंक"}</span>
+      </button>
+    </div>
+    <div class="load-more-end" id="weekly-load-end"${!folded && list.length > WEEKLY_PAGE ? "" : " hidden"}>
+      <i class="fa-solid fa-circle-check"></i> ${isEn ? `All ${list.length} issues displayed` : `सर्व ${toDevanagari(list.length)} अंक दाखवले आहेत`}
     </div>
     <p class="empty-note" id="weekly-empty-note" hidden>असा अंक सापडला नाही. दुसरा शब्द, महिना किंवा तारीख शोधा.</p>`;
 }
@@ -2027,16 +2044,29 @@ function renderSecondaryPosts() {
 window.filterWeeklyIssuesList = function(query) {
   const q = devToAscii((query || "").trim().toLowerCase());
   const items = document.querySelectorAll("#weekly-editions-list .weekly-edition-item");
+  // without a search only the latest WEEKLY_PAGE are shown until "अधिक वाचा"; with a search every issue is looked through
+  const folded = !q && !weeklyExpanded && items.length > WEEKLY_PAGE;
   let count = 0;
-  items.forEach((el) => {
+  items.forEach((el, i) => {
     const matches = !q || devToAscii(((el.dataset.search || "") + " " + el.innerText).toLowerCase()).includes(q);
-    el.style.display = matches ? "" : "none";
+    el.style.display = matches && !(folded && i >= WEEKLY_PAGE) ? "" : "none";
     if (matches) count++;
   });
   const countSpan = document.getElementById("weekly-visible-count");
   if (countSpan) countSpan.innerText = toDevanagari(count);
   const empty = document.getElementById("weekly-empty-note");
   if (empty) empty.hidden = count !== 0;
+  const more = document.getElementById("weekly-load-more-wrap");
+  if (more) more.hidden = !folded;
+  const end = document.getElementById("weekly-load-end");
+  if (end) end.hidden = !!q || folded || items.length <= WEEKLY_PAGE;
+};
+
+// "अधिक वाचा": show the issues that were left out (the rows are already in the page, their pictures load when they appear)
+window.showAllWeeklyIssues = function() {
+  weeklyExpanded = true;
+  const input = document.getElementById("weekly-filter-input");
+  filterWeeklyIssuesList(input ? input.value : "");
 };
 
 // --- Per-Article Comments Management (Local Storage & Interactive) ---

@@ -2683,6 +2683,11 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
   font-size: 16px;
 }
 
+.load-more-wrap[hidden],
+.load-more-end[hidden] {
+  display: none;
+}
+
 /* Read More + PDF button side by side */
 .footer-readmore-wrap {
   flex-wrap: wrap;
