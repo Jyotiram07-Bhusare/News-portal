@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="mr" dir="ltr">
+<html lang="mr" dir="ltr" class="no-weekly">
 
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
   <title>लोकमंगल न्यूज पोर्टल | Lokmangal News Portal</title>
 
   <meta name="description"
-    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
+    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
   <!-- Browser bar colour on phones: matches the header (white / dark). app.js switches it with the theme. -->
   <meta name="theme-color" content="#ffffff" id="meta-theme-color" />
   <script>
@@ -74,8 +74,8 @@
             <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
           </div>
 
-          <!-- 2. Weekly publication -->
-          <div class="nav-item" data-nav="weekly">
+          <!-- 2. Weekly publication (shown only while the site has a weekly issue - data-weekly-nav, see app.js applyWeeklyVisibility) -->
+          <div class="nav-item" data-nav="weekly" data-weekly-nav>
             <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
               Weekly publication
             </a>
@@ -134,7 +134,7 @@
       <div class="mobile-chips-track" id="mobile-chips-track">
         <button type="button" class="chip active" data-cat="all" aria-current="true"
           onclick="setCategoryFilter('all')">होम</button>
-        <button type="button" class="chip" data-cat="weekly" onclick="setCategoryFilter('weekly')">साप्ताहिक
+        <button type="button" class="chip" data-cat="weekly" data-weekly-nav onclick="setCategoryFilter('weekly')">साप्ताहिक
           आवृत्ती</button>
         <button type="button" class="chip" data-cat="samajik" onclick="setCategoryFilter('samajik')">सामाजिक</button>
         <button type="button" class="chip" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</button>
@@ -199,9 +199,9 @@
                 <span>सामाजिक (Social)</span>
                 <span class="label-count" data-count="samajik">(२)</span>
               </div>
-              <div class="label-item" onclick="setCategoryFilter('weekly')">
+              <div class="label-item" data-weekly-nav onclick="setCategoryFilter('weekly')">
                 <span>साप्ताहिक आवृत्ती (Weekly)</span>
-                <span class="label-count" data-count="weekly">(४२)</span>
+                <span class="label-count" data-count="weekly">(०)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('blogs')">
                 <span>ब्लॉग्स (Blogs)</span>
@@ -282,13 +282,13 @@
                   </a>
 
                   <!-- X (Twitter) -->
-                  <a href="https://twitter.com/intent/tweet?text=लोकमंगल%20साप्ताहिक%20विशेषांक" target="_blank"
+                  <a href="https://twitter.com/intent/tweet?text=लोकमंगल%20न्यूज%20पोर्टल" target="_blank"
                     rel="noopener noreferrer" class="x-share-btn share-x" title="X (Twitter) वर शेअर करा">
                     <i class="fa-brands fa-x-twitter"></i>
                   </a>
 
                   <!-- WhatsApp -->
-                  <a href="https://api.whatsapp.com/send?text=लोकमंगल%20साप्ताहिक%20विशेषांक" target="_blank"
+                  <a href="https://api.whatsapp.com/send?text=लोकमंगल%20न्यूज%20पोर्टल" target="_blank"
                     rel="noopener noreferrer" class="x-share-btn share-wa" title="WhatsApp वर शेअर करा">
                     <i class="fa-brands fa-whatsapp"></i>
                   </a>
@@ -320,7 +320,7 @@
                   </div>
 
                   <!-- Email -->
-                  <a href="mailto:?subject=लोकमंगल साप्ताहिक विशेषांक" class="x-share-btn share-email"
+                  <a href="mailto:?subject=लोकमंगल न्यूज पोर्टल" class="x-share-btn share-email"
                     title="Email द्वारे शेअर करा">
                     <i class="fa-solid fa-envelope"></i>
                   </a>
@@ -336,8 +336,8 @@
 
             <!-- Secondary Feed inside Main Column -->
             <div class="more-posts-header">
-              <h2 class="more-posts-title"><i class="fa-solid fa-book-open"
-                  style="color:var(--main-color); margin-right:6px"></i> इतर साप्ताहिक आवृत्त्या (More Weekly Editions)
+              <h2 class="more-posts-title"><i class="fa-solid fa-newspaper"
+                  style="color:var(--main-color); margin-right:6px"></i> इतर ताज्या बातम्या
               </h2>
             </div>
             <div id="secondary-posts-feed">
@@ -348,7 +348,7 @@
         </main>
 
         <!-- ====================================================================
-             COLUMN 3: RIGHT SIDEBAR (Random Posts 2x2 Grid + Weekly Showcase)
+             COLUMN 3: RIGHT SIDEBAR (Random Posts 2x2 Grid + Latest Reviews + Follow Us + Videos)
              ==================================================================== -->
         <aside id="sidebar-wrapper">
 
@@ -431,7 +431,7 @@
       </div>
       <div class="footer-links-row">
         <a href="javascript:void(0)" onclick="setCategoryFilter('all')">Home</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">Weekly publication</a>
+        <a href="javascript:void(0)" data-weekly-nav onclick="setCategoryFilter('weekly')">Weekly publication</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">Samajik</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">Rajkiy</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">Blogs</a>
@@ -531,7 +531,7 @@
         <i class="fa-solid fa-house lead"></i><span>Home</span>
       </button>
 
-      <button type="button" class="drawer-nav-link" data-cat="weekly" onclick="setCategoryFilter('weekly')">
+      <button type="button" class="drawer-nav-link" data-cat="weekly" data-weekly-nav onclick="setCategoryFilter('weekly')">
         <i class="fa-solid fa-newspaper lead"></i><span>Weekly publication</span>
       </button>
 

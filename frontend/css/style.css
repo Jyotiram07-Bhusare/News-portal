@@ -3295,6 +3295,18 @@ html.is-dark .reader-progress {
   display: none !important;
 }
 
+/* No weekly issue on the site: every "Weekly publication" entry (menu, chips, labels, footer ...) is hidden and the
+   sidebar ad - whose link opened the latest issue - is not clickable. app.js (applyWeeklyVisibility) removes the
+   no-weekly class from <html> as soon as an issue exists (added in the Admin Panel), and the entries come back. */
+html.no-weekly [data-weekly-nav] {
+  display: none !important;
+}
+
+html.no-weekly .responsive-ads-widget a {
+  pointer-events: none;
+  cursor: default;
+}
+
 /* ==========================================================================
    RESPONSIVE: all tablet / phone rules (1100 · 980 · 600 · 400 · 340px, landscape, safe-areas,
    touch polish) live in css/responsive.css, which is loaded right after this file.

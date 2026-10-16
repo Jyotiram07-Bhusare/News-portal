@@ -834,8 +834,8 @@ function renderWeeklyTable() {
 }
 
 function openNewWeeklyModal() {
-  // Suggest next issue number
-  const maxIssue = appState.weekly && appState.weekly.length ? Math.max(...appState.weekly.map(w => w.issue_no)) : 42;
+  // Suggest next issue number (the first issue of an empty Weekly publication is number 1)
+  const maxIssue = appState.weekly && appState.weekly.length ? Math.max(...appState.weekly.map(w => w.issue_no)) : 0;
   const nextIssue = maxIssue + 1;
 
   document.getElementById('form-weekly-no').value = nextIssue;

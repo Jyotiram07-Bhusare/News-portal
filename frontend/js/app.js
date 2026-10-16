@@ -404,51 +404,12 @@ let articlesData = [
   }
 ];
 
-// --- Past Weekly Publication Issues (Issues 42 down to 1: complete 42 issues repository) ---
-const PAST_WEEKLY_ISSUES = [
-  { no: 42, date: "१२ ऑक्टोबर २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ४२): 'महाराष्ट्राचा विकासाचा महामार्ग आणि नवी आव्हाने'", img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80", views: "22.5K", desc: "उद्योग, शेती आणि शिक्षण क्षेत्रातील आमूलाग्र बदल, विशेष स्तंभलेख आणि थेट लोकप्रतिनिधींशी संवाद. मोफत ई-पेपर डाऊनलोड करा." },
-  { no: 41, date: "०५ ऑक्टोबर २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ४१): 'युवा शक्ती आणि कौशल्य विकास विशेष'", img: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80", views: "18.9K", desc: "नवीन स्टार्ट-अप्स, शासकीय योजना, करिअर मार्गदर्शन आणि स्पर्धा परीक्षा तयारीचा आढावा." },
-  { no: 40, date: "२८ सप्टेंबर २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ४०): 'शेतकरी समृद्धी, आधुनिक कृषी तंत्रज्ञान व जलसंधारण'", img: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80", views: "19.4K", desc: "खरीप हंगाम आढावा, ठिबक सिंचन योजना, शेतकरी उत्पादक कंपन्यांचे (FPC) यश आणि दुष्काळमुक्तीसाठीच्या उपाययोजनांचा सविस्तर विशेष रिपोर्ट." },
-  { no: 39, date: "२१ सप्टेंबर २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३९): 'ग्रामीण महिला उद्योजकता आणि सहकाराची नवी दिशा'", img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80", views: "16.7K", desc: "बचत गटांच्या माध्यमातून ग्रामीण महिलांनी उभी केलेली आर्थिक क्रांती, लघुउद्योगांसाठी वित्तपुरवठा आणि स्थानिक बाजारपेठेचे सक्षमीकरण." },
-  { no: 38, date: "१४ सप्टेंबर २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ३८): 'डिजिटल शिक्षण क्रांती आणि आरोग्य व्यवस्था सक्षमीकरण'", img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80", views: "21.1K", desc: "ग्रामीण शाळांमध्ये डिजिटल फलक आणि संगणक प्रयोगशाळा, प्राथमिक आरोग्य केंद्रांचे आधुनिकीकरण व टेली-मेडिसिन सुविधा." },
-  { no: 37, date: "०७ सप्टेंबर २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३७): 'सहकार चळवळ, कृषी बाजारपेठ आणि ग्रामीण अर्थव्यवस्थेचे पुनरुज्जीवन'", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80", views: "17.8K", desc: "सहकारी संस्था, शेतकरी बाजारपेठ आणि स्थानिक अर्थव्यवस्थेला बळ देणाऱ्या धोरणांवर ज्येष्ठ अभ्यासकांचे परखड विश्लेषण." },
-  { no: 36, date: "३१ ऑगस्ट २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ३६): 'पर्यावरण संवर्धन, वृक्षारोपण आणि नदी पुनरुज्जीवन'", img: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80", views: "15.4K", desc: "सह्याद्रीच्या कुशीतील निसर्ग संपदा, जलसंवर्धन आणि वृक्षलागवड मोहीम यावर विशेष संशोधन." },
-  { no: 35, date: "२४ ऑगस्ट २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३५): 'स्वातंत्र्य अमृत महोत्सव: महाराष्ट्राचे स्वातंत्र्यसैनिक व योगदान'", img: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=800&q=80", views: "19.8K", desc: "महाराष्ट्रातील क्रांतिकारकांचे कार्य, स्वातंत्र्यलढ्यातील योगदान आणि इतिहासाची पाने." },
-  { no: 34, date: "१७ ऑगस्ट २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ३४): 'लहान व मध्यम उद्योग (MSME) आणि ग्रामीण रोजगारनिर्मिती'", img: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80", views: "14.2K", desc: "ग्रामीण भागात उद्योग सुरू करण्यासाठी शासनाचे अर्थसाहाय्य आणि यशस्वी उद्योजकांच्या यशोगाथा." },
-  { no: 33, date: "१० ऑगस्ट २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३३): 'सोलापूर चादर व हातमाग वस्त्रोद्योग: जागतिक भरारी'", img: "https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?auto=format&fit=crop&w=800&q=80", views: "16.1K", desc: "सोलापूरच्या प्रसिद्ध चादर व टेरीटॉवेल उद्योगाची निर्यात आणि विणकरांच्या समस्यांवर विशेष प्रकाश." },
-  { no: 32, date: "०३ ऑगस्ट २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ३२): 'पर्यटन विकास: सह्याद्रीची गडकोट मोहीम आणि ऐतिहासिक वारसा'", img: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80", views: "18.3K" },
-  { no: 31, date: "२७ जुलै २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३१): 'दुग्ध व्यवसाय, पशुसंवर्धन व शेतीपूरक व्यवसाय मार्गदर्शक'", img: "https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=800&q=80", views: "13.9K" },
-  { no: 30, date: "२० जुलै २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ३०): 'आषाढी वारी विशेष: भक्ती, संस्कृती आणि सामाजिक समरसता'", img: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80", views: "24.5K" },
-  { no: 29, date: "१३ जुलै २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक २९): 'पाणी अडवा, पाणी जिरवा: जलयुक्त शिवार यशोगाथा'", img: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=800&q=80", views: "17.2K" },
-  { no: 28, date: "०६ जुलै २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २८): 'स्मार्ट शेती, सेंद्रिय खते आणि विषमुक्त अन्न चळवळ'", img: "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=800&q=80", views: "15.8K" },
-  { no: 27, date: "२९ जून २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक २७): 'मराठवाडा व विदर्भ औद्योगिक विकास प्रकल्प विशेष आढावा'", img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80", views: "16.4K" },
-  { no: 26, date: "२२ जून २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २६): 'आंतरराष्ट्रीय योग दिन: आरोग्य आणि निरोगी जीवनशैली'", img: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=800&q=80", views: "19.1K" },
-  { no: 25, date: "१५ जून २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक २५): 'नवीन शैक्षणिक धोरण आणि ग्रामीण शाळांचे भवितव्य'", img: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80", views: "14.7K" },
-  { no: 24, date: "०८ जून २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २४): 'पावसाळा पूर्वतयारी, आपत्ती व्यवस्थापन व शेती नियोजन'", img: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80", views: "13.5K" },
-  { no: 23, date: "०१ जून २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक २३): 'मृग नक्षत्र आणि खरीप हंगाम पेरणी विशेष मार्गदर्शन'", img: "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=800&q=80", views: "18.0K" },
-  { no: 22, date: "२५ मे २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २२): 'सौर ऊर्जा प्रकल्प आणि शेतीसाठी मोफत वीज योजना'", img: "https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80", views: "16.6K" },
-  { no: 21, date: "१८ मे २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक २१): 'लोकशाहीचा उत्सव: निवडणूक सुधारणा आणि नागरिकांचे हक्क'", img: "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&q=80", views: "15.3K" },
-  { no: 20, date: "११ मे २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २०): 'राष्ट्रीय तंत्रज्ञान दिवस: ग्रामीण भागात डिजिटल क्रांती'", img: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80", views: "17.9K" },
-  { no: 19, date: "०४ मे २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १९): 'महाराष्ट्र दिन व कामगार दिन विशेषांक: कामगार कल्याण'", img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80", views: "22.1K" },
-  { no: 18, date: "२७ एप्रिल २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक १८): 'उन्हाळी पिके, भाजीपाला शेती आणि थेट बाजारपेठ'", img: "https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?auto=format&fit=crop&w=800&q=80", views: "14.0K" },
-  { no: 17, date: "२० एप्रिल २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १७): 'महात्मा जोतीराव फुले व डॉ. आंबेडकर विचार विशेषांक'", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=800&q=80", views: "20.4K" },
-  { no: 16, date: "१३ एप्रिल २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक १६): 'गुढीपाडवा विशेषांक: नववर्ष आणि महाराष्ट्राची समृद्धी'", img: "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=800&q=80", views: "18.8K" },
-  { no: 15, date: "०६ एप्रिल २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १५): 'जल व्यवस्थापन, विहिरींचे पुनर्भरण आणि ठिबक सिंचन'", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80", views: "16.2K" },
-  { no: 14, date: "३० मार्च २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक १४): 'वित्तीय वर्ष अखेर: कर नियोजन, गुंतवणूक व शेतकरी बचत'", img: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80", views: "15.0K" },
-  { no: 13, date: "२३ मार्च २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १३): 'शहीद दिन: भगतसिंग, राजगुरू आणि सुखदेव यांची देशभक्ती'", img: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=800&q=80", views: "19.5K" },
-  { no: 12, date: "१६ मार्च २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक १२): 'जागतिक ग्राहक दिन: ग्राहक हक्क आणि ऑनलाईन सुरक्षा'", img: "https://images.unsplash.com/photo-1556742049-0a67e5572293?auto=format&fit=crop&w=800&q=80", views: "14.1K" },
-  { no: 11, date: "०९ मार्च २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ११): 'जागतिक महिला दिन विशेषांक: कर्तृत्ववान महिलांची यशोगाथा'", img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80", views: "23.7K" },
-  { no: 10, date: "०२ मार्च २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक १०): 'मराठी भाषा गौरव दिन विशेष: साहित्य, भाषा आणि संस्कृती'", img: "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80", views: "17.4K" },
-  { no: 9, date: "२३ फेब्रुवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ९): 'शिवजयंती विशेषांक: छत्रपती शिवाजी महाराजांचे जल व कृषी व्यवस्थापन'", img: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80", views: "25.2K" },
-  { no: 8, date: "१६ फेब्रुवारी २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ८): 'कृषी औद्योगिक प्रदर्शन आणि आधुनिक शेती अवजारे'", img: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80", views: "15.6K" },
-  { no: 7, date: "०९ फेब्रुवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ७): 'ग्रामीण बँकिंग, पतसंस्था आणि शेतकरी सुलभ कर्ज योजना'", img: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80", views: "16.9K" },
-  { no: 6, date: "०२ फेब्रुवारी २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ६): 'अर्थसंकल्प विशेषांक: शेती, उद्योग आणि सर्वसामान्यांना दिलासा'", img: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80", views: "21.0K" },
-  { no: 5, date: "२६ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ५): 'प्रजासत्ताक दिन विशेषांक: भारतीय संविधान, लोकशाही आणि कर्तव्ये'", img: "https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=800&q=80", views: "20.8K" },
-  { no: 4, date: "१९ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक ४): 'मकर संक्रांती विशेष: शेतीतील समृद्धी आणि पारंपरिक सण'", img: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80", views: "16.3K" },
-  { no: 3, date: "१२ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक ३): 'स्वामी विवेकानंद व जिजाऊ जयंती: युवा प्रेरणा विशेषांक'", img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=800&q=80", views: "19.9K" },
-  { no: 2, date: "०५ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक विशेषांक (अंक २): 'सावित्रीबाई फुले जयंती: स्त्री शिक्षणाची क्रांती'", img: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80", views: "22.4K" },
-  { no: 1, date: "०१ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १): 'नवीन वर्ष विशेषांक २०२६: लोकमंगल साप्ताहिक शुभारंभ'", img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80", views: "26.0K" }
-];
+// --- Built-in weekly issues: none -------------------------------------------------------------------
+// The website ships WITHOUT any weekly issue, so the "Weekly publication" entries stay hidden (applyWeeklyVisibility).
+// Issues are added in the Admin Panel: they are stored in MySQL and reach the website through /api/weekly - the first one
+// makes the menu entries and the Weekly page appear. An issue written into this list would be built in for every visitor:
+//   { no: 1, date: "०१ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक (अंक १): '...'", img: "https://.../cover.jpg", views: "10K", desc: "..." }
+const PAST_WEEKLY_ISSUES = [];
 
 // Weekly PDFs on the website (js/config.js -> WEEKLY_PDF).
 //   false = no PDF anywhere: no buttons, tags, banner, headings or wording. The issues themselves (cover, title, date, page) stay.
@@ -496,6 +457,13 @@ const weeklyIssues = () => articlesData.filter((a) => a.category === "weekly" &&
 const latestIssue = () => weeklyIssues()[0];
 const issueByNo = (no) => articlesData.find((a) => a.category === "weekly" && a.issue === no);
 
+// The "Weekly publication" entries (header menu, phone chips, slide-out menu, Labels, footer) exist only while the site has
+// at least one weekly issue. Without one they are hidden (css: html.no-weekly [data-weekly-nav]); the first issue added in the
+// Admin Panel brings them back. Called at start and every time the backend's data has been merged in.
+function applyWeeklyVisibility() {
+  document.documentElement.classList.toggle("no-weekly", weeklyIssues().length === 0);
+}
+
 // ---- PDF STORAGE -----------------------------------------------------------------------------------
 // Every weekly issue has ONE pdf file, named  lokmangal-weekly-<issue number>.pdf  (e.g. lokmangal-weekly-42.pdf).
 // PDF_BASE says where those files live:
@@ -506,7 +474,7 @@ const issueByNo = (no) => articlesData.find((a) => a.category === "weekly" && a.
 //     The bucket must (1) allow CORS GET/HEAD from this site, (2) expose the response headers
 //     Content-Length, Content-Range and Accept-Ranges, (3) support HTTP Range requests. See README -> "PDF storage".
 // One article can also carry its own file:  pdf: "https://.../special-issue.pdf"
-// (the 42 files that ship in assets/pdf/ right now are SAMPLES - replace them with the real issues, same names)
+// (no PDF ships with the website: put the real files into assets/pdf/ with these names and set WEEKLY_PDF = true in js/config.js)
 const PDF_BASE = "assets/pdf/";
 const pdfFileName = (no) => `lokmangal-weekly-${no}.pdf`;
 const pdfUrlFor = (a) => a.pdf || PDF_BASE + pdfFileName(a.issue);
@@ -620,6 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDrawerSwipe();
   initSheetSwipe();
   initFollowPlacement();
+  applyWeeklyVisibility();
   renderLabelCounts();
   renderLeftSidebar();
   renderRightSidebar();
@@ -1419,9 +1388,9 @@ function initSearch() {
 // ROUTER — one address (#hash) per view, so the browser's Back / Forward buttons, refresh and shared
 // links all land exactly where you expect:
 //
-//   (no hash)      Home                 latest weekly issue + the News section
-//   #weekly        Weekly publication   all issues, every one with its PDF e-paper
-//   #issue-42      one weekly issue     (PDF reader, previous / next issue)
+//   (no hash)      Home                 the lead story + the News section
+//   #weekly        Weekly publication   all issues (only while the site has one - without an issue it is Home)
+//   #issue-42      one weekly issue     (previous / next issue; the PDF reader when WEEKLY_PDF is on)
 //   #cat-rajkiy  #cat-samajik  #cat-blogs  #cat-review      category sections
 //   #post-12       one news / blog / review article
 //
@@ -1518,7 +1487,9 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
   if (r.type === "post") article = articlesData.find((a) => a.id === r.id);
 
   // unknown / stale addresses fall back to Home (and the address bar is cleaned up) ...
-  if ((r.type === "issue" || r.type === "post") && !article) {
+  // (#weekly while the site has no weekly issue is as unknown as an issue number that does not exist)
+  const emptyWeekly = r.type === "weekly" && !latestIssue();
+  if (((r.type === "issue" || r.type === "post") && !article) || emptyWeekly) {
     // ... but not before the backend has answered: it may be an article / issue the Admin Panel added (shared link, refresh, bookmark)
     if (apiSyncPending) {
       showRouteLoading();
@@ -1693,7 +1664,7 @@ function weeklyLatestHTML(a) {
 
 // ---- CATEGORY sections (Samajik, Rajkiy, Blogs, Reviews) ----
 function renderCategorySection(container, cat) {
-  const article = articlesData.find((a) => a.id === mainStoryId) || articlesData.find((a) => a.category === cat) || latestIssue();
+  const article = articlesData.find((a) => a.id === mainStoryId) || articlesData.find((a) => a.category === cat) || latestIssue() || articlesData[0];
   container.className = "main-content-box view-home";
   container.innerHTML = `
     <div class="breadcrumb-bar" id="main-breadcrumb">
@@ -2299,7 +2270,7 @@ function renderArticleView(article) {
       </div>
     </div>
     ` : `
-    ${WEEKLY_PDF && !isIssue ? `<!-- Notice for the newest weekly issue -->
+    ${WEEKLY_PDF && !isIssue && latest ? `<!-- Notice for the newest weekly issue -->
     <div class="responsive-ad-banner" data-pdf-url="${pdfUrlFor(latest)}" data-pdf-hide onclick="openWeeklyModal()">
       <i class="fa-solid fa-bullhorn" style="margin-right:6px"></i>
       लोकमंगल साप्ताहिक आवृत्ती (अंक ${toDevanagari(latest.issue)}) - डिजिटल ई-पेपर (PDF) उपलब्ध! येथे क्लिक करा
@@ -2820,8 +2791,9 @@ window.readerZoomBy = function(step) {
 window.openWeeklyModal = function(idOrNothing) {
   const byId = typeof idOrNothing === "number" ? articlesData.find((a) => a.id === idOrNothing) : null;
   const issue = byId && byId.issue ? byId : latestIssue();
+  if (!issue) return;                      // the site has no weekly issue at all
   if (!WEEKLY_PDF) {                       // PDFs are switched off: the nearest thing is the issue's own page
-    if (issue) navigate("issue-" + issue.issue);
+    navigate("issue-" + issue.issue);
     return;
   }
   currentModalArticle = issue;
@@ -2884,6 +2856,7 @@ document.querySelectorAll(".modal-overlay").forEach(modal => {
 // Download the real PDF of an issue (the reader / cards use plain download links; this stays for any old inline call)
 window.downloadWeeklyPDF = function(issueNo) {
   const issue = (typeof issueNo === "number" ? issueByNo(issueNo) : null) || currentModalArticle || latestIssue();
+  if (!issue) return;                      // the site has no weekly issue at all
   const a = document.createElement("a");
   a.href = pdfUrlFor(issue);
   a.download = `Lokmangal-Weekly-${issue.issue}.pdf`;
@@ -3072,6 +3045,7 @@ async function syncPortalWithApi() {
     if (artRes && artRes.ok || weekRes && weekRes.ok) {
       apiSyncPending = false;          // from now on an unknown address really is unknown
       routeWaitingForApi = false;
+      applyWeeklyVisibility();         // the menu entries follow what the database holds (no issue -> hidden, first issue -> shown)
       if (typeof renderLabelCounts === 'function') renderLabelCounts();
       renderLeftSidebar();
       renderRightSidebar();
