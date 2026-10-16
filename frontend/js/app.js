@@ -623,7 +623,49 @@ document.addEventListener("DOMContentLoaded", () => {
   initRouter();   // draws the view that matches the address (Home when there is no #hash)
   initBackToTop();
   initSmartHeader();
+  initAdSlider();
 });
+
+// "Responsive Ads" widget: the ads (.ad-slide) are shown one after the other, each for AD_SLIDE_MS, then it starts again.
+// The clock runs only while the widget is on the screen, the tab is open and the ad that is showing has loaded, so a
+// visitor who scrolls down to it always sees the first ad for its full time (and nothing runs for nobody).
+const AD_SLIDE_MS = 4000;
+function initAdSlider() {
+  const box = document.getElementById("ad-slider");
+  const slides = box ? [...box.querySelectorAll(".ad-slide")] : [];
+  if (slides.length < 2) return;
+  let at = slides.findIndex((s) => s.classList.contains("active"));
+  if (at < 0) at = 0;
+  let timer = null;
+  let onScreen = !("IntersectionObserver" in window);
+
+  const show = (n) => {
+    slides[at].classList.remove("active");
+    slides[at].setAttribute("aria-hidden", "true");
+    at = n % slides.length;
+    slides[at].classList.add("active");
+    slides[at].removeAttribute("aria-hidden");
+  };
+  const stop = () => { clearInterval(timer); timer = null; };
+  const loaded = () => { const img = slides[at].querySelector(".ad-img"); return !img || img.complete; };
+  const play = () => {
+    stop();
+    if (onScreen && !document.hidden && loaded()) timer = setInterval(() => show(at + 1), AD_SLIDE_MS);
+  };
+  slides.forEach((s) => {                       // the ad on show finished loading late: the clock starts now
+    const img = s.querySelector(".ad-img");
+    if (img) img.addEventListener("load", () => { if (slides[at] === s && !timer) play(); });
+  });
+
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver((entries) => {
+      onScreen = entries[entries.length - 1].isIntersecting;
+      play();
+    }, { threshold: 0.25 }).observe(box);
+  }
+  document.addEventListener("visibilitychange", play);
+  play();
+}
 
 // "सर्व बातम्या (१६)"-style counters in the Labels widget come from the data, not from typed numbers
 function renderLabelCounts() {
