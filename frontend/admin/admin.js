@@ -346,7 +346,7 @@ function renderRecentWeekly() {
 
   container.innerHTML = recents.map(w => `
     <div class="recent-item">
-      <img src="${formatAssetUrl(w.image)}" class="recent-thumb" alt="अंक ${w.issue_no}">
+      <img src="${formatAssetUrl(w.image)}" class="recent-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
       <div class="recent-body">
         <h4 class="recent-title">${w.title}</h4>
         <div class="recent-meta">
@@ -805,7 +805,7 @@ function renderWeeklyTable() {
       <tr>
         <td style="font-weight: 800; color: var(--brand-orange);">अंक ${w.issue_no}</td>
         <td>
-          <img src="${formatAssetUrl(w.image)}" class="table-thumb" alt="अंक ${w.issue_no}">
+          <img src="${formatAssetUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
         </td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary);">${w.title}</div>
@@ -817,7 +817,7 @@ function renderWeeklyTable() {
             <i class="fa-solid fa-file-pdf"></i> ${w.pdf_filename}
           </a>
         </td>
-        <td style="font-weight: 600;">${w.views || '15K'}</td>
+        <td style="font-weight: 600;">${w.views && w.views !== '—' ? w.views : '—'}</td>
         <td>
           <div class="table-actions">
             <a href="${pdfUrl}" target="_blank" class="action-btn" title="PDF पहा">
@@ -839,14 +839,92 @@ function openNewWeeklyModal() {
   const nextIssue = maxIssue + 1;
 
   document.getElementById('form-weekly-no').value = nextIssue;
-  document.getElementById('form-weekly-title').value = `लोकमंगल साप्ताहिक विशेषांक (अंक ${nextIssue}): '...'`;
-  document.getElementById('form-weekly-image').value = 'assets/images/lokmangal_what_we_do.jpg';
+  document.getElementById('form-weekly-title').value = '';   // the headline of the issue is written for each issue
+  const imgField = document.getElementById('form-weekly-image');
+  const dateField = document.getElementById('form-weekly-date');
+  imgField.value = 'assets/images/lokmangal_what_we_do.jpg';
   document.getElementById('form-weekly-pdffilename').value = `lokmangal-weekly-${nextIssue}.pdf`;
   document.getElementById('weekly-pdf-filename-display').innerHTML = `PDF फाईल निवडा किंवा ड्रॅग करा (lokmangal-weekly-${nextIssue}.pdf)`;
-  document.getElementById('form-weekly-desc').value = 'शेतकरी समृद्धी, आधुनिक तंत्रज्ञान आणि स्थानिक घडामोडींचा विशेष डिजिटल ई-पेपर.';
+  document.getElementById('form-weekly-desc').value = '';   // no ready-made text: the introduction is written for each issue
 
+  dateField.value = '';          // an empty field is filled with today's date by initDateDisplay
   initDateDisplay();
+  // the cover and the date are SUGGESTIONS until the owner types / chooses them: the PDF then fills them in (see handleWeeklyPdfUpload)
+  imgField.dataset.auto = '1';
+  dateField.dataset.auto = '1';
+  imgField.oninput = () => { imgField.dataset.auto = ''; showWeeklyCoverPreview(imgField.value); };
+  dateField.oninput = () => { dateField.dataset.auto = ''; };
+  showWeeklyCoverPreview('');    // the default picture is a placeholder: no preview until a real cover exists
   document.getElementById('weekly-modal').classList.add('open');
+}
+
+// ---- the DATE and the COVER of an issue come from its PDF ---------------------------------------------------------
+// The date is read from the file name ("Lokmangal Saptahik 26 August 2026.pdf" -> "२६ ऑगस्ट २०२६"); the cover is the first
+// page of the PDF, drawn with pdf.js (the library the website's reader uses), saved as a JPEG and uploaded like any image.
+const WEEKLY_MONTHS_EN = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const WEEKLY_MONTHS_MR = ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'];
+const ADMIN_PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let adminPdfjsPromise = null;
+
+function weeklyDateFromFileName(fileName) {
+  const m = String(fileName || '').match(/(\d{1,2})\s*([A-Za-z]+)\.?\s*(\d{4})/);
+  if (!m) return '';
+  const month = WEEKLY_MONTHS_EN.indexOf(m[2].slice(0, 3).toLowerCase());
+  const day = Number(m[1]), year = Number(m[3]);
+  if (month < 0 || day < 1 || day > 31) return '';
+  if (new Date(year, month, day).getMonth() !== month) return '';          // 31 February is not a date
+  const dev = (n) => String(n).replace(/\d/g, (d) => '०१२३४५६७८९'[d]);
+  return `${dev(String(day).padStart(2, '0'))} ${WEEKLY_MONTHS_MR[month]} ${dev(year)}`;
+}
+
+function loadAdminPdfjs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!adminPdfjsPromise) {
+    adminPdfjsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = ADMIN_PDFJS_BASE + 'pdf.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = () => {
+        if (!window.pdfjsLib) { adminPdfjsPromise = null; reject(new Error('pdfjs')); return; }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = ADMIN_PDFJS_BASE + 'pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = () => { adminPdfjsPromise = null; reject(new Error('pdfjs-load')); };
+      document.head.appendChild(s);
+    });
+  }
+  return adminPdfjsPromise;
+}
+
+// first page of a PDF file -> a JPEG File, 800 px wide
+async function coverFileFromPdf(pdfFile, name) {
+  const pdfjs = await loadAdminPdfjs();
+  const pdf = await pdfjs.getDocument({ data: await pdfFile.arrayBuffer() }).promise;
+  try {
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 800 / page.getViewport({ scale: 1 }).width });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+    if (!blob) throw new Error('canvas');
+    return new File([blob], name, { type: 'image/jpeg' });
+  } finally {
+    pdf.destroy();
+  }
+}
+
+// small picture of the chosen cover under the cover field
+function showWeeklyCoverPreview(url) {
+  const img = document.getElementById('weekly-cover-preview');
+  if (!img) return;
+  const real = url && !/lokmangal_what_we_do\.jpg$/.test(url);
+  img.hidden = !real;
+  if (real) img.src = formatAssetUrl(url);
 }
 
 function closeWeeklyModal() {
@@ -875,6 +953,38 @@ async function handleWeeklyPdfUpload(input) {
       document.getElementById('form-weekly-pdffilename').value = data.filename;
       document.getElementById('weekly-pdf-filename-display').innerHTML = `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${data.filename} (${Math.round(data.size / 1024)} KB)`;
       showToast('PDF यशस्वीरीत्या अपलोड झाली!', 'success');
+
+      // the date from the file name and the cover from the first page - unless they were already typed / chosen by hand
+      const dateField = document.getElementById('form-weekly-date');
+      const fileDate = weeklyDateFromFileName(file.name);
+      if (fileDate && dateField.dataset.auto === '1') {
+        dateField.value = fileDate;
+        dateField.dataset.auto = '1';
+        showToast(`तारीख फाईलच्या नावावरून भरली: ${fileDate} (हवी तर बदला)`, 'info');
+      }
+      const imgField = document.getElementById('form-weekly-image');
+      if (imgField.dataset.auto === '1') {
+        const saveBtn = document.getElementById('btn-save-weekly');
+        if (saveBtn) saveBtn.disabled = true;                 // not before the cover is ready, or the issue is saved without it
+        try {
+          const cover = await coverFileFromPdf(file, `weekly-${issueNo}.jpg`);
+          const coverForm = new FormData();
+          coverForm.append('file', cover);
+          const coverRes = await apiFetch('/api/upload/image', { method: 'POST', body: coverForm });
+          const coverData = await coverRes.json();
+          if (coverData.success) {
+            imgField.value = coverData.url;
+            imgField.dataset.auto = '1';
+            showWeeklyCoverPreview(coverData.url);
+            showToast('मुखपृष्ठ PDF च्या पहिल्या पानावरून तयार केले!', 'success');
+          }
+        } catch (coverErr) {
+          console.warn('Cover from the PDF failed:', coverErr);
+          showToast('मुखपृष्ठ आपोआप तयार करता आले नाही — "फोटो निवडा" ने मुखपृष्ठ द्या.', 'info');
+        } finally {
+          if (saveBtn) saveBtn.disabled = false;
+        }
+      }
     } else {
       showToast(data.error || 'PDF अपलोड अयशस्वी.', 'error');
     }
@@ -894,7 +1004,10 @@ async function handleWeeklyCoverUpload(input) {
     const res = await apiFetch('/api/upload/image', { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('form-weekly-image').value = data.url;
+      const imgField = document.getElementById('form-weekly-image');
+      imgField.value = data.url;
+      imgField.dataset.auto = '';            // chosen by hand: a PDF uploaded later must not replace it
+      showWeeklyCoverPreview(data.url);
       showToast('मुखपृष्ठ फोटो अपलोड झाला!', 'success');
     }
   } catch (e) {
@@ -919,7 +1032,7 @@ async function handleWeeklyFormSubmit(e) {
     title,
     image,
     pdf_filename,
-    views: '16.5K',
+    views: '—',            // nothing counts the readers of a PDF; the website shows no number for it
     description
   };
 

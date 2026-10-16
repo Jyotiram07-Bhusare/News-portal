@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="mr" dir="ltr" class="no-weekly">
+<html lang="mr" dir="ltr">
 
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
   <title>लोकमंगल न्यूज पोर्टल | Lokmangal News Portal</title>
 
   <meta name="description"
-    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
+    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
   <!-- Browser bar colour on phones: matches the header (white / dark). app.js switches it with the theme. -->
   <meta name="theme-color" content="#ffffff" id="meta-theme-color" />
   <script>
@@ -74,8 +74,8 @@
             <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
           </div>
 
-          <!-- 2. Weekly publication (shown only while the site has a weekly issue - data-weekly-nav, see app.js applyWeeklyVisibility) -->
-          <div class="nav-item" data-nav="weekly" data-weekly-nav>
+          <!-- 2. Weekly publication -->
+          <div class="nav-item" data-nav="weekly">
             <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
               Weekly publication
             </a>
@@ -134,7 +134,7 @@
       <div class="mobile-chips-track" id="mobile-chips-track">
         <button type="button" class="chip active" data-cat="all" aria-current="true"
           onclick="setCategoryFilter('all')">होम</button>
-        <button type="button" class="chip" data-cat="weekly" data-weekly-nav onclick="setCategoryFilter('weekly')">साप्ताहिक
+        <button type="button" class="chip" data-cat="weekly" onclick="setCategoryFilter('weekly')">साप्ताहिक
           आवृत्ती</button>
         <button type="button" class="chip" data-cat="samajik" onclick="setCategoryFilter('samajik')">सामाजिक</button>
         <button type="button" class="chip" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</button>
@@ -199,7 +199,7 @@
                 <span>सामाजिक (Social)</span>
                 <span class="label-count" data-count="samajik">(२)</span>
               </div>
-              <div class="label-item" data-weekly-nav onclick="setCategoryFilter('weekly')">
+              <div class="label-item" onclick="setCategoryFilter('weekly')">
                 <span>साप्ताहिक आवृत्ती (Weekly)</span>
                 <span class="label-count" data-count="weekly">(०)</span>
               </div>
@@ -431,7 +431,7 @@
       </div>
       <div class="footer-links-row">
         <a href="javascript:void(0)" onclick="setCategoryFilter('all')">Home</a>
-        <a href="javascript:void(0)" data-weekly-nav onclick="setCategoryFilter('weekly')">Weekly publication</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">Weekly publication</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">Samajik</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">Rajkiy</a>
         <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">Blogs</a>
@@ -531,7 +531,7 @@
         <i class="fa-solid fa-house lead"></i><span>Home</span>
       </button>
 
-      <button type="button" class="drawer-nav-link" data-cat="weekly" data-weekly-nav onclick="setCategoryFilter('weekly')">
+      <button type="button" class="drawer-nav-link" data-cat="weekly" onclick="setCategoryFilter('weekly')">
         <i class="fa-solid fa-newspaper lead"></i><span>Weekly publication</span>
       </button>
 
@@ -577,6 +577,7 @@
   </button>
 
   <script src="js/config.js"></script>
+  <script src="js/weekly-data.js"></script>
   <script src="js/app.js"></script>
 </body>
 

@@ -404,37 +404,46 @@ let articlesData = [
   }
 ];
 
-// --- Built-in weekly issues: none -------------------------------------------------------------------
-// The website ships WITHOUT any weekly issue, so the "Weekly publication" entries stay hidden (applyWeeklyVisibility).
-// Issues are added in the Admin Panel: they are stored in MySQL and reach the website through /api/weekly - the first one
-// makes the menu entries and the Weekly page appear. An issue written into this list would be built in for every visitor:
-//   { no: 1, date: "०१ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक (अंक १): '...'", img: "https://.../cover.jpg", views: "10K", desc: "..." }
-const PAST_WEEKLY_ISSUES = [];
+// --- Built-in weekly issues ----------------------------------------------------------------------------
+// The issues of the Weekly publication live in js/weekly-data.js (window.WEEKLY_ISSUES, loaded before this file):
+//   { no, date, title, img, thumb, desc }   - no = 1 for the oldest issue, the highest number is the newest
+// Issues added later in the Admin Panel (MySQL) reach the website through /api/weekly and are merged into these.
+// With no issue at all the Weekly page shows an empty card (weeklyEmptyHTML).
+const PAST_WEEKLY_ISSUES = Array.isArray(window.WEEKLY_ISSUES) ? window.WEEKLY_ISSUES : [];
 
 // Weekly PDFs on the website (js/config.js -> WEEKLY_PDF).
+//   true  = "PDF online वाचा / download" for every issue that has its file in assets/pdf/ (the default).
 //   false = no PDF anywhere: no buttons, tags, banner, headings or wording. The issues themselves (cover, title, date, page) stay.
-//   true  = "PDF online वाचा / download" for every issue that has its file in assets/pdf/.
 const WEEKLY_PDF = !!(window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.WEEKLY_PDF);
 // without PDFs: leave out every sentence of a text that talks about the e-paper / PDF
 const withoutPdfWords = (s) => (String(s || "").match(/[^.।]+[.।]?\s*/g) || []).filter((x) => !/PDF|ई-पेपर|ऑनलाईन वाचा/.test(x)).join("").trim();
 
-// One weekly issue -> the article object the site renders. {no, date, title, img, views, desc}
+// One weekly issue -> the article object the site renders. {no, date, title, img, thumb, views, desc}
 // The built-in list above and the issues that come from the API (Admin Panel) are both built with it.
+// The cover is the front page of the PDF (portrait); `thumb` is a small copy for the lists (without it the cover is used).
+// Nothing is made up: the texts are the issue's own headline and short text; an issue without a short text has none.
+// What a reader sees to tell the issues apart: the DATE of the issue (the number inside the site is only its key / order;
+// the printed issue number of the PDFs restarts every year, so showing a counter would not match the front pages).
+const issueLabel = (a) => (a && a.date) || "";
+// Small copy of a cover for the lists: the covers of the weekly issues are assets/weekly/<no>.jpg and have a <no>-s.jpg next to them.
+// (Issues that come from the database carry only the cover; any other picture is used as it is.)
+const thumbOf = (img) => (/^assets\/weekly\/\d+\.jpg$/.test(String(img || "")) ? String(img).replace(/\.jpg$/, "-s.jpg") : img);
+const hasViews = (v) => !!String(v == null ? "" : v).trim() && String(v).trim() !== "—";
+const escText = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));   // also safe inside an attribute
 function makeWeeklyArticle(item) {
+  const desc = (WEEKLY_PDF ? item.desc : withoutPdfWords(item.desc)) || "";
   return {
     id: 1000 + item.no,
+    issue: item.no,
     title: item.title,
     category: "weekly",
     categoryLabel: "साप्ताहिक आवृत्ती",
     author: "संपादकीय मंडळ",
     date: item.date,
     image: item.img,
-    excerpt: (WEEKLY_PDF ? item.desc : withoutPdfWords(item.desc)) || (WEEKLY_PDF
-      ? `लोकमंगल साप्ताहिक अंक ${item.no} चा विशेष डिजिटल ई-पेपर अंक उपलब्ध. शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह. मोफत PDF डाऊनलोड करा.`
-      : `लोकमंगल साप्ताहिक अंक ${item.no} — शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह.`),
-    content: WEEKLY_PDF
-      ? `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, हा अंक आता डिजिटल स्वरूपात उपलब्ध आहे. सविस्तर वाचनासाठी ई-पेपर डाऊनलोड करा किंवा ऑनलाईन वाचा.</p>`
-      : `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, लोकमंगल साप्ताहिकाचा हा अंक प्रकाशित झाला आहे.</p>`,
+    thumb: item.thumb || thumbOf(item.img),
+    excerpt: desc,
+    content: desc ? `<p>${escText(desc)}</p>` : "",
     views: item.views
   };
 }
@@ -442,27 +451,40 @@ function makeWeeklyArticle(item) {
 PAST_WEEKLY_ISSUES.forEach(item => articlesData.push(makeWeeklyArticle(item)));
 
 // --- Weekly issues -----------------------------------------------------------------------------------
-// Devanagari digits <-> plain numbers (the issue number lives inside the Marathi title: "अंक ४२")
+// Devanagari digits <-> plain numbers
 const DEV_DIGITS = "०१२३४५६७८९";
 const devToAscii = (s) => String(s).replace(/[०-९]/g, (d) => DEV_DIGITS.indexOf(d));
 const toDevanagari = (n) => String(n).replace(/\d/g, (d) => DEV_DIGITS[d]);
 
 articlesData.forEach((a) => {
-  if (a.category !== "weekly") return;
-  const m = a.title.match(/अंक\s*([०-९0-9]+)/);
+  if (a.category !== "weekly" || a.issue) return;          // the weekly issues carry their number (makeWeeklyArticle)
+  const m = String(a.title || "").match(/अंक\s*([०-९0-9]+)/);   // an old-style article of the weekly section: "... (अंक ४२)"
   a.issue = m ? parseInt(devToAscii(m[1]), 10) : null;
 });
 
-const weeklyIssues = () => articlesData.filter((a) => a.category === "weekly" && a.issue).sort((a, b) => b.issue - a.issue);
+// The date of an issue as a sortable number (yyyymmdd), or null when it cannot be read.
+// Reads "२६ ऑगस्ट २०२६", "26 August 2026", "26-08-2026" and "26/08/2026" (Marathi or ordinary digits).
+const MARATHI_MONTHS = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
+const ENGLISH_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+function dateValue(text) {
+  const t = devToAscii(String(text || "")).trim().toLowerCase();
+  let m = t.match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{4})/);          // 26-08-2026 (day, month, year)
+  if (m) return Number(m[3]) * 10000 + Number(m[2]) * 100 + Number(m[1]);
+  m = t.match(/(\d{1,2})\s+([^\s\d,.]+)[.,]?\s+(\d{4})/);                          // 26 ऑगस्ट 2026 / 26 aug 2026
+  if (!m) return null;
+  let month = MARATHI_MONTHS.indexOf(m[2]);
+  if (month < 0) month = ENGLISH_MONTHS.indexOf(m[2].slice(0, 3));
+  return month < 0 ? null : Number(m[3]) * 10000 + (month + 1) * 100 + Number(m[1]);
+}
+
+// Newest issue first: by DATE (an issue added later for an earlier week still lands in its place); equal / unreadable dates by number.
+// An issue whose date cannot be read counts as the newest, so a freshly added issue never disappears at the bottom.
+const weeklyIssues = () => articlesData.filter((a) => a.category === "weekly" && a.issue).sort((a, b) => {
+  const da = dateValue(a.date), db = dateValue(b.date);
+  return (db == null ? Infinity : db) - (da == null ? Infinity : da) || b.issue - a.issue;
+});
 const latestIssue = () => weeklyIssues()[0];
 const issueByNo = (no) => articlesData.find((a) => a.category === "weekly" && a.issue === no);
-
-// The "Weekly publication" entries (header menu, phone chips, slide-out menu, Labels, footer) exist only while the site has
-// at least one weekly issue. Without one they are hidden (css: html.no-weekly [data-weekly-nav]); the first issue added in the
-// Admin Panel brings them back. Called at start and every time the backend's data has been merged in.
-function applyWeeklyVisibility() {
-  document.documentElement.classList.toggle("no-weekly", weeklyIssues().length === 0);
-}
 
 // ---- PDF STORAGE -----------------------------------------------------------------------------------
 // Every weekly issue has ONE pdf file, named  lokmangal-weekly-<issue number>.pdf  (e.g. lokmangal-weekly-42.pdf).
@@ -536,11 +558,14 @@ function hydratePdfInfoLazily(root) {
 }
 const NEWS_CATEGORIES = ["samajik", "rajkiy"];   // the "News" menu = Samajik + Rajkiy
 
-// Search understands both digit styles: "२५" and "25" find the same issue
-const searchKey = (s) => devToAscii(String(s).toLowerCase());
+// Search understands both digit styles: "२५" and "25" find the same thing
+const searchKey = (s) => devToAscii(String(s == null ? "" : s).toLowerCase());
+// The first news item whose headline / text has the words; otherwise the NEWEST weekly issue that matches
+// (by headline, short text or date: "२४ सप्टेंबर २०२५", "24 सप्टेंबर 2025").
 function findArticleByQuery(q) {
   const k = searchKey(q);
-  return articlesData.find((a) => searchKey(a.title).includes(k) || searchKey(a.excerpt).includes(k));
+  const hit = (a) => searchKey(a.title).includes(k) || searchKey(a.excerpt).includes(k) || (a.category === "weekly" && searchKey(a.date).includes(k));
+  return articlesData.find((a) => a.category !== "weekly" && hit(a)) || weeklyIssues().find(hit);
 }
 
 // Current State (the router below sets these for every view)
@@ -588,7 +613,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initDrawerSwipe();
   initSheetSwipe();
   initFollowPlacement();
-  applyWeeklyVisibility();
   renderLabelCounts();
   renderLeftSidebar();
   renderRightSidebar();
@@ -603,7 +627,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // "सर्व बातम्या (१६)"-style counters in the Labels widget come from the data, not from typed numbers
 function renderLabelCounts() {
-  const count = (cat) => (cat === "all" ? articlesData.length : articlesData.filter((a) => a.category === cat).length);
+  const count = (cat) => (cat === "all" ? articlesData.filter((a) => a.category !== "weekly").length : articlesData.filter((a) => a.category === cat).length);
   document.querySelectorAll(".label-count[data-count]").forEach((el) => {
     el.textContent = `(${toDevanagari(count(el.dataset.count))})`;
   });
@@ -1389,7 +1413,7 @@ function initSearch() {
 // links all land exactly where you expect:
 //
 //   (no hash)      Home                 the lead story + the News section
-//   #weekly        Weekly publication   all issues (only while the site has one - without an issue it is Home)
+//   #weekly        Weekly publication   all issues (an empty card until the first issue is published)
 //   #issue-42      one weekly issue     (previous / next issue; the PDF reader when WEEKLY_PDF is on)
 //   #cat-rajkiy  #cat-samajik  #cat-blogs  #cat-review      category sections
 //   #post-12       one news / blog / review article
@@ -1487,9 +1511,7 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
   if (r.type === "post") article = articlesData.find((a) => a.id === r.id);
 
   // unknown / stale addresses fall back to Home (and the address bar is cleaned up) ...
-  // (#weekly while the site has no weekly issue is as unknown as an issue number that does not exist)
-  const emptyWeekly = r.type === "weekly" && !latestIssue();
-  if (((r.type === "issue" || r.type === "post") && !article) || emptyWeekly) {
+  if ((r.type === "issue" || r.type === "post") && !article) {
     // ... but not before the backend has answered: it may be an article / issue the Admin Panel added (shared link, refresh, bookmark)
     if (apiSyncPending) {
       showRouteLoading();
@@ -1497,6 +1519,12 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     }
     replaceUrl("");
     return renderRoute({ scroll, restoreY });
+  }
+  // The Weekly page of a site without an issue is its empty card - but a shared #weekly link first waits for the backend's
+  // answer (it may bring the issues added in the Admin Panel), so the empty card does not flash up before them.
+  if (r.type === "weekly" && !latestIssue() && apiSyncPending) {
+    showRouteLoading();
+    return;
   }
   if (r.unknown) replaceUrl("");
   // an old "#post-<weekly article id>" link becomes the proper "#issue-<number>" address
@@ -1506,7 +1534,7 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     renderedRoute = routeForArticle(article);
     renderArticleView(article);
     updateNavActiveStates(article.category);
-    setDocTitle(article.issue ? `अंक ${toDevanagari(article.issue)} • साप्ताहिक आवृत्ती` : article.title);
+    setDocTitle(article.issue ? `${issueLabel(article) || article.title} • साप्ताहिक आवृत्ती` : article.title);
   } else {
     currentCategory = r.type === "weekly" ? "weekly" : r.type === "cat" ? r.cat : "all";
     const first = articlesData.find((a) => a.category === currentCategory);
@@ -1515,7 +1543,7 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
       ? (articlesData.find((a) => Number(a.is_lead) === 1 && a.category !== "weekly")?.id
          || articlesData.find((a) => a.category === "rajkiy")?.id || 1)
       : currentCategory === "weekly"
-        ? latestIssue().id
+        ? (latestIssue()?.id ?? 1)
         : (first ? first.id : 1);
     renderedRoute = routeKeyOf(r.type === "home" ? { type: "home" } : r);
     renderHomeFeed();
@@ -1612,10 +1640,12 @@ function renderWeeklySection(container) {
     <header class="weekly-section-head">
       <span class="weekly-section-kicker"><i class="fa-solid fa-newspaper"></i> लोकमंगल साप्ताहिक</span>
       <h1 class="weekly-section-title" id="main-headline-text">साप्ताहिक आवृत्ती</h1>
-      <p class="weekly-section-sub">सर्व ${toDevanagari(issues.length)} अंक एकाच ठिकाणी${WEEKLY_PDF ? " — ऑनलाईन वाचा (PDF) किंवा मोफत डाउनलोड करा" : ""}.</p>
+      <p class="weekly-section-sub">${issues.length
+        ? `सर्व ${toDevanagari(issues.length)} अंक एकाच ठिकाणी${WEEKLY_PDF ? " — ऑनलाईन वाचा (PDF) किंवा मोफत डाउनलोड करा" : ""}.`
+        : "लोकमंगल साप्ताहिकाचे नवीन अंक लवकरच येथे प्रकाशित होतील."}</p>
     </header>
 
-    ${weeklyLatestHTML(issues[0])}
+    ${issues.length ? `${weeklyLatestHTML(issues[0])}
 
     <div class="more-posts-header">
       <h2 class="more-posts-title">${WEEKLY_PDF
@@ -1624,8 +1654,9 @@ function renderWeeklySection(container) {
     </div>
     <div id="secondary-posts-feed">
       <!-- Populated below -->
-    </div>
+    </div>` : weeklyEmptyHTML()}
   `;
+  if (!issues.length) return;            // nothing to list, nothing to ask the server about
   renderSecondaryPosts();
   if (WEEKLY_PDF) {
     hydratePdfInfo(container);
@@ -1633,23 +1664,33 @@ function renderWeeklySection(container) {
   }
 }
 
+// The Weekly publication before its first issue: one calm card (no list, no search box, no PDF button)
+function weeklyEmptyHTML() {
+  return `
+    <div class="weekly-empty" role="status">
+      <span class="weekly-empty-icon"><i class="fa-regular fa-newspaper"></i></span>
+      <h2 class="weekly-empty-title">सध्या एकही अंक उपलब्ध नाही</h2>
+      <p class="weekly-empty-text">लोकमंगल साप्ताहिकाचे नवीन अंक लवकरच येथे ${WEEKLY_PDF ? "ऑनलाईन वाचता येतील व मोफत डाउनलोड करता येतील" : "प्रकाशित होतील"}. तोपर्यंत ताज्या बातम्या वाचा.</p>
+      <button type="button" class="btn-archive-pill" onclick="returnToHomeFeed()"><i class="fa-solid fa-house" style="color:var(--accent-red)"></i> ताज्या बातम्या वाचा</button>
+    </div>`;
+}
+
 function weeklyLatestHTML(a) {
   const pdf = pdfUrlFor(a);
   return `
     <article class="weekly-latest">
       <div class="weekly-latest-cover" onclick="openArticlePage(${a.id})">
-        ${fluidImg(a.image, a.title, [480, 800, 1200], "(max-width: 980px) 100vw, 320px", HERO_IMG_ATTRS)}
+        ${fluidImg(a.image, issueLabel(a) + " — " + a.title, [480, 800, 1200], "(max-width: 980px) 100vw, 320px", HERO_IMG_ATTRS)}
         <span class="latest-ribbon"><i class="fa-solid fa-bolt"></i> नवीनतम अंक</span>
         ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="weekly-latest-info">
-        <span class="edition-no-badge">अंक ${toDevanagari(a.issue)}</span>
         <h2 class="weekly-latest-title" onclick="openArticlePage(${a.id})">${a.title}</h2>
         <div class="weekly-latest-meta">
           <span><i class="fa-regular fa-calendar"></i> ${a.date}</span>
-          <span><i class="fa-regular fa-eye"></i> ${a.views} वाचक</span>
+          ${hasViews(a.views) ? `<span><i class="fa-regular fa-eye"></i> ${a.views} वाचक</span>` : ""}
         </div>
-        <p class="weekly-latest-excerpt">${a.excerpt}</p>
+        ${a.excerpt ? `<p class="weekly-latest-excerpt">${a.excerpt}</p>` : ""}
         ${WEEKLY_PDF ? `<div class="weekly-latest-actions" data-pdf-url="${pdf}">
           <button class="btn-pdf-read" data-pdf-action onclick="openWeeklyModal(${a.id})"><i class="fa-solid fa-book-open"></i> PDF ऑनलाईन वाचा</button>
           <button class="btn-card-read" onclick="openArticlePage(${a.id})"><i class="fa-solid fa-arrow-right"></i> अंकाचे पान</button>
@@ -1919,20 +1960,19 @@ window.loadMoreHomeNews = function() {
 
 function weeklyRowHTML(item) {
   return `
-    <div class="secondary-post-item weekly-edition-item" onclick="openArticlePage(${item.id})">
+    <div class="secondary-post-item weekly-edition-item" data-search="${escText((item.title + " " + item.date + " " + (item.excerpt || "")).toLowerCase())}" onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
-        ${thumbImg(item.image, item.title, 320)}
+        ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
         ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="secondary-post-details">
-        <span class="edition-no-badge">अंक ${toDevanagari(item.issue)}</span>
         <h4 class="secondary-post-title">${item.title}</h4>
         <div class="secondary-post-meta">
           <span style="color:var(--accent-red); font-weight:700"><i class="fa-regular fa-newspaper"></i> ${WEEKLY_PDF ? "ई-पेपर" : "साप्ताहिक"}</span>
           <span class="meta-dot">•</span>
           <span>${item.date}</span>
-          <span class="meta-dot">•</span>
-          <span><i class="fa-regular fa-eye"></i> ${item.views}</span>
+          ${hasViews(item.views) ? `<span class="meta-dot">•</span>
+          <span><i class="fa-regular fa-eye"></i> ${item.views}</span>` : ""}
         </div>
         <div class="weekly-card-actions"${WEEKLY_PDF ? ` data-pdf-url="${pdfUrlFor(item)}" data-pdf-lazy` : ""} onclick="event.stopPropagation()">
           <button class="btn-card-read" onclick="openArticlePage(${item.id})">
@@ -1952,14 +1992,14 @@ function weeklyArchiveHTML() {
     <div class="weekly-search-filter-bar">
       <div class="weekly-search-input-wrap">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="weekly-filter-input" enterkeyhint="search" autocomplete="off" placeholder="अंक क्रमांक किंवा विषय शोधा (उदा. अंक २५, शेतकरी, अर्थसंकल्प)..." oninput="filterWeeklyIssuesList(this.value)" />
+        <input type="text" id="weekly-filter-input" enterkeyhint="search" autocomplete="off" placeholder="तारीख, महिना किंवा विषय शोधा (उदा. ऑगस्ट २०२६, विमानसेवा, शेतकरी)..." oninput="filterWeeklyIssuesList(this.value)" />
       </div>
       <div class="weekly-count-tag"><span id="weekly-visible-count">${toDevanagari(list.length)}</span> अंक उपलब्ध</div>
     </div>
     <div class="weekly-editions-container" id="weekly-editions-list">
       ${list.map(weeklyRowHTML).join("")}
     </div>
-    <p class="empty-note" id="weekly-empty-note" hidden>असा अंक सापडला नाही. दुसरा शब्द किंवा अंक क्रमांक शोधा.</p>`;
+    <p class="empty-note" id="weekly-empty-note" hidden>असा अंक सापडला नाही. दुसरा शब्द, महिना किंवा तारीख शोधा.</p>`;
 }
 
 function renderSecondaryPosts() {
@@ -1982,13 +2022,14 @@ function renderSecondaryPosts() {
     : `<p class="empty-note">या विभागात इतर बातम्या लवकरच जोडल्या जातील.</p>`;
 }
 
-// Live filter for the weekly archive: "२५", "25", "अंक २५", "शेतकरी" ... all work
+// Live filter for the weekly archive: a month ("ऑगस्ट"), a year ("२०२६"), a date ("२६ ऑगस्ट") or a word of the headline / text ("विमानसेवा").
+// (Digits may be typed as Marathi or as ordinary numerals.)
 window.filterWeeklyIssuesList = function(query) {
   const q = devToAscii((query || "").trim().toLowerCase());
   const items = document.querySelectorAll("#weekly-editions-list .weekly-edition-item");
   let count = 0;
   items.forEach((el) => {
-    const matches = !q || devToAscii(el.innerText.toLowerCase()).includes(q);
+    const matches = !q || devToAscii(((el.dataset.search || "") + " " + el.innerText).toLowerCase()).includes(q);
     el.style.display = matches ? "" : "none";
     if (matches) count++;
   });
@@ -2192,11 +2233,13 @@ function renderArticleView(article) {
   const pageUrl = shareUrlFor(article);
   const sectionOnclick = `setCategoryFilter('${article.category}')`;
 
-  // previous / next: by issue number for weekly issues, inside the same section for everything else
+  // previous / next: by DATE for weekly issues, inside the same section for everything else
   let prevItem, nextItem, prevText, nextText;
   if (isIssue) {
-    prevItem = issueByNo(article.issue - 1);
-    nextItem = issueByNo(article.issue + 1);
+    const byDate = weeklyIssues();                           // newest first
+    const at = byDate.findIndex((a) => a.id === article.id);
+    prevItem = at >= 0 ? byDate[at + 1] || null : null;      // the issue of the week before
+    nextItem = at > 0 ? byDate[at - 1] : null;               // the issue of the week after
     prevText = "मागील अंक";
     nextText = "पुढील अंक";
   } else {
@@ -2228,7 +2271,7 @@ function renderArticleView(article) {
       <i class="fa-solid fa-chevron-right"></i>
       <a href="javascript:void(0)" onclick="${sectionOnclick}">${isIssue ? "साप्ताहिक आवृत्ती" : article.categoryLabel}</a>
       <i class="fa-solid fa-chevron-right crumb-sep-title"></i>
-      <span class="crumb-title">${isIssue ? "अंक " + toDevanagari(article.issue) : article.title}</span>
+      <span class="crumb-title">${isIssue ? (issueLabel(article) || article.title) : article.title}</span>
     </div>
 
     <h1 class="single-post-headline">
@@ -2244,7 +2287,7 @@ function renderArticleView(article) {
       </div>
       <div class="author-meta-right">
         <span id="post-comment-count"><i class="fa-regular fa-comment"></i> ${comments.length} प्रतिक्रिया</span>
-        <span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>
+        ${!isIssue || hasViews(article.views) ? `<span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>` : ""}
       </div>
     </div>
 
@@ -2253,14 +2296,13 @@ function renderArticleView(article) {
     <div class="issue-pdf-card">
       <div class="issue-pdf-cover" onclick="openWeeklyModal(${article.id})" role="button" tabindex="0" aria-label="PDF ई-पेपर वाचा"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWeeklyModal(${article.id});}">
-        ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", HERO_IMG_ATTRS)}
+        ${fluidImg(article.image, issueLabel(article) + " — " + article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", HERO_IMG_ATTRS)}
         <span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>
         <span class="issue-read-badge"><i class="fa-solid fa-book-open"></i> ऑनलाईन वाचा</span>
       </div>
       <div class="issue-pdf-info">
-        <span class="edition-no-badge">अंक ${toDevanagari(article.issue)}</span>
         <h2 class="issue-pdf-title">ई-पेपर (PDF) — मोफत वाचा व डाउनलोड करा</h2>
-        <p class="issue-pdf-meta">वर्ष १० • ${article.date} • लोकमंगल साप्ताहिक</p>
+        <p class="issue-pdf-meta">${article.date} • लोकमंगल साप्ताहिक</p>
         <div class="issue-pdf-actions" data-pdf-url="${pdf}">
           <button class="btn-pdf-read" data-pdf-action onclick="openWeeklyModal(${article.id})"><i class="fa-solid fa-book-open"></i> PDF ऑनलाईन वाचा</button>
           <a class="btn-pdf-dl" data-pdf-action ${pdfLinkAttrs(pdf, article.issue)}><i class="fa-solid fa-download"></i> PDF डाउनलोड<span class="pdf-size"></span></a>
@@ -2326,13 +2368,13 @@ function renderArticleView(article) {
     <div class="post-navigation-row">
       ${prevItem ? `
         <div class="post-nav-item prev" onclick="openArticlePage(${prevItem.id})">
-          <span class="nav-dir"><i class="fa-solid fa-arrow-left"></i> ${prevText}${prevItem.issue ? " (अंक " + toDevanagari(prevItem.issue) + ")" : ""}</span>
+          <span class="nav-dir"><i class="fa-solid fa-arrow-left"></i> ${prevText}${prevItem.issue && issueLabel(prevItem) ? " (" + issueLabel(prevItem) + ")" : ""}</span>
           <span class="nav-title">${prevItem.title}</span>
         </div>
       ` : `<div></div>`}
       ${nextItem ? `
         <div class="post-nav-item next" onclick="openArticlePage(${nextItem.id})">
-          <span class="nav-dir">${nextText}${nextItem.issue ? " (अंक " + toDevanagari(nextItem.issue) + ")" : ""} <i class="fa-solid fa-arrow-right"></i></span>
+          <span class="nav-dir">${nextText}${nextItem.issue && issueLabel(nextItem) ? " (" + issueLabel(nextItem) + ")" : ""} <i class="fa-solid fa-arrow-right"></i></span>
           <span class="nav-title">${nextItem.title}</span>
         </div>
       ` : `<div></div>`}
@@ -2791,7 +2833,7 @@ window.readerZoomBy = function(step) {
 window.openWeeklyModal = function(idOrNothing) {
   const byId = typeof idOrNothing === "number" ? articlesData.find((a) => a.id === idOrNothing) : null;
   const issue = byId && byId.issue ? byId : latestIssue();
-  if (!issue) return;                      // the site has no weekly issue at all
+  if (!issue) { navigate("weekly"); return; }   // no issue yet (the sidebar ad): the Weekly page with its empty card
   if (!WEEKLY_PDF) {                       // PDFs are switched off: the nearest thing is the issue's own page
     navigate("issue-" + issue.issue);
     return;
@@ -2802,7 +2844,7 @@ window.openWeeklyModal = function(idOrNothing) {
   if (!modal) return;
   const url = pdfUrlFor(issue);
   const title = document.getElementById("reader-title");
-  if (title) title.innerHTML = `<i class="fa-solid fa-file-pdf" style="color:var(--accent-red); margin-right:6px"></i> अंक ${toDevanagari(issue.issue)} • साप्ताहिक ई-पेपर`;
+  if (title) title.innerHTML = `<i class="fa-solid fa-file-pdf" style="color:var(--accent-red); margin-right:6px"></i> ${issueLabel(issue)} • साप्ताहिक ई-पेपर`;
   const dl = document.getElementById("reader-download");
   if (dl) {
     dl.href = url;
@@ -2864,7 +2906,7 @@ window.downloadWeeklyPDF = function(issueNo) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  showToast(`📥 साप्ताहिक आवृत्ती (अंक ${toDevanagari(issue.issue)}) PDF डाऊनलोड होत आहे...`);
+  showToast(`📥 साप्ताहिक आवृत्ती (${issueLabel(issue)}) PDF डाऊनलोड होत आहे...`);
 };
 
 // Speech reader
@@ -3045,7 +3087,6 @@ async function syncPortalWithApi() {
     if (artRes && artRes.ok || weekRes && weekRes.ok) {
       apiSyncPending = false;          // from now on an unknown address really is unknown
       routeWaitingForApi = false;
-      applyWeeklyVisibility();         // the menu entries follow what the database holds (no issue -> hidden, first issue -> shown)
       if (typeof renderLabelCounts === 'function') renderLabelCounts();
       renderLeftSidebar();
       renderRightSidebar();

@@ -1501,7 +1501,13 @@ button:focus-visible,
 
   .weekly-latest-cover,
   .issue-pdf-cover {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 9;     /* single column: the top part of the front page, not the 1.4x tall whole page */
+    box-shadow: none;
+  }
+
+  .weekly-latest-cover img,
+  .issue-pdf-cover img {
+    object-position: top;
   }
 
   .issue-pdf-card {
@@ -1601,6 +1607,15 @@ button:focus-visible,
     font-size: 26px;
   }
 
+  .weekly-empty {
+    margin-bottom: 20px;
+    padding: 30px 16px 28px;
+  }
+
+  .weekly-empty-title {
+    font-size: 18px;
+  }
+
   .weekly-latest {
     gap: 12px;
     margin-bottom: 20px;
@@ -1610,10 +1625,18 @@ button:focus-visible,
     box-shadow: none;
   }
 
+  /* phone: the cover shows the top part of the front page (the whole page would be 1.4x as tall as the screen is wide);
+     tapping it opens the PDF (or the issue page) with the whole page */
   .weekly-latest-cover {
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 4 / 3;
     margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-l) * -1);
     border-radius: 0;
+    box-shadow: none;
+  }
+
+  .weekly-latest-cover img,
+  .issue-pdf-cover img {
+    object-position: top;
   }
 
   .weekly-latest-title {
@@ -1675,8 +1698,9 @@ button:focus-visible,
   }
 
   .issue-pdf-cover {
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 4 / 3;
     border-radius: 0;
+    box-shadow: none;
   }
 
   .issue-pdf-info {

@@ -502,18 +502,19 @@
         <form id="weekly-form" onsubmit="handleWeeklyFormSubmit(event)">
           <div class="form-row">
             <div class="form-group flex-1">
-              <label for="form-weekly-no">अंक क्रमांक (Issue No.) <span class="req">*</span></label>
-              <input type="number" id="form-weekly-no" required min="1" max="999" class="form-control" placeholder="उदा. ४३">
+              <label for="form-weekly-no">क्रम क्रमांक (तारखेनुसार) <span class="req">*</span></label>
+              <input type="number" id="form-weekly-no" required min="1" max="9999" class="form-control" placeholder="उदा. ६९">
+              <small class="form-hint">पुढचा क्रमांक आपोआप येतो — सर्वात मोठा क्रमांक "नवीनतम अंक" होतो. साईटवर तो दिसत नाही, तारीख दिसते.</small>
             </div>
             <div class="form-group flex-2">
               <label for="form-weekly-date">प्रकाशन तारीख <span class="req">*</span></label>
-              <input type="text" id="form-weekly-date" required class="form-control" placeholder="उदा. २० ऑक्टोबर २०२६">
+              <input type="text" id="form-weekly-date" required class="form-control" placeholder="उदा. २ सप्टेंबर २०२६">
             </div>
           </div>
 
           <div class="form-group">
-            <label for="form-weekly-title">अंकाचे शीर्षक / विशेषांक नाव <span class="req">*</span></label>
-            <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. लोकमंगल साप्ताहिक विशेषांक (अंक ४३): '...' ">
+            <label for="form-weekly-title">अंकाचे शीर्षक (पहिल्या पानावरची मुख्य हेडलाईन) <span class="req">*</span></label>
+            <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. मंत्री दादाजी भुसे यांची शाळांच्या दुरुस्तीबाबत बैठक !">
           </div>
 
           <!-- PDF Upload Field -->
@@ -530,7 +531,7 @@
 
           <!-- Cover Image Upload -->
           <div class="form-group">
-            <label>मुखपृष्ठ फोटो (Cover Image)</label>
+            <label>मुखपृष्ठ फोटो (Cover Image) — PDF चे पहिले पान</label>
             <div class="uploader-inputs-wrap">
               <input type="file" id="weekly-img-file-input" accept="image/*" style="display:none;" onchange="handleWeeklyCoverUpload(this)">
               <div style="display: flex; gap: 8px;">
@@ -539,12 +540,14 @@
                   <i class="fa-solid fa-upload"></i> फोटो निवडा
                 </button>
               </div>
+              <small class="form-hint">PDF निवडल्यावर मुखपृष्ठ (PDF चे पहिले पान) आणि तारीख (फाईलच्या नावावरून, उदा. "Lokmangal Saptahik 26 August 2026.pdf") आपोआप भरली जाते; हवे तर बदला.</small>
+              <img id="weekly-cover-preview" class="weekly-cover-preview" alt="मुखपृष्ठ" hidden>
             </div>
           </div>
 
           <div class="form-group">
             <label for="form-weekly-desc">अंकाचा थोडक्यात परिचय / वर्णन</label>
-            <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="या अंकामधील विशेष लेख, स्तंभ आणि मुलाखतींचा सारांश..."></textarea>
+            <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="मुख्य बातमीची सुरुवात (छोटा मजकूर, २-३ वाक्ये)..."></textarea>
           </div>
 
           <div class="modal-footer">

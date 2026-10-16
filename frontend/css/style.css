@@ -2424,6 +2424,11 @@ html.is-dark .weekly-count-tag {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
 }
 
+/* the small cover in the list: the top of the front page (masthead + headline + main photo) */
+.weekly-edition-item .secondary-post-thumb img {
+  object-position: top;
+}
+
 .pdf-tag-overlay {
   position: absolute;
   top: 6px;
@@ -2762,6 +2767,58 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
   opacity: 0.94;
 }
 
+/* Weekly publication before the first issue is published: one calm card instead of an empty list */
+.weekly-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 38px 22px 34px;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  background: var(--widget-bg);
+  text-align: center;
+}
+
+.weekly-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(127, 42, 29, 0.08);
+  color: var(--main-color);
+  font-size: 28px;
+}
+
+html.is-dark .weekly-empty-icon {
+  background: rgba(238, 123, 48, 0.14);
+  color: var(--accent-orange);
+}
+
+html.is-dark .weekly-empty .btn-archive-pill i {
+  color: var(--accent-orange) !important;   /* beats the inline brick colour, which is too dark on the dark card */
+}
+
+.weekly-empty-title {
+  margin: 6px 0 0;
+  font-family: var(--title-font);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--title-color);
+}
+
+.weekly-empty-text {
+  max-width: 460px;
+  margin: 0 0 10px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--meta-color);
+}
+
 .weekly-latest {
   display: grid;
   grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
@@ -2774,13 +2831,15 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* The cover of an issue is the front page of its PDF: a portrait A4 page, shown whole (nothing cut off) */
 .weekly-latest-cover {
   position: relative;
   align-self: start;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 210 / 297;
   overflow: hidden;
   border-radius: 3px;
   background: var(--body-bg-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
   cursor: pointer;
 }
 
@@ -2916,8 +2975,8 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
 /* ---- One weekly issue: cover + PDF card ---- */
 .issue-pdf-card {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: 22px;
   align-items: center;
   margin-bottom: 22px;
   padding: 14px;
@@ -2928,10 +2987,11 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
 
 .issue-pdf-cover {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 210 / 297;
   overflow: hidden;
   border-radius: 3px;
   background: var(--body-bg-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
   cursor: pointer;
 }
 
@@ -3293,18 +3353,6 @@ html.is-dark .reader-progress {
 [data-pdf-action][hidden],
 .pdf-missing-note[hidden] {
   display: none !important;
-}
-
-/* No weekly issue on the site: every "Weekly publication" entry (menu, chips, labels, footer ...) is hidden and the
-   sidebar ad - whose link opened the latest issue - is not clickable. app.js (applyWeeklyVisibility) removes the
-   no-weekly class from <html> as soon as an issue exists (added in the Admin Panel), and the entries come back. */
-html.no-weekly [data-weekly-nav] {
-  display: none !important;
-}
-
-html.no-weekly .responsive-ads-widget a {
-  pointer-events: none;
-  cursor: default;
 }
 
 /* ==========================================================================

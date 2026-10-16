@@ -1488,3 +1488,31 @@ body.dark-theme .placement-btn.is-active-random {
 body.dark-theme .placement-card:has(input:checked) {
   background: rgba(211, 47, 47, 0.12);
 }
+
+/* small grey hint under a form field */
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* a weekly cover is a portrait front page: the thumbnails show its top (masthead + headline + main photo) */
+.table-thumb-cover {
+  object-position: top;
+}
+
+/* small picture of the cover under the cover field of the weekly form */
+.weekly-cover-preview {
+  display: block;
+  width: 110px;
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.weekly-cover-preview[hidden] {
+  display: none;
+}
