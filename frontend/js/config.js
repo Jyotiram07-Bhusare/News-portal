@@ -17,7 +17,13 @@
   var API_BASE_PRODUCTION = "";   // e.g. "https://api.lokmangal.in"
   var DEV_API_PORT = "5000";      // PORT in backend/.env
 
+  // Weekly PDFs on the website.
+  //   false = NO PDF anywhere: no buttons, tags, banner or wording (the weekly issues themselves stay)
+  //   true  = "PDF online वाचा / download" for every issue whose file is in assets/pdf/ (lokmangal-weekly-<no>.pdf)
+  var WEEKLY_PDF = false;
+
   var cfg = (window.LOKMANGAL_CONFIG = window.LOKMANGAL_CONFIG || {});
+  if (typeof cfg.WEEKLY_PDF !== "boolean") cfg.WEEKLY_PDF = WEEKLY_PDF;
   if (typeof cfg.API_BASE !== "string") {
     var host = location.hostname;
     var local = host === "localhost" || host === "127.0.0.1" || host === "[::1]" ||

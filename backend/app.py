@@ -239,12 +239,17 @@ def register_frontend(app):
     @app.get("/js/config.js")
     def site_config():
         # The page comes from THIS server, so the API is on the very same address - whatever PORT says.
-        # (frontend/js/config.js is what runs when something else, e.g. Vercel or Live Server, serves the site.)
-        script = ('(function () {\n'
+        # That is the only thing decided here; every other setting (WEEKLY_PDF ...) still comes from
+        # frontend/js/config.js, which follows right after.
+        prefix = ('(function () {\n'
                   '  var c = (window.LOKMANGAL_CONFIG = window.LOKMANGAL_CONFIG || {});\n'
                   '  if (typeof c.API_BASE !== "string") c.API_BASE = "";\n'
                   '})();\n')
-        return Response(script, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
+        try:
+            settings = (root / "js" / "config.js").read_text(encoding="utf-8")
+        except OSError:
+            settings = ""
+        return Response(prefix + settings, mimetype="text/javascript", headers={"Cache-Control": "no-cache"})
 
     @app.get("/admin")
     def admin_redirect():

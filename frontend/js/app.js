@@ -450,6 +450,13 @@ const PAST_WEEKLY_ISSUES = [
   { no: 1, date: "०१ जानेवारी २०२६", title: "लोकमंगल साप्ताहिक आवृत्ती (अंक १): 'नवीन वर्ष विशेषांक २०२६: लोकमंगल साप्ताहिक शुभारंभ'", img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80", views: "26.0K" }
 ];
 
+// Weekly PDFs on the website (js/config.js -> WEEKLY_PDF).
+//   false = no PDF anywhere: no buttons, tags, banner, headings or wording. The issues themselves (cover, title, date, page) stay.
+//   true  = "PDF online वाचा / download" for every issue that has its file in assets/pdf/.
+const WEEKLY_PDF = !!(window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.WEEKLY_PDF);
+// without PDFs: leave out every sentence of a text that talks about the e-paper / PDF
+const withoutPdfWords = (s) => (String(s || "").match(/[^.।]+[.।]?\s*/g) || []).filter((x) => !/PDF|ई-पेपर|ऑनलाईन वाचा/.test(x)).join("").trim();
+
 // One weekly issue -> the article object the site renders. {no, date, title, img, views, desc}
 // The built-in list above and the issues that come from the API (Admin Panel) are both built with it.
 function makeWeeklyArticle(item) {
@@ -461,8 +468,12 @@ function makeWeeklyArticle(item) {
     author: "संपादकीय मंडळ",
     date: item.date,
     image: item.img,
-    excerpt: item.desc || `लोकमंगल साप्ताहिक अंक ${item.no} चा विशेष डिजिटल ई-पेपर अंक उपलब्ध. शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह. मोफत PDF डाऊनलोड करा.`,
-    content: `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, हा अंक आता डिजिटल स्वरूपात उपलब्ध आहे. सविस्तर वाचनासाठी ई-पेपर डाऊनलोड करा किंवा ऑनलाईन वाचा.</p>`,
+    excerpt: (WEEKLY_PDF ? item.desc : withoutPdfWords(item.desc)) || (WEEKLY_PDF
+      ? `लोकमंगल साप्ताहिक अंक ${item.no} चा विशेष डिजिटल ई-पेपर अंक उपलब्ध. शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह. मोफत PDF डाऊनलोड करा.`
+      : `लोकमंगल साप्ताहिक अंक ${item.no} — शेती, उद्योग, समाजकारण आणि विशेष स्तंभांचा संग्रह.`),
+    content: WEEKLY_PDF
+      ? `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, हा अंक आता डिजिटल स्वरूपात उपलब्ध आहे. सविस्तर वाचनासाठी ई-पेपर डाऊनलोड करा किंवा ऑनलाईन वाचा.</p>`
+      : `<p><strong>लोकमंगल साप्ताहिक अंक ${item.no}:</strong> प्रिय वाचकांनो, लोकमंगल साप्ताहिकाचा हा अंक प्रकाशित झाला आहे.</p>`,
     views: item.views
   };
 }
@@ -521,18 +532,39 @@ function pdfInfo(url) {
 
 // Views that show PDF buttons mark the block with data-pdf-url: fill in the real file size, or say
 // "coming soon" instead of leaving dead buttons when the file is not there yet.
+async function hydratePdfBox(box) {
+  const info = await pdfInfo(box.dataset.pdfUrl);
+  if (!box.isConnected) return;
+  if (info.ok === false) {
+    box.querySelectorAll("[data-pdf-action]").forEach((el) => { el.hidden = true; });
+    const note = box.querySelector(".pdf-missing-note");
+    if (note) note.hidden = false;
+    // nothing else on the card may promise a PDF either: the "PDF" tag on the cover, the "read online" badge
+    const card = box.closest(".weekly-edition-item, .weekly-latest, .issue-pdf-card");
+    if (card) card.querySelectorAll(".pdf-tag-overlay, .issue-read-badge").forEach((el) => { el.style.display = "none"; });
+    // a notice that only exists to announce the PDF (article page banner)
+    if (box.hasAttribute("data-pdf-hide")) box.style.display = "none";
+  } else if (info.bytes) {
+    box.querySelectorAll(".pdf-size").forEach((el) => { el.textContent = fmtSize(info.bytes); });
+  }
+}
+
 function hydratePdfInfo(root) {
-  (root || document).querySelectorAll("[data-pdf-url]").forEach(async (box) => {
-    const info = await pdfInfo(box.dataset.pdfUrl);
-    if (!box.isConnected) return;
-    if (info.ok === false) {
-      box.querySelectorAll("[data-pdf-action]").forEach((el) => { el.hidden = true; });
-      const note = box.querySelector(".pdf-missing-note");
-      if (note) note.hidden = false;
-    } else if (info.bytes) {
-      box.querySelectorAll(".pdf-size").forEach((el) => { el.textContent = fmtSize(info.bytes); });
-    }
-  });
+  (root || document).querySelectorAll("[data-pdf-url]:not([data-pdf-lazy])").forEach(hydratePdfBox);
+}
+
+// The long list of issues: ask about a file only when its row comes near the screen (not 42 requests at once)
+function hydratePdfInfoLazily(root) {
+  const boxes = (root || document).querySelectorAll("[data-pdf-url][data-pdf-lazy]");
+  if (!("IntersectionObserver" in window)) { boxes.forEach(hydratePdfBox); return; }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      io.unobserve(en.target);
+      hydratePdfBox(en.target);
+    });
+  }, { rootMargin: "400px 0px" });
+  boxes.forEach((b) => io.observe(b));
 }
 const NEWS_CATEGORIES = ["samajik", "rajkiy"];   // the "News" menu = Samajik + Rajkiy
 
@@ -1609,20 +1641,25 @@ function renderWeeklySection(container) {
     <header class="weekly-section-head">
       <span class="weekly-section-kicker"><i class="fa-solid fa-newspaper"></i> लोकमंगल साप्ताहिक</span>
       <h1 class="weekly-section-title" id="main-headline-text">साप्ताहिक आवृत्ती</h1>
-      <p class="weekly-section-sub">सर्व ${toDevanagari(issues.length)} अंक एकाच ठिकाणी — ऑनलाईन वाचा (PDF) किंवा मोफत डाउनलोड करा.</p>
+      <p class="weekly-section-sub">सर्व ${toDevanagari(issues.length)} अंक एकाच ठिकाणी${WEEKLY_PDF ? " — ऑनलाईन वाचा (PDF) किंवा मोफत डाउनलोड करा" : ""}.</p>
     </header>
 
     ${weeklyLatestHTML(issues[0])}
 
     <div class="more-posts-header">
-      <h2 class="more-posts-title"><i class="fa-solid fa-file-pdf" style="color:var(--accent-red); margin-right:6px"></i> सर्व अंक व PDF ई-पेपर <span class="more-title-sub">(All Issues)</span></h2>
+      <h2 class="more-posts-title">${WEEKLY_PDF
+        ? `<i class="fa-solid fa-file-pdf" style="color:var(--accent-red); margin-right:6px"></i> सर्व अंक व PDF ई-पेपर`
+        : `<i class="fa-solid fa-newspaper" style="color:var(--accent-red); margin-right:6px"></i> सर्व अंक`} <span class="more-title-sub">(All Issues)</span></h2>
     </div>
     <div id="secondary-posts-feed">
       <!-- Populated below -->
     </div>
   `;
   renderSecondaryPosts();
-  hydratePdfInfo(container);
+  if (WEEKLY_PDF) {
+    hydratePdfInfo(container);
+    hydratePdfInfoLazily(container);
+  }
 }
 
 function weeklyLatestHTML(a) {
@@ -1632,7 +1669,7 @@ function weeklyLatestHTML(a) {
       <div class="weekly-latest-cover" onclick="openArticlePage(${a.id})">
         ${fluidImg(a.image, a.title, [480, 800, 1200], "(max-width: 980px) 100vw, 320px", HERO_IMG_ATTRS)}
         <span class="latest-ribbon"><i class="fa-solid fa-bolt"></i> नवीनतम अंक</span>
-        <span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+        ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="weekly-latest-info">
         <span class="edition-no-badge">अंक ${toDevanagari(a.issue)}</span>
@@ -1642,12 +1679,14 @@ function weeklyLatestHTML(a) {
           <span><i class="fa-regular fa-eye"></i> ${a.views} वाचक</span>
         </div>
         <p class="weekly-latest-excerpt">${a.excerpt}</p>
-        <div class="weekly-latest-actions" data-pdf-url="${pdf}">
+        ${WEEKLY_PDF ? `<div class="weekly-latest-actions" data-pdf-url="${pdf}">
           <button class="btn-pdf-read" data-pdf-action onclick="openWeeklyModal(${a.id})"><i class="fa-solid fa-book-open"></i> PDF ऑनलाईन वाचा</button>
           <button class="btn-card-read" onclick="openArticlePage(${a.id})"><i class="fa-solid fa-arrow-right"></i> अंकाचे पान</button>
           <a class="btn-pdf-dl" data-pdf-action ${pdfLinkAttrs(pdf, a.issue)}><i class="fa-solid fa-download"></i> डाउनलोड<span class="pdf-size"></span></a>
           <p class="pdf-missing-note" hidden><i class="fa-regular fa-clock"></i> या अंकाचा PDF लवकरच उपलब्ध होईल.</p>
-        </div>
+        </div>` : `<div class="weekly-latest-actions">
+          <button class="btn-card-read" onclick="openArticlePage(${a.id})"><i class="fa-solid fa-arrow-right"></i> अंकाचे पान</button>
+        </div>`}
       </div>
     </article>`;
 }
@@ -1714,7 +1753,7 @@ function leadStoryHTML(article, { pdf = false, label = "" } = {}) {
         <button class="btn-xapify-readmore" onclick="${open}">
           Read More <i class="fa-solid fa-arrow-right"></i>
         </button>
-        ${pdf && isIssue ? `
+        ${pdf && isIssue && WEEKLY_PDF ? `
         <button class="btn-xapify-pdf" onclick="openWeeklyModal(${article.id})">
           <i class="fa-solid fa-file-pdf"></i> PDF ई-पेपर
         </button>` : ""}
@@ -1912,25 +1951,25 @@ function weeklyRowHTML(item) {
     <div class="secondary-post-item weekly-edition-item" onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
         ${thumbImg(item.image, item.title, 320)}
-        <span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+        ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="secondary-post-details">
         <span class="edition-no-badge">अंक ${toDevanagari(item.issue)}</span>
         <h4 class="secondary-post-title">${item.title}</h4>
         <div class="secondary-post-meta">
-          <span style="color:var(--accent-red); font-weight:700"><i class="fa-regular fa-newspaper"></i> ई-पेपर</span>
+          <span style="color:var(--accent-red); font-weight:700"><i class="fa-regular fa-newspaper"></i> ${WEEKLY_PDF ? "ई-पेपर" : "साप्ताहिक"}</span>
           <span class="meta-dot">•</span>
           <span>${item.date}</span>
           <span class="meta-dot">•</span>
           <span><i class="fa-regular fa-eye"></i> ${item.views}</span>
         </div>
-        <div class="weekly-card-actions" onclick="event.stopPropagation()">
+        <div class="weekly-card-actions"${WEEKLY_PDF ? ` data-pdf-url="${pdfUrlFor(item)}" data-pdf-lazy` : ""} onclick="event.stopPropagation()">
           <button class="btn-card-read" onclick="openArticlePage(${item.id})">
             <i class="fa-solid fa-book-open"></i> वाचा
           </button>
-          <button class="btn-card-pdf" onclick="openWeeklyModal(${item.id})">
+          ${WEEKLY_PDF ? `<button class="btn-card-pdf" data-pdf-action onclick="openWeeklyModal(${item.id})">
             <i class="fa-solid fa-file-pdf"></i> PDF ई-पेपर
-          </button>
+          </button>` : ""}
         </div>
       </div>
     </div>`;
@@ -2238,7 +2277,7 @@ function renderArticleView(article) {
       </div>
     </div>
 
-    ${isIssue ? `
+    ${isIssue && WEEKLY_PDF ? `
     <!-- The weekly issue: cover + PDF e-paper -->
     <div class="issue-pdf-card">
       <div class="issue-pdf-cover" onclick="openWeeklyModal(${article.id})" role="button" tabindex="0" aria-label="PDF ई-पेपर वाचा"
@@ -2260,11 +2299,11 @@ function renderArticleView(article) {
       </div>
     </div>
     ` : `
-    <!-- Notice for the newest weekly issue -->
-    <div class="responsive-ad-banner" onclick="openWeeklyModal()">
+    ${WEEKLY_PDF && !isIssue ? `<!-- Notice for the newest weekly issue -->
+    <div class="responsive-ad-banner" data-pdf-url="${pdfUrlFor(latest)}" data-pdf-hide onclick="openWeeklyModal()">
       <i class="fa-solid fa-bullhorn" style="margin-right:6px"></i>
       लोकमंगल साप्ताहिक आवृत्ती (अंक ${toDevanagari(latest.issue)}) - डिजिटल ई-पेपर (PDF) उपलब्ध! येथे क्लिक करा
-    </div>
+    </div>` : ""}
 
     <div class="single-post-media">
       ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", HERO_IMG_ATTRS)}
@@ -2344,7 +2383,7 @@ function renderArticleView(article) {
     </div>
     ${isIssue ? `
     <div class="issue-all-link">
-      <button class="btn-archive-pill" onclick="setCategoryFilter('weekly')"><i class="fa-solid fa-layer-group" style="color:var(--accent-red)"></i> सर्व ${toDevanagari(weeklyIssues().length)} अंक व PDF पहा</button>
+      <button class="btn-archive-pill" onclick="setCategoryFilter('weekly')"><i class="fa-solid fa-layer-group" style="color:var(--accent-red)"></i> सर्व ${toDevanagari(weeklyIssues().length)} अंक${WEEKLY_PDF ? " व PDF" : ""} पहा</button>
     </div>` : ""}
 
     <!-- Comments Section (वाचकांच्या सर्व प्रतिक्रिया) -->
@@ -2781,6 +2820,10 @@ window.readerZoomBy = function(step) {
 window.openWeeklyModal = function(idOrNothing) {
   const byId = typeof idOrNothing === "number" ? articlesData.find((a) => a.id === idOrNothing) : null;
   const issue = byId && byId.issue ? byId : latestIssue();
+  if (!WEEKLY_PDF) {                       // PDFs are switched off: the nearest thing is the issue's own page
+    if (issue) navigate("issue-" + issue.issue);
+    return;
+  }
   currentModalArticle = issue;
 
   const modal = document.getElementById("weekly-epaper-modal");
