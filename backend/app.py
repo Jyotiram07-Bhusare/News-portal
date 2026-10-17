@@ -39,6 +39,11 @@ def body():
     return data if isinstance(data, dict) and data else request.form.to_dict()
 
 
+def _english_warning(ignored):
+    """English text came with the request but the database has no English columns yet: the Marathi part IS saved."""
+    return {"warnings": ["english_not_saved"]} if ignored else {}
+
+
 # -------------------------------------------------------------
 # REST API: Articles
 # -------------------------------------------------------------
@@ -66,9 +71,10 @@ def create_article():
     data = body()
     if not data or not str(data.get("title") or "").strip():
         return fail("Headline/Title is required", 400)
+    ignored = database.english_ignored(data)
     new_id = database.create_article(data)
     return jsonify({"success": True, "message": "बातमी यशस्वीरीत्या प्रकाशित झाली!",
-                    "article": database.get_article(new_id)}), 201
+                    "article": database.get_article(new_id), **_english_warning(ignored)}), 201
 
 
 @api.route("/articles/<int:article_id>", methods=["PUT", "POST"])
@@ -78,7 +84,8 @@ def update_article(article_id):
         return fail("No update data provided", 400)
     if not database.update_article(article_id, data):
         return fail("Failed to update article or article not found", 404)
-    return ok(message="बातमी अद्यतनित करण्यात आली!", article=database.get_article(article_id))
+    return ok(message="बातमी अद्यतनित करण्यात आली!", article=database.get_article(article_id),
+              **_english_warning(database.english_ignored(data)))
 
 
 @api.post("/articles/<int:article_id>/toggle-placement")
@@ -121,9 +128,10 @@ def create_weekly():
     if issue_no < 1:
         return fail("Issue number must be 1 or more", 400)
     data["issue_no"] = issue_no
+    ignored = database.english_ignored(data)
     database.create_weekly_edition(data)
     return jsonify({"success": True, "message": "साप्ताहिक अंक यशस्वीरीत्या जोडला!",
-                    "issue": database.get_weekly_edition(issue_no)}), 201
+                    "issue": database.get_weekly_edition(issue_no), **_english_warning(ignored)}), 201
 
 
 @api.delete("/weekly/<int:issue_no>")
@@ -223,7 +231,7 @@ def get_media():
 @api.get("/health")
 def health():
     database.ping()                       # raises -> handled below as "database not available"
-    return ok(database=config.DB_NAME)
+    return ok(database=config.DB_NAME, english=database.has_english())
 
 
 # -------------------------------------------------------------

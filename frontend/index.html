@@ -5,10 +5,10 @@
   <meta charset="UTF-8" />
   <!-- viewport-fit=cover lets the page use the full screen on notched phones (safe-area insets are handled in css/responsive.css) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
-  <title>लोकमंगल न्यूज पोर्टल | Lokmangal News Portal</title>
+  <title>लोकमंगल न्यूज पोर्टल</title>
 
   <meta name="description"
-    content="लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
+    content="लोकमंगल न्यूज पोर्टल - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
   <!-- Browser bar colour on phones: matches the header (white / dark). app.js switches it with the theme. -->
   <meta name="theme-color" content="#ffffff" id="meta-theme-color" />
   <script>
@@ -71,28 +71,28 @@
         <nav class="header-nav">
           <!-- 1. Home -->
           <div class="nav-item active" data-nav="home">
-            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">Home</a>
+            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">होम</a>
           </div>
 
           <!-- 2. Weekly publication -->
           <div class="nav-item" data-nav="weekly">
             <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
-              Weekly publication
+              साप्ताहिक आवृत्ती
             </a>
           </div>
 
           <!-- 3. News (Dropdown containing Samajik and Rajkiy) -->
           <div class="nav-item has-dropdown" data-nav="news">
             <a href="javascript:void(0)" class="nav-link">
-              News <i class="fa-solid fa-chevron-down dropdown-caret"></i>
+              बातम्या <i class="fa-solid fa-chevron-down dropdown-caret"></i>
             </a>
             <div class="dropdown-menu">
               <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('samajik')">
-                <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> Samajik (सामाजिक)
+                <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> सामाजिक
                 <span class="dropdown-badge">अपडेट्स</span>
               </a>
               <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
-                <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> Rajkiy (राजकीय)
+                <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> राजकीय
                 <span class="dropdown-badge">विशेष</span>
               </a>
             </div>
@@ -100,16 +100,20 @@
 
           <!-- 4. Blogs -->
           <div class="nav-item" data-nav="blogs">
-            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">Blogs</a>
+            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">ब्लॉग्स</a>
           </div>
         </nav>
 
         <!-- Right: Theme Switch + Search -->
         <div class="header-right">
-          <button class="icon-btn" id="theme-toggle-btn" title="डार्क/लाईट मोड बदला" aria-label="Theme">
+          <div class="lang-switch" role="group" aria-label="भाषा">
+            <button type="button" class="lang-opt active" data-lang="mr" lang="mr" aria-pressed="true" onclick="setLanguage('mr')">मराठी</button>
+            <button type="button" class="lang-opt" data-lang="en" lang="en" aria-pressed="false" onclick="setLanguage('en')">EN</button>
+          </div>
+          <button class="icon-btn" id="theme-toggle-btn" title="डार्क/लाईट मोड बदला" aria-label="थीम">
             <i class="fa-regular fa-moon"></i>
           </button>
-          <button class="icon-btn" id="search-toggle-btn" title="शोधा" aria-label="Search">
+          <button class="icon-btn" id="search-toggle-btn" title="शोधा" aria-label="शोधा">
             <i class="fa-solid fa-magnifying-glass"></i>
           </button>
         </div>
@@ -160,7 +164,7 @@
           <!-- Widget: Popular Posts -->
           <div class="widget-box" id="widget-popular">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Popular Posts</h3>
+              <h3 class="widget-title-text">लोकप्रिय बातम्या</h3>
             </div>
 
             <div class="popular-posts-wrap" id="popular-posts-container">
@@ -171,7 +175,7 @@
           <!-- Widget: Responsive Ads - two ads, one after the other (4 seconds each; initAdSlider in js/app.js) -->
           <div class="widget-box" id="widget-ads">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Responsive Ads</h3>
+              <h3 class="widget-title-text">जाहिरात</h3>
             </div>
             <div class="responsive-ads-widget ad-slider" id="ad-slider">
               <div class="ad-slide active">
@@ -190,31 +194,31 @@
           <!-- Widget: Labels / Categories -->
           <div class="widget-box" id="widget-labels">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Labels</h3>
+              <h3 class="widget-title-text">विभाग</h3>
             </div>
             <div class="label-list">
               <div class="label-item active" onclick="setCategoryFilter('all')">
-                <span>सर्व बातम्या (All)</span>
+                <span>सर्व बातम्या</span>
                 <span class="label-count" data-count="all">(१६)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('rajkiy')">
-                <span>राजकीय (Political)</span>
+                <span>राजकीय</span>
                 <span class="label-count" data-count="rajkiy">(२)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('samajik')">
-                <span>सामाजिक (Social)</span>
+                <span>सामाजिक</span>
                 <span class="label-count" data-count="samajik">(२)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('weekly')">
-                <span>साप्ताहिक आवृत्ती (Weekly)</span>
+                <span>साप्ताहिक आवृत्ती</span>
                 <span class="label-count" data-count="weekly">(०)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('blogs')">
-                <span>ब्लॉग्स (Blogs)</span>
+                <span>ब्लॉग्स</span>
                 <span class="label-count" data-count="blogs">(२)</span>
               </div>
               <div class="label-item" onclick="setCategoryFilter('review')">
-                <span>रिव्ह्यू (Reviews)</span>
+                <span>रिव्ह्यू</span>
                 <span class="label-count" data-count="review">(४)</span>
               </div>
             </div>
@@ -230,11 +234,11 @@
 
             <!-- Breadcrumb Line -->
             <div class="breadcrumb-bar" id="main-breadcrumb">
-              <a href="javascript:void(0)" onclick="returnToHomeFeed()">Home</a>
+              <a href="javascript:void(0)" onclick="returnToHomeFeed()">होम</a>
               <i class="fa-solid fa-chevron-right"></i>
               <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
               <i class="fa-solid fa-chevron-right"></i>
-              <span id="breadcrumb-current-cat" class="crumb-current">प्रमुख बातमी (Lead Story)</span>
+              <span id="breadcrumb-current-cat" class="crumb-current">प्रमुख बातमी</span>
             </div>
 
             <!-- Big Headline -->
@@ -274,7 +278,7 @@
             <div class="home-post-footer-bar">
               <div class="footer-readmore-wrap">
                 <button class="btn-xapify-readmore" onclick="openArticlePage(1)">
-                  Read More <i class="fa-solid fa-arrow-right"></i>
+                  पुढे वाचा <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
               <div class="footer-share-wrap" id="home-share-container">
@@ -333,7 +337,7 @@
 
                   <!-- Plus / Minus Toggle Button -->
                   <button type="button" class="x-share-btn share-toggle-more" id="share-toggle-more-btn"
-                    onclick="toggleExtraShareIcons()" title="अधिक पर्याय" aria-label="More share buttons">
+                    onclick="toggleExtraShareIcons()" title="अधिक पर्याय" aria-label="अधिक शेअर बटणे">
                     <i class="fa-solid fa-plus" id="share-toggle-icon"></i>
                   </button>
                 </div>
@@ -361,7 +365,7 @@
           <!-- Widget: Random Posts (Exact 2x2 Grid from Screenshot) -->
           <div class="widget-box" id="widget-random">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Random Posts</h3>
+              <h3 class="widget-title-text">यादृच्छिक बातम्या</h3>
             </div>
             <div class="random-posts-grid" id="random-posts-grid">
               <!-- Populated by JS: 4 items in 2x2 layout -->
@@ -371,7 +375,7 @@
           <!-- Widget: Latest Reviews (Matching Popular Posts Exactly: 4 items) -->
           <div class="widget-box" id="widget-reviews">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Latest Reviews</h3>
+              <h3 class="widget-title-text">ताजे रिव्ह्यू</h3>
             </div>
             <div class="popular-posts-wrap" id="latest-reviews-container">
               <!-- Populated by JS: Item 0 large card + Item 1, Item 2, Item 3 list cards -->
@@ -381,7 +385,7 @@
           <!-- Widget: Social Follow ("Follow Us"). On phones / tablets app.js moves it right under the Labels widget. -->
           <div class="widget-box widget-follow" id="widget-follow">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Follow Us</h3>
+              <h3 class="widget-title-text">आम्हाला फॉलो करा</h3>
             </div>
             <p class="follow-intro">ताज्या बातम्यांसाठी लोकमंगलशी जोडले राहा</p>
             <div class="social-icons-grid">
@@ -414,7 +418,7 @@
           <!-- Widget: Featured Videos (4 Video Posts with Play Overlay) -->
           <div class="widget-box" id="widget-videos">
             <div class="widget-title-wrap">
-              <h3 class="widget-title-text">Featured Videos</h3>
+              <h3 class="widget-title-text">निवडक व्हिडिओ</h3>
             </div>
             <div class="popular-posts-wrap" id="featured-videos-container">
               <!-- Populated by JS: Item 0 large card + Item 1, Item 2, Item 3 list cards -->
@@ -433,14 +437,14 @@
   <footer class="site-footer">
     <div class="container footer-inner-flex">
       <div class="footer-copy">
-        © २०२६ <strong>लोकमंगल न्यूज पोर्टल (Lokmangal News Portal)</strong>. सर्व हक्क राखीव.
+        © २०२६ <strong>लोकमंगल न्यूज पोर्टल</strong>. सर्व हक्क राखीव.
       </div>
       <div class="footer-links-row">
-        <a href="javascript:void(0)" onclick="setCategoryFilter('all')">Home</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">Weekly publication</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">Samajik</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">Rajkiy</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">Blogs</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('all')">होम</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">साप्ताहिक आवृत्ती</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">सामाजिक</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
+        <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">ब्लॉग्स</a>
       </div>
     </div>
   </footer>
@@ -519,14 +523,22 @@
     <!-- Top Header: Search bar + Close (✕) action -->
     <div class="slide-menu-header">
       <div class="drawer-search-box">
-        <input type="text" id="drawer-search-input" placeholder="Search" autocomplete="off" enterkeyhint="search" />
-        <button class="drawer-search-btn" id="drawer-search-action-btn" title="Search" aria-label="शोधा">
+        <input type="text" id="drawer-search-input" placeholder="शोधा" autocomplete="off" enterkeyhint="search" />
+        <button class="drawer-search-btn" id="drawer-search-action-btn" title="शोधा" aria-label="शोधा">
           <i class="fa-solid fa-magnifying-glass"></i>
         </button>
       </div>
-      <button class="drawer-close-action" id="drawer-close-btn" title="Close" aria-label="मेनू बंद करा">
+      <button class="drawer-close-action" id="drawer-close-btn" title="बंद करा" aria-label="मेनू बंद करा">
         <i class="fa-solid fa-xmark"></i>
       </button>
+    </div>
+
+    <!-- Language: मराठी | EN (the same switch as in the header; the header one is a single button on very small phones) -->
+    <div class="drawer-lang">
+      <div class="lang-switch lang-switch-drawer" role="group" aria-label="भाषा">
+            <button type="button" class="lang-opt active" data-lang="mr" lang="mr" aria-pressed="true" onclick="setLanguage('mr')">मराठी</button>
+            <button type="button" class="lang-opt" data-lang="en" lang="en" aria-pressed="false" onclick="setLanguage('en')">EN</button>
+          </div>
     </div>
 
     <!-- Main navigation (phones / tablets: the header nav is hidden there). Kept in sync by app.js -->
@@ -534,42 +546,42 @@
       <div class="drawer-section-title">मेनू</div>
 
       <button type="button" class="drawer-nav-link active" data-cat="all" onclick="setCategoryFilter('all')">
-        <i class="fa-solid fa-house lead"></i><span>Home</span>
+        <i class="fa-solid fa-house lead"></i><span>होम</span>
       </button>
 
       <button type="button" class="drawer-nav-link" data-cat="weekly" onclick="setCategoryFilter('weekly')">
-        <i class="fa-solid fa-newspaper lead"></i><span>Weekly publication</span>
+        <i class="fa-solid fa-newspaper lead"></i><span>साप्ताहिक आवृत्ती</span>
       </button>
 
       <div class="drawer-nav-group" id="drawer-news-group">
         <button type="button" class="drawer-nav-link drawer-nav-toggle" id="drawer-news-toggle" aria-expanded="false"
           aria-controls="drawer-news-sub">
-          <i class="fa-solid fa-layer-group lead"></i><span>News</span>
+          <i class="fa-solid fa-layer-group lead"></i><span>बातम्या</span>
           <i class="fa-solid fa-chevron-down drawer-caret"></i>
         </button>
         <div class="drawer-subnav" id="drawer-news-sub">
           <button type="button" class="drawer-nav-link sub" data-cat="samajik" onclick="setCategoryFilter('samajik')">
-            <i class="fa-solid fa-users lead" style="color:var(--accent-green)"></i><span>Samajik (सामाजिक)</span>
+            <i class="fa-solid fa-users lead" style="color:var(--accent-green)"></i><span>सामाजिक</span>
           </button>
           <button type="button" class="drawer-nav-link sub" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">
-            <i class="fa-solid fa-landmark lead" style="color:var(--main-color)"></i><span>Rajkiy (राजकीय)</span>
+            <i class="fa-solid fa-landmark lead" style="color:var(--main-color)"></i><span>राजकीय</span>
           </button>
         </div>
       </div>
 
       <button type="button" class="drawer-nav-link" data-cat="blogs" onclick="setCategoryFilter('blogs')">
-        <i class="fa-solid fa-pen-nib lead"></i><span>Blogs</span>
+        <i class="fa-solid fa-pen-nib lead"></i><span>ब्लॉग्स</span>
       </button>
 
       <button type="button" class="drawer-nav-link" data-cat="review" onclick="setCategoryFilter('review')">
-        <i class="fa-solid fa-star lead"></i><span>Reviews (रिव्ह्यू)</span>
+        <i class="fa-solid fa-star lead"></i><span>रिव्ह्यू</span>
       </button>
 
     </nav>
 
     <!-- Popular Items Section (Matching Image 2) -->
     <div class="drawer-popular-section">
-      <div class="drawer-popular-title">Popular Items</div>
+      <div class="drawer-popular-title">लोकप्रिय</div>
       <div class="drawer-popular-list" id="drawer-popular-list">
         <!-- Rendered by JS -->
       </div>
@@ -583,7 +595,9 @@
   </button>
 
   <script src="js/config.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/weekly-data.js"></script>
+  <script src="js/content-en.js"></script>
   <script src="js/app.js"></script>
 </body>
 

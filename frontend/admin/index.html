@@ -24,6 +24,7 @@
 <body class="admin-body">
   <div class="admin-layout">
     <!-- Left Navigation Sidebar -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
     <aside class="admin-sidebar" id="sidebar">
       <div class="sidebar-brand">
         <div class="brand-logo-wrap">
@@ -379,11 +380,22 @@
       <div class="modal-body">
         <form id="article-form" onsubmit="handleArticleFormSubmit(event)">
           <input type="hidden" id="form-article-id">
+          <div class="lang-tabs" role="tablist" aria-label="भाषा / Language">
+            <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('article-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
+            <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('article-modal', 'en')">English <i class="lang-dot"></i></button>
+          </div>
+          <p class="form-hint lang-help" data-lang-field="en" hidden>English आवृत्ती ऐच्छिक आहे. ती रिकामी ठेवली तर वेबसाईट English मध्ये दाखवताना मराठी मजकूरच दाखवेल. तारीख, फोटो, श्रेणी आणि बाकीची माहिती दोन्ही भाषांसाठी एकच असते.</p>
+          <p class="form-hint lang-note" data-db-note hidden>⚠ या डेटाबेसमध्ये अजून English कॉलम्स नाहीत, म्हणून English मजकूर जतन होणार नाही (मराठी जतन होईल). backend फोल्डरमध्ये <b>python init_db.py</b> एकदा चालवा, मग English जतन होईल.</p>
+
 
           <div class="form-row">
-            <div class="form-group flex-2">
+            <div class="form-group flex-2" data-lang-field="mr">
               <label for="form-article-title">बातमीचे मुख्य शीर्षक (Headline) <span class="req">*</span></label>
               <input type="text" id="form-article-title" required maxlength="500" placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control">
+            </div>
+            <div class="form-group flex-2" data-lang-field="en" hidden>
+              <label for="form-article-title-en">News headline (English)</label>
+              <input type="text" id="form-article-title-en" maxlength="500" placeholder="e.g. Solapur South: MLA Subhash Bapu Deshmukh wins by a record margin" class="form-control">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-category">बातमीची श्रेणी (Category) <span class="req">*</span></label>
@@ -436,9 +448,13 @@
           </div>
 
           <div class="form-row">
-            <div class="form-group flex-1">
+            <div class="form-group flex-1" data-lang-field="mr">
               <label for="form-article-author">बातमीदार / प्रतिनिधी <span class="req">*</span></label>
               <input type="text" id="form-article-author" value="विशेष प्रतिनिधी" required maxlength="200" class="form-control">
+            </div>
+            <div class="form-group flex-1" data-lang-field="en" hidden>
+              <label for="form-article-author-en">Reporter / author (English)</label>
+              <input type="text" id="form-article-author-en" maxlength="200" class="form-control" placeholder="e.g. Special Correspondent">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-date">प्रकाशन तारीख <span class="req">*</span></label>
@@ -472,13 +488,17 @@
           </div>
 
           <!-- Excerpt -->
-          <div class="form-group">
+          <div class="form-group" data-lang-field="mr">
             <label for="form-article-excerpt">थोडक्यात सारांश (Excerpt / Lead Summary) <span class="req">*</span></label>
             <textarea id="form-article-excerpt" rows="2" class="form-control" required placeholder="बातमीचा संक्षिप्त सारांश जो मुख्य पानावर दिसेल..."></textarea>
           </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-article-excerpt-en">Short summary (English)</label>
+            <textarea id="form-article-excerpt-en" rows="2" class="form-control" placeholder="A short summary that appears on the front page..."></textarea>
+          </div>
 
           <!-- Content with Rich Helpers -->
-          <div class="form-group">
+          <div class="form-group" data-lang-field="mr">
             <div class="editor-header">
               <label for="form-article-content">सविस्तर बातमी मजकूर (Full Content / HTML) <span class="req">*</span></label>
               <div class="editor-toolbar">
@@ -489,6 +509,18 @@
               </div>
             </div>
             <textarea id="form-article-content" rows="6" class="form-control font-code" required placeholder="<p><strong>सोलापूर:</strong> बातमीचा सविस्तर मजकूर येथे लिहा...</p>"></textarea>
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <div class="editor-header">
+              <label for="form-article-content-en">Full story (English, HTML allowed)</label>
+              <div class="editor-toolbar">
+                <button type="button" class="btn-tool" onclick="insertContentTag('p', 'form-article-content-en')" title="Paragraph">&lt;p&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('strong', 'form-article-content-en')" title="Bold">&lt;b&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('h4', 'form-article-content-en')" title="Subheading">&lt;h4&gt;</button>
+                <button type="button" class="btn-tool" onclick="insertContentTag('blockquote', 'form-article-content-en')" title="Quote">&lt;quote&gt;</button>
+              </div>
+            </div>
+            <textarea id="form-article-content-en" rows="6" class="form-control font-code" placeholder="<p><strong>Solapur:</strong> the full story in English...</p>"></textarea>
           </div>
 
           <div class="modal-footer">
@@ -516,6 +548,13 @@
       </div>
       <div class="modal-body">
         <form id="weekly-form" onsubmit="handleWeeklyFormSubmit(event)">
+          <div class="lang-tabs" role="tablist" aria-label="भाषा / Language">
+            <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('weekly-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
+            <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('weekly-modal', 'en')">English <i class="lang-dot"></i></button>
+          </div>
+          <p class="form-hint lang-help" data-lang-field="en" hidden>English आवृत्ती ऐच्छिक आहे. ती रिकामी ठेवली तर वेबसाईट English मध्ये दाखवताना मराठी मजकूरच दाखवेल. तारीख, फोटो, श्रेणी आणि बाकीची माहिती दोन्ही भाषांसाठी एकच असते.</p>
+          <p class="form-hint lang-note" data-db-note hidden>⚠ या डेटाबेसमध्ये अजून English कॉलम्स नाहीत, म्हणून English मजकूर जतन होणार नाही (मराठी जतन होईल). backend फोल्डरमध्ये <b>python init_db.py</b> एकदा चालवा, मग English जतन होईल.</p>
+
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="form-weekly-no">क्रम क्रमांक (तारखेनुसार) <span class="req">*</span></label>
@@ -529,9 +568,13 @@
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" data-lang-field="mr">
             <label for="form-weekly-title">अंकाचे शीर्षक (पहिल्या पानावरची मुख्य हेडलाईन) <span class="req">*</span></label>
             <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. मंत्री दादाजी भुसे यांची शाळांच्या दुरुस्तीबाबत बैठक !">
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-weekly-title-en">Issue headline (English) - the main headline of the front page</label>
+            <input type="text" id="form-weekly-title-en" maxlength="500" class="form-control" placeholder="e.g. Minister Dadaji Bhuse holds a meeting on school repairs">
           </div>
 
           <!-- PDF Upload Field -->
@@ -562,9 +605,13 @@
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" data-lang-field="mr">
             <label for="form-weekly-desc">अंकाचा थोडक्यात परिचय / वर्णन</label>
             <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="मुख्य बातमीची सुरुवात (छोटा मजकूर, २-३ वाक्ये)..."></textarea>
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-weekly-desc-en">Short introduction (English)</label>
+            <textarea id="form-weekly-desc-en" rows="2" class="form-control" placeholder="Start of the main story (2-3 sentences)"></textarea>
           </div>
 
           <div class="modal-footer">

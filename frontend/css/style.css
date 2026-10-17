@@ -793,7 +793,7 @@ html.is-dark .widget-title-wrap {
 /* Main Post Large Headline (Matching screenshot "Economic Growth Is Essential...") */
 .main-post-headline {
   font-family: var(--title-font);
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--title-color);
   line-height: 1.25;
@@ -1217,7 +1217,7 @@ html.is-dark .x-share-btn.share-toggle-more {
    ========================================================================== */
 .single-post-headline {
   font-family: var(--title-font);
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--title-color);
   line-height: 1.3;
@@ -1729,6 +1729,8 @@ html.is-dark .x-share-btn.share-toggle-more {
 
 .social-icon-box.fb { background-color: #3b5998; }
 .social-icon-box.tw { background-color: #1da1f2; }
+.social-icon-box.follow-card.tw { background-color: #000000; }          /* Follow us: X (Twitter) in its own black */
+html.is-dark .social-icon-box.follow-card.tw { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }   /* a hairline, so black stays visible on the dark page */
 .social-icon-box.yt { background-color: #cd201f; }
 .social-icon-box.wa { background-color: #25d366; }
 .social-icon-box.cp { background-color: #0284c7; }
@@ -2431,18 +2433,15 @@ html.is-dark .btn-archive-pill:hover {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
 }
 
-.weekly-count-tag {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--main-color);
-  background: rgba(0, 123, 255, 0.08);
-  padding: 5px 12px;
-  border-radius: 20px;
-  white-space: nowrap;
+/* Year filter under the search box: "सर्व" + one pill per year */
+.weekly-year-pills {
+  margin: -4px 0 16px;
+  gap: 8px;
 }
 
-html.is-dark .weekly-count-tag {
-  background: rgba(0, 123, 255, 0.2);
+.weekly-year-pill {
+  min-width: 56px;
+  padding: 6px 16px;
 }
 
 /* Weekly Edition Card Specifics */
@@ -2754,56 +2753,21 @@ html.is-dark .cat-chip.cat-review  { background: rgba(238, 123, 48, 0.25); color
   position: relative;
 }
 
-/* ---- Weekly publication section ---- */
-.weekly-section-head {
-  position: relative;
-  overflow: hidden;
-  margin: 2px 0 18px;
-  padding: 20px 22px;
-  border-radius: 4px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #631F15 0%, #7F2A1D 58%, #8D3022 100%);
-}
-
-.weekly-section-head::after {
-  content: "";
+/* Text that is read by screen readers and search engines but not shown (the Weekly page has no banner, yet keeps its main heading) */
+.visually-hidden {
   position: absolute;
-  top: -50px;
-  right: -40px;
-  width: 170px;
-  height: 170px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-.weekly-section-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  opacity: 0.92;
-}
-
-.weekly-section-title {
-  margin: 4px 0 6px;
-  font-family: var(--title-font);
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.3;
-  color: #ffffff;
-}
-
-.weekly-section-sub {
-  position: relative;
-  z-index: 1;
-  font-size: 14px;
-  line-height: 1.6;
-  opacity: 0.94;
-}
-
+/* ---- Weekly publication section ---- */
 /* Weekly publication before the first issue is published: one calm card instead of an empty list */
 .weekly-empty {
   display: flex;
@@ -3396,3 +3360,67 @@ html.is-dark .reader-progress {
    RESPONSIVE: all tablet / phone rules (1100 · 980 · 600 · 400 · 340px, landscape, safe-areas,
    touch polish) live in css/responsive.css, which is loaded right after this file.
    ========================================================================== */
+
+/* ============================================================
+   Language switch (मराठी | EN) and the word "by"
+   ============================================================ */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 3px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--body-bg-color);
+}
+
+.lang-opt {
+  min-width: 42px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--title-color);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.lang-opt:hover {
+  color: var(--main-color);
+}
+
+.lang-opt.active {
+  background: var(--main-color);
+  color: #ffffff;
+}
+
+.lang-opt:focus-visible {
+  outline: 2px solid var(--main-color);
+  outline-offset: 2px;
+}
+
+.drawer-lang {
+  display: flex;
+  padding: 4px var(--pad-l, 16px) 12px;
+}
+
+.lang-switch-drawer {
+  width: 100%;
+  margin: 0;
+}
+
+.lang-switch-drawer .lang-opt {
+  flex: 1;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+/* the English "by" before an author's name is shown in English only */
+html:lang(mr) .by-word {
+  display: none;
+}

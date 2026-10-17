@@ -345,6 +345,14 @@ let articlesData = [
     author: "समीर कुलकर्णी (सिने समीक्षक)",
     date: "१२ ऑक्टोबर २०२६",
     rating: "4.8",
+    title_en: "Film review: 'Maharashtrachi Loksanskruti' — an authentic work rooted in the soil, and the magic of its direction",
+    author_en: 'Sameer Kulkarni (film critic)',
+    excerpt_en: "The newly released film 'Maharashtrachi Loksanskruti' brings together rural reality and folk art beautifully. Read the detailed review.",
+    content_en: `
+      <p><strong>Film review:</strong> 'Maharashtrachi Loksanskruti' is not just entertainment; it is a mirror of our rich tradition. Excellent acting, realistic direction and wonderful music keep the audience hooked.</p>
+      <p><strong>Strengths:</strong> the lively performances, the authentic rural dialect and the captivating cinematography.</p>
+      <p><strong>Verdict:</strong> a quality, thought-provoking film worth watching with the family! Rating: 4.8/5 ★</p>
+    `,
     image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80",
     excerpt: "नुकताच प्रदर्शित झालेला 'महाराष्ट्राची लोकसंस्कृती' हा चित्रपट ग्रामीण वास्तव आणि लोककलेचा सुंदर संगम घडवून आणतो. वाचा सविस्तर परीक्षण.",
     content: `
@@ -362,6 +370,13 @@ let articlesData = [
     author: "टेक डेस्क",
     date: "११ ऑक्टोबर २०२६",
     rating: "4.6",
+    title_en: "Gadget review: an in-depth look at the 'Agrotech Smart Drone', useful for modern farming",
+    author_en: 'Tech Desk',
+    excerpt_en: 'How beneficial is this drone for farmers, which sprays pesticide in less time and gives accurate information about crop health? Find out.',
+    content_en: `
+      <p><strong>Technology review:</strong> the use of drone technology in Indian agriculture is growing fast. The 'Agrotech Smart Drone' comes with advanced sensors and a powerful battery.</p>
+      <p>On a single charge this drone can cover 15 acres. It will be extremely useful for small and medium farmers.</p>
+    `,
     image: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80",
     excerpt: "कमी वेळेत कीटकनाशक फवारणी आणि पिकांच्या आरोग्याची अचूक माहिती देणारे हे ड्रोन शेतकऱ्यांसाठी किती फायदेशीर ठरते? जाणून घ्या.",
     content: `
@@ -378,6 +393,13 @@ let articlesData = [
     author: "डॉ. मुकुंद दातार",
     date: "१० ऑक्टोबर २०२६",
     rating: "5.0",
+    title_en: "Book review: 'Shivkalin Arthavyavastha ani Prashasan' — a priceless treasure for scholars",
+    author_en: 'Dr. Mukund Datar',
+    excerpt_en: "Why should everyone read this scholarly book that sheds light on Chhatrapati Shivaji Maharaj's advanced economic and agricultural policies?",
+    content_en: `
+      <p><strong>Book review:</strong> this book explains in detail how important Chhatrapati Shivaji Maharaj was not only for his military skill but also for his economic policy that took care of the people's welfare.</p>
+      <p>The layout of the book, its references and its fluent language keep the reader engaged.</p>
+    `,
     image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80",
     excerpt: "छत्रपती शिवाजी महाराजांच्या प्रगत आर्थिक व शेतीविषयक नीतीवर प्रकाश टाकणारे हे अभ्यासपूर्ण पुस्तक प्रत्येकाने का वाचले पाहिजे?",
     content: `
@@ -394,6 +416,13 @@ let articlesData = [
     author: "रोहन सावंत (ऑटो तज्ज्ञ)",
     date: "०९ ऑक्टोबर २०२६",
     rating: "4.7",
+    title_en: "Auto review: the 'Electric Farm Tractor' for rural areas — savings and strong power",
+    author_en: 'Rohan Sawant (auto expert)',
+    excerpt_en: 'How is the new e-tractor, which beats rising diesel prices, proving effective in Indian fields? Read the detailed performance report.',
+    content_en: `
+      <p><strong>Automobile review:</strong> we tested in practice the new electric tractor that claims to save 70% of the fuel cost in rural areas.</p>
+      <p>Excellent torque and fast charging are making this tractor a favourite of farmers.</p>
+    `,
     image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
     excerpt: "डिझेलच्या वाढत्या दरांवर मात करणारा नवा ई-ट्रॅक्टर भारतीय शेतात कसा ठरतोय प्रभावी? वाचा सविस्तर परफॉर्मन्स रिपोर्ट.",
     content: `
@@ -430,15 +459,26 @@ const issueLabel = (a) => (a && a.date) || "";
 const thumbOf = (img) => (/^assets\/weekly\/\d+\.jpg$/.test(String(img || "")) ? String(img).replace(/\.jpg$/, "-s.jpg") : img);
 const hasViews = (v) => !!String(v == null ? "" : v).trim() && String(v).trim() !== "—";
 const escText = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));   // also safe inside an attribute
+// English text of the content that is built into the site (js/content-en.js): the news by id, the weekly issues by number.
+// It only FILLS what is empty - English typed in the Admin Panel (title_en ...) always wins.
+const BUILT_IN_EN = (window.LOKMANGAL_CONTENT_EN && window.LOKMANGAL_CONTENT_EN.articles) || {};
+const BUILT_IN_EN_WEEKLY = (window.LOKMANGAL_CONTENT_EN && window.LOKMANGAL_CONTENT_EN.weekly) || {};
 function makeWeeklyArticle(item) {
   const desc = (WEEKLY_PDF ? item.desc : withoutPdfWords(item.desc)) || "";
+  const builtIn = BUILT_IN_EN_WEEKLY[item.no] || {};
+  const rawDescEn = item.descEn || builtIn.desc || "";
+  const descEn = rawDescEn ? ((WEEKLY_PDF ? rawDescEn : withoutPdfWords(rawDescEn)) || "") : "";
   return {
+    title_en: item.titleEn || builtIn.title || "",
+    excerpt_en: descEn,
+    content_en: descEn ? `<p>${escText(descEn)}</p>` : "",
     id: 1000 + item.no,
     issue: item.no,
     title: item.title,
     category: "weekly",
     categoryLabel: "साप्ताहिक आवृत्ती",
     author: "संपादकीय मंडळ",
+    author_en: "Editorial Board",
     date: item.date,
     image: item.img,
     thumb: item.thumb || thumbOf(item.img),
@@ -449,6 +489,19 @@ function makeWeeklyArticle(item) {
 }
 
 PAST_WEEKLY_ISSUES.forEach(item => articlesData.push(makeWeeklyArticle(item)));
+
+// The built-in news get their English text (title_en, author_en, excerpt_en, content_en) from js/content-en.js. Called again after
+// the backend's rows were merged in (syncPortalWithApi): a row that comes WITHOUT English must not wipe the built-in English.
+function fillBuiltInEnglish() {
+  articlesData.forEach((a) => {
+    const en = a.category === "weekly" ? null : BUILT_IN_EN[a.id];
+    if (!en) return;
+    [["title_en", "title"], ["author_en", "author"], ["excerpt_en", "excerpt"], ["content_en", "content"]].forEach(([key, field]) => {
+      if (!String(a[key] || "").trim() && en[field]) a[key] = en[field];
+    });
+  });
+}
+fillBuiltInEnglish();
 
 // --- Weekly issues -----------------------------------------------------------------------------------
 // Devanagari digits <-> plain numbers
@@ -534,8 +587,6 @@ async function hydratePdfBox(box) {
     // nothing else on the card may promise a PDF either: the "PDF" tag on the cover, the "read online" badge
     const card = box.closest(".weekly-edition-item, .weekly-latest, .issue-pdf-card");
     if (card) card.querySelectorAll(".pdf-tag-overlay, .issue-read-badge").forEach((el) => { el.style.display = "none"; });
-    // a notice that only exists to announce the PDF (article page banner)
-    if (box.hasAttribute("data-pdf-hide")) box.style.display = "none";
   } else if (info.bytes) {
     box.querySelectorAll(".pdf-size").forEach((el) => { el.textContent = fmtSize(info.bytes); });
   }
@@ -566,7 +617,8 @@ const searchKey = (s) => devToAscii(String(s == null ? "" : s).toLowerCase());
 // (by headline, short text or date: "२४ सप्टेंबर २०२५", "24 सप्टेंबर 2025").
 function findArticleByQuery(q) {
   const k = searchKey(q);
-  const hit = (a) => searchKey(a.title).includes(k) || searchKey(a.excerpt).includes(k) || (a.category === "weekly" && searchKey(a.date).includes(k));
+  const hit = (a) => searchKey([a.title, a._mr_title, a.title_en, a.excerpt, a._mr_excerpt, a.excerpt_en].filter(Boolean).join(" ")).includes(k)
+    || (a.category === "weekly" && searchKey(a.date + " " + (a._mr_date || "")).includes(k));
   return articlesData.find((a) => a.category !== "weekly" && hit(a)) || weeklyIssues().find(hit);
 }
 
@@ -606,8 +658,55 @@ function teaserHTML(content, max = 280) {
   return plain.slice(0, max).replace(/\s+\S*$/, "") + "…";
 }
 
+// ---- Language of the DATA (news titles, texts, authors, dates) ----------------------------------------------------------
+// js/i18n.js translates the interface. A news item / issue also has its own English text (title_en, excerpt_en, content_en,
+// author_en: typed in the Admin Panel's English tab). While English is chosen the page data shows it, and falls back to the
+// Marathi text when there is none. The Marathi originals stay in _mr_<field>, so switching back (or a fresh answer of the
+// backend) is exact.
+const LANG_FIELDS = ["title", "excerpt", "content", "author", "date", "categoryLabel"];
+const CATEGORY_LABELS_MR = { rajkiy: "राजकीय", samajik: "सामाजिक", blogs: "ब्लॉग्स", review: "रिव्ह्यू", reviews: "रिव्ह्यू", weekly: "साप्ताहिक आवृत्ती" };
+
+function restoreRawFields(a, forget) {
+  LANG_FIELDS.forEach((f) => {
+    const key = "_mr_" + f;
+    if (a[key] !== undefined) {
+      a[f] = a[key];
+      if (forget) delete a[key];
+    }
+  });
+}
+
+function applyDataLanguage() {
+  const en = getLang() === "en";
+  articlesData.forEach((a) => {
+    restoreRawFields(a);
+    LANG_FIELDS.forEach((f) => { a["_mr_" + f] = a[f]; });
+    if (en) {
+      ["title", "excerpt", "content", "author"].forEach((f) => {
+        const v = a[f + "_en"];
+        if (v && String(v).trim()) a[f] = v;
+      });
+    }
+    a.categoryLabel = trUI(CATEGORY_LABELS_MR[a.category] || a._mr_categoryLabel || "");
+    a.date = localizeDates(a._mr_date || "");
+  });
+}
+
+// js/i18n.js calls this after the language was switched: everything that is drawn from data is drawn again
+window.onLanguageChange = function () {
+  applyDataLanguage();
+  renderLabelCounts();
+  renderLeftSidebar();
+  renderRightSidebar();
+  renderLatestReviews();
+  renderFeaturedVideos();
+  if (drawerPopularRendered && typeof renderDrawerPopularItems === "function") renderDrawerPopularItems();
+  if (typeof renderRoute === "function") renderRoute({ scroll: false });
+};
+
 // Initialize on Load
 document.addEventListener("DOMContentLoaded", () => {
+  applyDataLanguage();
   initThemeToggle();
   initNavigation();
   initSearch();
@@ -997,14 +1096,14 @@ function centerChip(chip) {
   track.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
 }
 
-function getMarathiCategory(cat) {
+function getMarathiCategory(cat) {            // Marathi only: js/i18n.js shows the English name when English is chosen
   switch(cat) {
-    case "rajkiy": return "राजकीय (Rajkiy)";
-    case "samajik": return "सामाजिक (Samajik)";
-    case "weekly": return "साप्ताहिक आवृत्ती (Weekly)";
-    case "blogs": return "ब्लॉग्स (Blogs)";
-    case "review": return "रिव्ह्यू (Reviews)";
-    default: return "होम (Home)";
+    case "rajkiy": return "राजकीय";
+    case "samajik": return "सामाजिक";
+    case "weekly": return "साप्ताहिक आवृत्ती";
+    case "blogs": return "ब्लॉग्स";
+    case "review": return "रिव्ह्यू";
+    default: return "होम";
   }
 }
 
@@ -1036,7 +1135,7 @@ function renderLeftSidebar() {
       <div class="popular-card-overlay">
         <span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>
         <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline">by ${item0.author} - ${item0.date}</div>
+        <div class="popular-card-byline"><span class="by-word">by </span>${item0.author} - ${item0.date}</div>
       </div>
     </div>
 
@@ -1114,7 +1213,7 @@ function renderLatestReviews() {
         <span class="category-tag-badge">${item0.categoryLabel}</span>
         <h4 class="popular-card-title">${item0.title}</h4>
         <div class="popular-card-byline">
-          by ${item0.author} - ${item0.date}
+          <span class="by-word">by </span>${item0.author} - ${item0.date}
           ${stars(item0)}
         </div>
       </div>
@@ -1370,7 +1469,7 @@ function renderDrawerPopularItems() {
       <div class="popular-card-overlay">
         <span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>
         <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline">by ${item0.author} - ${item0.date}</div>
+        <div class="popular-card-byline"><span class="by-word">by </span>${item0.author} - ${item0.date}</div>
       </div>
     </div>
 
@@ -1508,7 +1607,8 @@ function rememberScroll() {
 }
 
 function setDocTitle(text) {
-  document.title = text ? `${text} | लोकमंगल न्यूज पोर्टल` : "लोकमंगल न्यूज पोर्टल | Lokmangal News Portal";
+  const site = trUI("लोकमंगल न्यूज पोर्टल");
+  document.title = text ? `${trUI(text)} | ${site}` : site;
 }
 
 // Go to a view: closes menus / sheets first, adds ONE history entry, draws the view.
@@ -1682,21 +1782,10 @@ function renderWeeklySection(container) {
       ])}
     </div>
 
-    <header class="weekly-section-head">
-      <span class="weekly-section-kicker"><i class="fa-solid fa-newspaper"></i> लोकमंगल साप्ताहिक</span>
-      <h1 class="weekly-section-title" id="main-headline-text">साप्ताहिक आवृत्ती</h1>
-      <p class="weekly-section-sub">${issues.length
-        ? `सर्व ${toDevanagari(issues.length)} अंक एकाच ठिकाणी${WEEKLY_PDF ? " — ऑनलाईन वाचा (PDF) किंवा मोफत डाउनलोड करा" : ""}.`
-        : "लोकमंगल साप्ताहिकाचे नवीन अंक लवकरच येथे प्रकाशित होतील."}</p>
-    </header>
+    <h1 class="visually-hidden" id="main-headline-text">साप्ताहिक आवृत्ती</h1>
 
     ${issues.length ? `${weeklyLatestHTML(issues[0])}
 
-    <div class="more-posts-header">
-      <h2 class="more-posts-title">${WEEKLY_PDF
-        ? `<i class="fa-solid fa-file-pdf" style="color:var(--accent-red); margin-right:6px"></i> सर्व अंक व PDF ई-पेपर`
-        : `<i class="fa-solid fa-newspaper" style="color:var(--accent-red); margin-right:6px"></i> सर्व अंक`} <span class="more-title-sub">(All Issues)</span></h2>
-    </div>
     <div id="secondary-posts-feed">
       <!-- Populated below -->
     </div>` : weeklyEmptyHTML()}
@@ -1785,7 +1874,7 @@ function leadStoryHTML(article, { pdf = false, label = "" } = {}) {
       <div class="author-info-left">
         <div class="author-circle-avatar">${article.author.substring(0, 2)}</div>
         <div class="author-byline-text">
-          by <span class="author-name">${article.author}</span> - <span id="main-article-date">${article.date}</span>
+          <span class="by-word">by </span><span class="author-name">${article.author}</span> - <span id="main-article-date">${article.date}</span>
         </div>
       </div>
       <div class="author-meta-right">
@@ -1903,11 +1992,10 @@ let homeNewsLimit = 8;          // Initially show 8 news stories
 
 function newsHeadHTML() {
   const pill = (key, label) => `<button type="button" class="news-pill${homeNewsFilter === key ? " active" : ""}" data-news="${key}" aria-pressed="${homeNewsFilter === key}" onclick="setHomeNewsFilter('${key}')">${label}</button>`;
-  const isEn = (document.documentElement.lang || "").toLowerCase().startsWith("en");
-  const titleText = isEn ? "Latest News" : "ताज्या बातम्या";
-  const allLabel = isEn ? "All" : "सर्व";
-  const samajikLabel = isEn ? "Social" : "सामाजिक";
-  const rajkiyLabel = isEn ? "Political" : "राजकीय";
+  const titleText = "ताज्या बातम्या";          // the source text is Marathi; js/i18n.js shows it in English when English is chosen
+  const allLabel = "सर्व";
+  const samajikLabel = "सामाजिक";
+  const rajkiyLabel = "राजकीय";
   return `
     <div class="more-posts-header news-section-head">
       <h2 class="more-posts-title"><i class="fa-solid fa-newspaper" style="color:var(--main-color); margin-right:6px"></i> ${titleText}</h2>
@@ -1967,9 +2055,8 @@ function newsListHTML(filter) {
 
   const [first, ...rest] = visibleList;
 
-  const isEn = (document.documentElement.lang || "").toLowerCase().startsWith("en");
-  const loadBtnText = isEn ? "Load More" : "अधिक बातम्या";
-  const allLoadedText = isEn ? `All ${list.length} stories displayed` : `सर्व ${toDevanagari(list.length)} बातम्या दाखवल्या आहेत`;
+  const loadBtnText = "अधिक बातम्या";
+  const allLoadedText = `सर्व ${toDevanagari(list.length)} बातम्या दाखवल्या आहेत`;
 
   const loadMoreBtnHTML = hasMore ? `
     <div class="load-more-wrap" id="home-load-more-wrap">
@@ -2007,10 +2094,12 @@ window.loadMoreHomeNews = function() {
 // The choice is kept while the visitor opens an issue and comes back.
 const WEEKLY_PAGE = 10;
 let weeklyExpanded = false;
+let weeklyYear = "";            // "" = every year; "2026" = only the issues of that year (kept like weeklyExpanded)
+const yearOfDate = (text) => { const v = dateValue(text); return v ? String(Math.floor(v / 10000)) : ""; };
 
 function weeklyRowHTML(item, folded) {
   return `
-    <div class="secondary-post-item weekly-edition-item" data-search="${escText((item.title + " " + item.date + " " + (item.excerpt || "")).toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
+    <div class="secondary-post-item weekly-edition-item" data-year="${yearOfDate(item.date)}" data-search="${escText([item.title, item._mr_title, item.title_en, item.date, item._mr_date, item.excerpt, item._mr_excerpt, item.excerpt_en].filter(Boolean).join(" ").toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
         ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
         ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
@@ -2039,27 +2128,29 @@ function weeklyRowHTML(item, folded) {
 function weeklyArchiveHTML() {
   const list = weeklyIssues();
   const folded = !weeklyExpanded && list.length > WEEKLY_PAGE;      // only the latest WEEKLY_PAGE are shown
-  const isEn = (document.documentElement.lang || "").toLowerCase().startsWith("en");
+  const years = [...new Set(list.map((it) => yearOfDate(it.date)).filter(Boolean))].sort((a, b) => b - a);   // newest year first
+  if (weeklyYear && !years.includes(weeklyYear)) weeklyYear = "";
+  const pill = (y, label) => `<button type="button" class="news-pill weekly-year-pill${weeklyYear === y ? " active" : ""}" data-year="${y}" aria-pressed="${weeklyYear === y}" onclick="setWeeklyYear('${y}')">${label}</button>`;
   return `
     <div class="weekly-search-filter-bar">
       <div class="weekly-search-input-wrap">
         <i class="fa-solid fa-magnifying-glass"></i>
         <input type="text" id="weekly-filter-input" enterkeyhint="search" autocomplete="off" placeholder="तारीख, महिना किंवा विषय शोधा (उदा. ऑगस्ट २०२६, विमानसेवा, शेतकरी)..." oninput="filterWeeklyIssuesList(this.value)" />
       </div>
-      <div class="weekly-count-tag"><span id="weekly-visible-count">${toDevanagari(list.length)}</span> अंक उपलब्ध</div>
     </div>
+    ${years.length > 1 ? `<div class="news-pills weekly-year-pills" role="group" aria-label="वर्षानुसार अंक">${pill("", "सर्व")}${years.map((y) => pill(y, toDevanagari(y))).join("")}</div>` : ""}
     <div class="weekly-editions-container" id="weekly-editions-list">
       ${list.map((item, i) => weeklyRowHTML(item, folded && i >= WEEKLY_PAGE)).join("")}
     </div>
     <div class="load-more-wrap" id="weekly-load-more-wrap"${folded ? "" : " hidden"}>
       <button type="button" class="btn-load-more" onclick="showAllWeeklyIssues()">
         <i class="fa-solid fa-angles-down"></i>
-        <span>${isEn ? "Read More" : "अधिक वाचा"}</span>
-        <span class="load-more-count">${toDevanagari(Math.max(0, list.length - WEEKLY_PAGE))} ${isEn ? "more" : "अंक"}</span>
+        <span>अधिक वाचा</span>
+        <span class="load-more-count">${toDevanagari(Math.max(0, list.length - WEEKLY_PAGE))} अंक</span>
       </button>
     </div>
     <div class="load-more-end" id="weekly-load-end"${!folded && list.length > WEEKLY_PAGE ? "" : " hidden"}>
-      <i class="fa-solid fa-circle-check"></i> ${isEn ? `All ${list.length} issues displayed` : `सर्व ${toDevanagari(list.length)} अंक दाखवले आहेत`}
+      <i class="fa-solid fa-circle-check"></i> सर्व ${toDevanagari(list.length)} अंक दाखवले आहेत
     </div>
     <p class="empty-note" id="weekly-empty-note" hidden>असा अंक सापडला नाही. दुसरा शब्द, महिना किंवा तारीख शोधा.</p>`;
 }
@@ -2074,6 +2165,7 @@ function renderSecondaryPosts() {
   }
   if (currentCategory === "weekly") {         // Weekly publication: every issue
     container.innerHTML = weeklyArchiveHTML();
+    filterWeeklyIssuesList("");               // applies the kept year / "अधिक वाचा" state to the fresh list
     return;
   }
 
@@ -2089,22 +2181,34 @@ function renderSecondaryPosts() {
 window.filterWeeklyIssuesList = function(query) {
   const q = devToAscii((query || "").trim().toLowerCase());
   const items = document.querySelectorAll("#weekly-editions-list .weekly-edition-item");
-  // without a search only the latest WEEKLY_PAGE are shown until "अधिक वाचा"; with a search every issue is looked through
-  const folded = !q && !weeklyExpanded && items.length > WEEKLY_PAGE;
+  // "सर्व" years and no search: only the latest WEEKLY_PAGE are shown until "अधिक वाचा"; a search or a year shows every issue that matches
+  const filtering = !!q || !!weeklyYear;
+  const folded = !filtering && !weeklyExpanded && items.length > WEEKLY_PAGE;
   let count = 0;
   items.forEach((el, i) => {
-    const matches = !q || devToAscii(((el.dataset.search || "") + " " + el.innerText).toLowerCase()).includes(q);
+    const matches = (!weeklyYear || el.dataset.year === weeklyYear)
+      && (!q || devToAscii(((el.dataset.search || "") + " " + el.innerText).toLowerCase()).includes(q));
     el.style.display = matches && !(folded && i >= WEEKLY_PAGE) ? "" : "none";
     if (matches) count++;
   });
-  const countSpan = document.getElementById("weekly-visible-count");
-  if (countSpan) countSpan.innerText = toDevanagari(count);
   const empty = document.getElementById("weekly-empty-note");
   if (empty) empty.hidden = count !== 0;
   const more = document.getElementById("weekly-load-more-wrap");
   if (more) more.hidden = !folded;
   const end = document.getElementById("weekly-load-end");
-  if (end) end.hidden = !!q || folded || items.length <= WEEKLY_PAGE;
+  if (end) end.hidden = filtering || folded || items.length <= WEEKLY_PAGE;
+  document.querySelectorAll(".weekly-year-pill").forEach((b) => {
+    const on = b.dataset.year === weeklyYear;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+};
+
+// Year pills under the search box: one year, or "सर्व" (""). The search box keeps working inside the chosen year.
+window.setWeeklyYear = function(year) {
+  weeklyYear = year || "";
+  const input = document.getElementById("weekly-filter-input");
+  filterWeeklyIssuesList(input ? input.value : "");
 };
 
 // "अधिक वाचा": show the issues that were left out (the rows are already in the page, their pictures load when they appear)
@@ -2202,7 +2306,7 @@ window.renderCommentsListHTML = function(comments) {
   return comments.map(c => `
     <div class="comment-item-card" id="comment-card-${c.id}">
       <div class="author-circle-avatar comment-avatar" style="background:${c.color || '#2563eb'}">
-        ${getInitials(c.name)}
+        ${getInitials(trUI(c.name))}
       </div>
       <div class="comment-body-wrap">
         <div class="comment-header-row">
@@ -2335,7 +2439,6 @@ function renderArticleView(article) {
         ...articlesData.filter((a) => a.id !== article.id && a.category !== "weekly" && !NEWS_CATEGORIES.includes(a.category) && a.category !== article.category),
       ].slice(0, 3);
 
-  const latest = latestIssue();
   const pdf = isIssue ? pdfUrlFor(article) : "";
 
   container.className = "main-content-box view-article" + (isIssue ? " view-issue" : "");
@@ -2353,18 +2456,18 @@ function renderArticleView(article) {
       ${article.title}
     </h1>
 
-    <div class="author-meta-bar">
+    ${isIssue ? "" : `<div class="author-meta-bar">
       <div class="author-info-left">
         <div class="author-circle-avatar">${article.author.substring(0, 2)}</div>
         <div class="author-byline-text">
-          by <span class="author-name">${article.author}</span> - <span>${article.date}</span>
+          <span class="by-word">by </span><span class="author-name">${article.author}</span> - <span>${article.date}</span>
         </div>
       </div>
       <div class="author-meta-right">
         <span id="post-comment-count"><i class="fa-regular fa-comment"></i> ${comments.length} प्रतिक्रिया</span>
-        ${!isIssue || hasViews(article.views) ? `<span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>` : ""}
+        <span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>
       </div>
-    </div>
+    </div>`}
 
     ${isIssue && WEEKLY_PDF ? `
     <!-- The weekly issue: cover + PDF e-paper -->
@@ -2387,12 +2490,6 @@ function renderArticleView(article) {
       </div>
     </div>
     ` : `
-    ${WEEKLY_PDF && !isIssue && latest ? `<!-- Notice for the newest weekly issue -->
-    <div class="responsive-ad-banner" data-pdf-url="${pdfUrlFor(latest)}" data-pdf-hide onclick="openWeeklyModal()">
-      <i class="fa-solid fa-bullhorn" style="margin-right:6px"></i>
-      लोकमंगल साप्ताहिक आवृत्ती (अंक ${toDevanagari(latest.issue)}) - डिजिटल ई-पेपर (PDF) उपलब्ध! येथे क्लिक करा
-    </div>` : ""}
-
     <div class="single-post-media">
       ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", HERO_IMG_ATTRS)}
     </div>
@@ -2426,17 +2523,6 @@ function renderArticleView(article) {
       <button class="social-icon-box cp share-btn" onclick="navigator.clipboard?.writeText('${pageUrl}'); showToast('${isIssue ? "अंकाची" : "बातमी"} लिंक कॉपी केली!')">
         <i class="fa-solid fa-link"></i> कॉपी लिंक
       </button>
-    </div>
-
-    <!-- Author Bio Box -->
-    <div class="author-bio-box">
-      <div class="author-circle-avatar" style="width:48px; height:48px; font-size:16px">${article.author.substring(0, 2)}</div>
-      <div>
-        <strong style="display:block; font-size:15px; color:var(--title-color)">${article.author}</strong>
-        <p style="font-size:12.5px; color:var(--meta-color); margin:4px 0 0">
-          लोकमंगल न्यूज पोर्टलचे अधिकृत पत्रकार व विश्लेषक. सत्य, पारदर्शक आणि वस्तुनिष्ठ पत्रकारितेसाठी कटिबद्ध.
-        </p>
-      </div>
     </div>
 
     <!-- Previous / Next (issue number for issues, same section for articles) -->
@@ -3097,6 +3183,11 @@ window.showToast = function(msg) {
   }, 2500);
 };
 
+// js/i18n.js gives the website its two languages; without it everything stays Marathi
+window.trUI = window.trUI || ((text) => text);
+window.getLang = window.getLang || (() => "mr");
+window.localizeDates = window.localizeDates || ((text) => text);
+
 // Where the Python backend lives (js/config.js). "" = same address as this page.
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
 
@@ -3112,6 +3203,7 @@ async function syncPortalWithApi() {
       fetch(API_BASE + '/api/articles').catch(() => null),
       fetch(API_BASE + '/api/weekly').catch(() => null)
     ]);
+    articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
     if (artRes && artRes.ok) {
       const artJson = await artRes.json();
@@ -3145,7 +3237,7 @@ async function syncPortalWithApi() {
           dbIssues.add(no);
           // API row (issue_no, pdf_filename, description ...) -> same shape as the built-in issues
           const issue = {
-            ...makeWeeklyArticle({ no, date: row.date, title: row.title, img: row.image, views: row.views, desc: row.description }),
+            ...makeWeeklyArticle({ no, date: row.date, title: row.title, img: row.image, views: row.views, desc: row.description, titleEn: row.title_en, descEn: row.description_en }),
             issue: no,
           };
           if (row.pdf_filename && row.pdf_filename !== pdfFileName(no)) issue.pdf = PDF_BASE + row.pdf_filename;
@@ -3164,6 +3256,8 @@ async function syncPortalWithApi() {
     if (artRes && artRes.ok || weekRes && weekRes.ok) {
       apiSyncPending = false;          // from now on an unknown address really is unknown
       routeWaitingForApi = false;
+      fillBuiltInEnglish();            // (a row without English text must not wipe the built-in English)
+      applyDataLanguage();
       if (typeof renderLabelCounts === 'function') renderLabelCounts();
       renderLeftSidebar();
       renderRightSidebar();
@@ -3180,6 +3274,7 @@ async function syncPortalWithApi() {
   } catch (err) {
     console.warn('API sync fallback to local data:', err);
   } finally {
+    applyDataLanguage();               // (also when nothing came: the page data must not be left in raw Marathi while English is chosen)
     if (apiSyncPending) {              // no usable answer (no backend / error): an address that was waiting for it falls back to Home now
       apiSyncPending = false;
       if (routeWaitingForApi) {

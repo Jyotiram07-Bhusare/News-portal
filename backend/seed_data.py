@@ -2,6 +2,7 @@
 
     python seed_data.py            only into tables that are still empty
     python seed_data.py --force    also overwrite rows that have the same id / issue number
+    python seed_data.py --english  only give the sample rows that are already in the database their English text (where it is empty)
 """
 import argparse
 import json
@@ -27,7 +28,18 @@ def seed(force=False):
         print(f"{table}: {import_rows(_load(filename))} rows loaded")
 
 
+def fill_english():
+    """The sample news / issues that are already in the database get the English text of seed/*.json (empty English fields only)."""
+    return database.fill_english(_load("articles.json"), _load("weekly.json"))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Load the sample articles and weekly issues into MySQL.")
     parser.add_argument("--force", action="store_true", help="overwrite rows that already exist")
-    seed(parser.parse_args().force)
+    parser.add_argument("--english", action="store_true", help="only add the English text to the sample rows that already exist")
+    args = parser.parse_args()
+    if args.english:
+        done = fill_english()
+        print(f"English text added to {done['articles']} news items and {done['weekly_editions']} weekly issues")
+    else:
+        seed(args.force)

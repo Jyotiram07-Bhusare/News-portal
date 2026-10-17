@@ -16,7 +16,8 @@ let appState = {
   editingWeeklyNo: null,         // issue number while the weekly form edits an existing issue (null = a new issue)
   articlesLoaded: false,         // true once the list really came from the backend (an empty list that failed to load is not "no news")
   weeklyLoaded: false,
-  weeklyPdfChosen: false         // a PDF was uploaded in the open weekly form (an issue being edited already has its PDF)
+  weeklyPdfChosen: false,        // a PDF was uploaded in the open weekly form (an issue being edited already has its PDF)
+  dbEnglish: true                // false while the database has no English columns yet (python init_db.py adds them)
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
@@ -103,20 +104,26 @@ function initNavigation() {
     });
   });
 
-  // Mobile menu toggle
+  // Phones / tablets: the sidebar is a drawer (menu button opens it; the dim backdrop, Esc, a menu entry or the "<" button close it)
   const mobileToggle = document.getElementById('mobile-menu-toggle');
   const sidebar = document.getElementById('sidebar');
   if (mobileToggle && sidebar) {
-    mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
-    });
+    mobileToggle.setAttribute('aria-controls', 'sidebar');
+    mobileToggle.setAttribute('aria-label', 'मेनू');
+    mobileToggle.setAttribute('aria-expanded', 'false');
+    mobileToggle.addEventListener('click', () => setSidebarOpen(!sidebar.classList.contains('mobile-open')));
   }
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (backdrop) backdrop.addEventListener('click', () => setSidebarOpen(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setSidebarOpen(false); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 992) setSidebarOpen(false); });
 
-  // Sidebar collapse toggle
+  // Sidebar collapse toggle (desktop: narrow / wide; on a phone the same button closes the drawer)
   const collapseBtn = document.getElementById('sidebar-collapse-btn');
   if (collapseBtn && sidebar) {
     collapseBtn.addEventListener('click', () => {
-      sidebar.classList.toggle('collapsed');
+      if (window.innerWidth <= 992) setSidebarOpen(false);
+      else sidebar.classList.toggle('collapsed');
     });
   }
 
@@ -135,6 +142,59 @@ function initNavigation() {
     else if (h === 'weekly') switchTab('tab-weekly');
     else if (h === 'media') switchTab('tab-media');
   }
+}
+
+// ---- Marathi / English tabs of the news form and the weekly form ----------------------------------------------------
+// Fields that belong to one language carry data-lang-field="mr" | "en"; the rest (category, date, photo ...) is shared.
+function setFormLang(modalId, lang) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.dataset.lang = lang;
+  modal.querySelectorAll('[data-lang-field]').forEach((el) => { el.hidden = el.dataset.langField !== lang; });
+  modal.querySelectorAll('.lang-tab').forEach((b) => {
+    const on = b.dataset.lang === lang;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  const note = modal.querySelector('[data-db-note]');
+  if (note) note.hidden = !(lang === 'en' && appState.dbEnglish === false);
+  updateLangDots(modal);
+}
+
+// the dot on the English tab is green when some English text has been typed
+function updateLangDots(modal) {
+  const has = [...modal.querySelectorAll('[data-lang-field="en"] input, [data-lang-field="en"] textarea')].some((f) => f.value.trim());
+  const dot = modal.querySelector('.lang-tab[data-lang="en"] .lang-dot');
+  if (dot) dot.classList.toggle('on', has);
+}
+
+document.addEventListener('input', (e) => {
+  const modal = e.target.closest && e.target.closest('.admin-modal-backdrop');
+  if (modal && e.target.closest('[data-lang-field="en"]')) updateLangDots(modal);
+});
+
+// a required Marathi field that is hidden behind the English tab must not block the save silently: show it
+document.addEventListener('invalid', (e) => {
+  const field = e.target.closest && e.target.closest('[data-lang-field]');
+  if (field && field.hidden) setFormLang(field.closest('.admin-modal-backdrop').id, field.dataset.langField);
+}, true);
+
+// the answer of a save says when the English text could not be kept (the database has no English columns yet)
+function warnIfEnglishNotSaved(data) {
+  if (data && Array.isArray(data.warnings) && data.warnings.includes('english_not_saved')) {
+    showToast('मराठी जतन झाले, पण English जतन झाले नाही — backend फोल्डरमध्ये "python init_db.py" एकदा चालवा.', 'error');
+  }
+}
+
+function setSidebarOpen(open) {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('mobile-open', open);
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (backdrop) backdrop.classList.toggle('show', open);
+  document.body.classList.toggle('sidebar-open', open);
+  const btn = document.getElementById('mobile-menu-toggle');
+  if (btn) btn.setAttribute('aria-expanded', String(open));
 }
 
 function switchTab(tabId) {
@@ -169,8 +229,7 @@ function switchTab(tabId) {
   if (breadcrumb) breadcrumb.textContent = names[tabId] || 'डॅशबोर्ड';
 
   // Close mobile sidebar if open
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.classList.remove('mobile-open');
+  setSidebarOpen(false);
 
   // Trigger loads if needed
   if (tabId === 'tab-media') {
@@ -225,6 +284,7 @@ async function checkServerStatus() {
     const data = await res.json();
     if (res.ok && data.success) {
       show('online', 'सुरू', 'MySQL database: ' + data.database);
+      appState.dbEnglish = data.english !== false;
       return 'online';
     }
     show('offline', 'MySQL बंद', data.error || '');
@@ -512,7 +572,7 @@ function renderArticlesTable() {
         <img src="${formatAssetUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}">
       </td>
       <td>
-        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;">${escapeHtml(a.title)}</div>
+        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;">${escapeHtml(a.title)}${a.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
         <div style="font-size: 0.78rem; color: var(--text-muted);">by ${escapeHtml(a.author || 'प्रतिनिधी')}</div>
       </td>
       <td>
@@ -619,6 +679,8 @@ function openNewArticleModal() {
   updateArticleImgPreview('assets/images/bapu_portrait_lead.jpg');
   document.getElementById('form-article-excerpt').value = '';
   document.getElementById('form-article-content').value = '<p><strong>सोलापूर:</strong> बातमीचा सविस्तर मजकूर येथे लिहा...</p>';
+  ['title', 'author', 'excerpt', 'content'].forEach((f) => { document.getElementById('form-article-' + f + '-en').value = ''; });
+  setFormLang('article-modal', 'mr');
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बातमी प्रकाशित करा';
 
   initDateDisplay();
@@ -650,6 +712,11 @@ function openEditArticleModal(articleId) {
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
   document.getElementById('form-article-content').value = a.content || '';
+  document.getElementById('form-article-title-en').value = a.title_en || '';
+  document.getElementById('form-article-author-en').value = a.author_en || '';
+  document.getElementById('form-article-excerpt-en').value = a.excerpt_en || '';
+  document.getElementById('form-article-content-en').value = a.content_en || '';
+  setFormLang('article-modal', 'mr');
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बदल जतन करा';
 
   document.getElementById('article-modal').classList.add('open');
@@ -709,8 +776,8 @@ function autoSetCategoryLabel() {
 }
 
 // Rich Content Helper Tags
-function insertContentTag(tag) {
-  const textarea = document.getElementById('form-article-content');
+function insertContentTag(tag, targetId = 'form-article-content') {
+  const textarea = document.getElementById(targetId);
   if (!textarea) return;
 
   const start = textarea.selectionStart;
@@ -747,6 +814,10 @@ async function handleArticleFormSubmit(e) {
   const image = document.getElementById('form-article-image').value.trim() || 'assets/images/lokmangal_what_we_do.jpg';
   const excerpt = document.getElementById('form-article-excerpt').value.trim();
   const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim());
+  const title_en = document.getElementById('form-article-title-en').value.trim();
+  const author_en = document.getElementById('form-article-author-en').value.trim();
+  const excerpt_en = document.getElementById('form-article-excerpt-en').value.trim();
+  const content_en = plainTextToParagraphs(document.getElementById('form-article-content-en').value.trim());
 
   // Placement checkbox states
   const is_lead = document.getElementById('form-article-is-lead')?.checked ? 1 : 0;
@@ -772,7 +843,11 @@ async function handleArticleFormSubmit(e) {
     views,
     image,
     excerpt,
-    content
+    content,
+    title_en,
+    author_en,
+    excerpt_en,
+    content_en
   };
 
   const saveBtn = document.getElementById('btn-save-article');
@@ -798,6 +873,7 @@ async function handleArticleFormSubmit(e) {
     const data = await res.json();
     if (data.success) {
       showToast(data.message || 'बातमी जतन झाली!', 'success');
+      warnIfEnglishNotSaved(data);
       closeArticleModal();
       await fetchArticles();
       await fetchStats();
@@ -908,7 +984,7 @@ function renderWeeklyTable() {
           <img src="${formatAssetUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
         </td>
         <td>
-          <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(w.title)}</div>
+          <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(w.title)}${w.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
           <div style="font-size: 0.8rem; color: var(--text-muted);">${w.description ? escapeHtml(w.description.length > 75 ? w.description.slice(0, 75) + '…' : w.description) : ''}</div>
         </td>
         <td style="font-size: 0.85rem;">${escapeHtml(w.date)}</td>
@@ -941,6 +1017,7 @@ function setWeeklyFormMode(issueNo) {
   appState.editingWeeklyNo = issueNo;
   const editing = issueNo !== null;
   appState.weeklyPdfChosen = editing;
+  setFormLang('weekly-modal', 'mr');
   document.getElementById('weekly-modal-title').innerHTML = editing
     ? `<i class="fa-solid fa-pen-to-square"></i> साप्ताहिक अंक संपादित करा (क्र. ${issueNo})`
     : '<i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड';
@@ -969,6 +1046,8 @@ function openEditWeeklyModal(issueNo) {
   document.getElementById('weekly-pdf-filename-display').innerHTML =
     `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${escapeHtml(w.pdf_filename || '')} — सध्याची फाईल (बदलायची असेल तरच नवीन PDF निवडा)`;
   document.getElementById('form-weekly-desc').value = w.description || '';
+  document.getElementById('form-weekly-title-en').value = w.title_en || '';
+  document.getElementById('form-weekly-desc-en').value = w.description_en || '';
   // what is saved is real: a PDF chosen now must not silently replace the date or the cover
   dateField.dataset.auto = '';
   imgField.dataset.auto = '';
@@ -998,6 +1077,8 @@ function openNewWeeklyModal() {
   document.getElementById('form-weekly-pdffilename').value = `lokmangal-weekly-${nextIssue}.pdf`;
   document.getElementById('weekly-pdf-filename-display').innerHTML = `PDF फाईल निवडा किंवा ड्रॅग करा (lokmangal-weekly-${nextIssue}.pdf)`;
   document.getElementById('form-weekly-desc').value = '';   // no ready-made text: the introduction is written for each issue
+  document.getElementById('form-weekly-title-en').value = '';
+  document.getElementById('form-weekly-desc-en').value = '';
 
   dateField.value = '';          // an empty field is filled with today's date by initDateDisplay
   initDateDisplay();
@@ -1202,7 +1283,9 @@ async function handleWeeklyFormSubmit(e) {
     image,
     pdf_filename,
     views: '—',            // nothing counts the readers of a PDF; the website shows no number for it
-    description
+    description,
+    title_en: document.getElementById('form-weekly-title-en').value.trim(),
+    description_en: document.getElementById('form-weekly-desc-en').value.trim()
   };
 
   const btn = document.getElementById('btn-save-weekly');
@@ -1218,6 +1301,7 @@ async function handleWeeklyFormSubmit(e) {
     const data = await res.json();
     if (data.success) {
       showToast(appState.editingWeeklyNo !== null ? 'अंकातील बदल जतन झाले!' : 'साप्ताहिक अंक यशस्वीरीत्या प्रकाशित झाला!', 'success');
+      warnIfEnglishNotSaved(data);
       closeWeeklyModal();
       await fetchWeekly();
       await fetchStats();

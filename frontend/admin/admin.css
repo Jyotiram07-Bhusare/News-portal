@@ -546,6 +546,7 @@ body.dark-theme .stat-icon-wrap {
 }
 
 .dash-panel {
+  min-width: 0;                         /* a long headline must not push the panel (and the page) wider than the screen */
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -586,6 +587,7 @@ body.dark-theme .stat-icon-wrap {
 .recent-item {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 14px;
   padding: 10px;
   border-radius: var(--radius-md);
@@ -875,6 +877,10 @@ body.dark-theme .stat-icon-wrap {
 }
 
 .modal-footer {
+  position: sticky;                     /* Save / Cancel stay on screen while a long form scrolls */
+  bottom: 0;
+  z-index: 2;
+  margin: 8px -24px -24px;
   padding: 16px 24px;
   border-top: 1px solid var(--border-color);
   display: flex;
@@ -1579,5 +1585,551 @@ body.dark-theme .backend-banner {
 @media (max-width: 640px) {
   .backend-banner {
     flex-wrap: wrap;
+  }
+}
+
+
+/* ============================================================
+   RESPONSIVE - tablets and phones, every width from 280 px up
+   up to 992px  the sidebar is a slide-in drawer with a dim backdrop (menu button in the top bar)
+   up to 860px  tables become cards, toolbars stack, forms / modals become full-screen sheets
+   up to 640px  the top bar keeps only icons; up to 340px the stat cards go one per row
+   (The cards rely on the column order of #articles-table and #weekly-table: see renderArticlesTable / renderWeeklyTable.)
+   ============================================================ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body.admin-body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(2, 6, 23, 0.55);
+}
+
+body:has(.admin-modal-backdrop.open) {
+  overflow: hidden;                     /* the page behind an open form does not scroll */
+}
+
+@media (max-width: 992px) {
+  .admin-sidebar {
+    width: min(86vw, 300px);
+    box-shadow: none;
+  }
+
+  .admin-sidebar.mobile-open {
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar-backdrop.show {
+    display: block;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  .admin-topbar {
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .admin-content-wrap {
+    padding: 20px max(16px, env(safe-area-inset-right, 0px)) 28px max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .mobile-menu-btn {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .topbar-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .breadcrumb {
+    min-width: 0;
+  }
+
+  .crumb-active {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 860px) {
+  .topbar-date {
+    display: none;
+  }
+
+  .topbar-right {
+    gap: 8px;
+  }
+
+  .topbar-right .btn {
+    min-height: 44px;
+  }
+
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  .tab-title {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .dashboard-header .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 14px 14px 18px;
+  }
+
+  .stat-icon-wrap {
+    width: 44px;
+    height: 44px;
+    font-size: 1.25rem;
+  }
+
+  .stat-value {
+    font-size: 1.6rem;
+  }
+
+  .placement-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-columns {
+    gap: 16px;
+  }
+
+  .dash-panel {
+    padding: 16px;
+  }
+
+  /* ---- toolbars: one control per row ---- */
+  .tab-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .toolbar-left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .table-search-box {
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .table-search-box input {
+    font-size: 16px;
+  }
+
+  .filter-dropdown-wrap,
+  .filter-dropdown-wrap select {
+    width: 100%;
+  }
+
+  .filter-dropdown-wrap select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .toolbar-right .btn {
+    width: 100%;
+    min-height: 46px;
+    justify-content: center;
+  }
+
+  /* ---- tables -> one card per row ---- */
+  .table-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .table-responsive {
+    overflow: visible;
+  }
+
+  .data-table,
+  .data-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .data-table tbody tr {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+    margin-bottom: 12px;
+    padding: 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .data-table tbody tr:hover {
+    background: var(--bg-surface);
+  }
+
+  .data-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .data-table td[colspan] {
+    grid-column: 1 / -1;
+  }
+
+  .data-table .table-thumb {
+    width: 76px;
+    height: 57px;
+  }
+
+  .data-table .table-actions {
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .action-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* news: photo | headline + author / category + views / date / Lead-Popular-Random / actions */
+  #articles-table td:first-child:not([colspan]) { display: none; }
+  #articles-table td:nth-child(2) { grid-column: 1; grid-row: 1 / span 3; }
+  #articles-table td:nth-child(3) { grid-column: 2 / -1; grid-row: 1; }
+  #articles-table td:nth-child(4) { grid-column: 2; grid-row: 2; }
+  #articles-table td:nth-child(7) { grid-column: 3; grid-row: 2; text-align: right; font-size: 0.82rem; }
+  #articles-table td:nth-child(6) { grid-column: 2 / -1; grid-row: 3; }
+  #articles-table td:nth-child(5) { grid-column: 1 / -1; grid-row: 4; }
+  #articles-table td:nth-child(8) { grid-column: 1 / -1; grid-row: 5; }
+
+  /* weekly: cover | issue no. / headline / date; PDF; actions */
+  #weekly-table td:nth-child(2) { grid-column: 1; grid-row: 1 / span 3; }
+  #weekly-table td:nth-child(1) { grid-column: 2 / -1; grid-row: 1; }
+  #weekly-table td:nth-child(3) { grid-column: 2 / -1; grid-row: 2; }
+  #weekly-table td:nth-child(4) { grid-column: 2 / -1; grid-row: 3; }
+  #weekly-table td:nth-child(5) { grid-column: 1 / -1; grid-row: 4; }
+  #weekly-table td:nth-child(6):not([colspan]) { display: none; }
+  #weekly-table td:nth-child(7) { grid-column: 1 / -1; grid-row: 5; }
+
+  #weekly-table td:nth-child(5) .btn {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .placement-badges-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .placement-btn {
+    min-height: 38px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* ---- forms and pop-ups: a full-screen sheet ---- */
+  .admin-modal-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .admin-modal,
+  .admin-modal.modal-large {
+    max-width: none;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .modal-header {
+    padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-header h3 {
+    font-size: 1.1rem;
+    min-width: 0;
+  }
+
+  .modal-close-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .modal-body {
+    padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    flex-wrap: wrap;
+    margin: 0 -16px -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 140px;
+    min-height: 46px;
+    justify-content: center;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-row > .flex-1,
+  .form-row > .flex-2 {
+    flex: none;
+    width: 100%;
+  }
+
+  .form-control,
+  .form-control.font-code {
+    min-height: 46px;
+    font-size: 16px;                    /* 16 px: iPhones do not zoom into the field */
+  }
+
+  textarea.form-control {
+    min-height: 96px;
+  }
+
+  .image-uploader-box {
+    flex-direction: column;
+  }
+
+  .uploader-preview-wrap {
+    width: 100%;
+    height: 180px;
+  }
+
+  .placement-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .editor-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .btn-tool {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .toast {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar-right .btn span {
+    display: none;                      /* icon-only buttons in the top bar */
+  }
+
+  .topbar-right .btn {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-content-wrap {
+    padding-top: 16px;
+  }
+
+  .crumb-parent,
+  .crumb-sep {
+    display: none;                      /* the "प्रशासकीय कक्ष" crumb is dropped; the current page name stays */
+  }
+}
+
+@media (max-width: 340px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table tbody tr {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+
+  .data-table .table-thumb {
+    width: 64px;
+    height: 48px;
+  }
+}
+
+/* phones held sideways: a lower top bar leaves room for the content */
+@media (max-height: 500px) and (max-width: 992px) {
+  :root {
+    --topbar-height: 54px;
+  }
+}
+
+/* ============================================================
+   Marathi / English tabs of the news form and the weekly form
+   ============================================================ */
+.lang-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+}
+
+.lang-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lang-tab.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+}
+
+.lang-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  opacity: 0.55;
+}
+
+.lang-dot.on {
+  background: #22c55e;
+  border-color: #22c55e;
+  opacity: 1;
+}
+
+.lang-help,
+.lang-note {
+  margin: -6px 0 14px;
+}
+
+.lang-note {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(234, 88, 12, 0.1);
+  color: var(--brand-orange);
+}
+
+.lang-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(2, 132, 199, 0.14);
+  color: var(--brand-blue);
+  font-size: 0.68rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+@media (max-width: 860px) {
+  .lang-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .lang-tab {
+    flex: 1;
+    justify-content: center;
   }
 }

@@ -4,6 +4,7 @@ Port of the old SQLite module (data/database.py): same functions, same results, 
 Each call borrows its own connection from a small pool (never shared between threads), so it is thread-safe.
 """
 import queue
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
@@ -31,6 +32,16 @@ DEFAULT_IMAGE = "assets/images/lokmangal_what_we_do.jpg"
 ARTICLE_COLUMNS = ("id", "title", "category", "categoryLabel", "author", "date", "image", "excerpt",
                    "content", "views", "created_at", "is_lead", "is_popular", "is_random")
 WEEKLY_COLUMNS = ("id", "issue_no", "date", "title", "image", "pdf_filename", "views", "description", "created_at")
+
+# The English version of a news item / weekly issue (typed in the Admin Panel's "English" tab).
+ARTICLE_EN = ("title_en", "author_en", "excerpt_en", "content_en")
+WEEKLY_EN = ("title_en", "description_en")
+# schema.sql creates these columns in a new database; init_db.add_missing_columns() adds them to an older one.
+ENGLISH_COLUMNS = {
+    "articles": (("title_en", "VARCHAR(500) NOT NULL DEFAULT ''"), ("author_en", "VARCHAR(200) NOT NULL DEFAULT ''"),
+                 ("excerpt_en", "TEXT NULL"), ("content_en", "MEDIUMTEXT NULL")),
+    "weekly_editions": (("title_en", "VARCHAR(500) NOT NULL DEFAULT ''"), ("description_en", "TEXT NULL")),
+}
 
 
 # -------------------------------------------------------------
@@ -119,6 +130,33 @@ def ping() -> bool:
         return cur.fetchone()["ok"] == 1
 
 
+_english_state = {"ok": False, "checked": 0.0}
+
+
+def has_english() -> bool:
+    """True when both tables have their English columns. An older database gets them from `python init_db.py`; until then
+    the API keeps working without English text (and says so). A "no" is looked up again every 10 seconds."""
+    if _english_state["ok"] or time.time() - _english_state["checked"] < 10:
+        return _english_state["ok"]
+    _english_state["checked"] = time.time()
+    with connection() as conn:
+        cur = conn.cursor()
+        ok = True
+        for table, columns in ENGLISH_COLUMNS.items():
+            cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
+                        (config.DB_NAME, table))
+            have = {r["COLUMN_NAME"] for r in cur.fetchall()}
+            ok = ok and all(name in have for name, _ in columns)
+    _english_state["ok"] = ok
+    return ok
+
+
+def english_ignored(data: Dict[str, Any]) -> bool:
+    """True when a request brought English text that this database cannot keep yet (the English columns are missing)."""
+    sent = any(str(data.get(f) or "").strip() for f in {*ARTICLE_EN, *WEEKLY_EN})
+    return sent and not has_english()
+
+
 # -------------------------------------------------------------
 # Small helpers
 # -------------------------------------------------------------
@@ -185,16 +223,17 @@ def create_article(data: Dict[str, Any]) -> int:
     category = _text(data, "category", "rajkiy")
     category_label = _text(data, "categoryLabel") or CATEGORY_LABELS.get(category, DEFAULT_CATEGORY_LABEL)
     is_lead, is_popular, is_random = (_flag(data.get(f, 0)) for f in PLACEMENT_FIELDS)
+    english = ARTICLE_EN if has_english() else ()
 
     with connection() as conn:
         cur = conn.cursor()
         if is_lead:
             cur.execute("UPDATE articles SET is_lead = 0")     # only one Lead Story at a time
         cur.execute(
-            """INSERT INTO articles
+            f"""INSERT INTO articles
                    (title, category, categoryLabel, author, `date`, image, excerpt, content, views,
-                    is_lead, is_popular, is_random)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    is_lead, is_popular, is_random{"".join(f", {c}" for c in english)})
+               VALUES ({", ".join(["%s"] * (12 + len(english)))})""",
             (
                 _text(data, "title"),
                 category,
@@ -208,6 +247,7 @@ def create_article(data: Dict[str, Any]) -> int:
                 is_lead,
                 is_popular,
                 is_random,
+                *(_text(data, c) for c in english),
             ),
         )
         return cur.lastrowid
@@ -221,7 +261,7 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
     fields: List[str] = []
     values: List[Any] = []
     for key in ("title", "category", "categoryLabel", "author", "date", "image", "excerpt", "content", "views",
-                *PLACEMENT_FIELDS):
+                *PLACEMENT_FIELDS, *(ARTICLE_EN if has_english() else ())):
         if key in data:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in PLACEMENT_FIELDS else data[key])
@@ -296,11 +336,12 @@ def create_weekly_edition(data: Dict[str, Any]) -> int:
     """Add an issue; saving an issue number that already exists replaces that issue."""
     issue_no = int(data.get("issue_no", 0))
     pdf_filename = _text(data, "pdf_filename") or f"lokmangal-weekly-{issue_no}.pdf"
+    english = WEEKLY_EN if has_english() else ()
     with connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            """REPLACE INTO weekly_editions (issue_no, `date`, title, image, pdf_filename, views, description)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            f"""REPLACE INTO weekly_editions (issue_no, `date`, title, image, pdf_filename, views, description{"".join(f", {c}" for c in english)})
+               VALUES ({", ".join(["%s"] * (7 + len(english)))})""",
             (
                 issue_no,
                 _text(data, "date"),
@@ -309,6 +350,7 @@ def create_weekly_edition(data: Dict[str, Any]) -> int:
                 pdf_filename,
                 _text(data, "views", "12K"),
                 _text(data, "description"),
+                *(_text(data, c) for c in english),
             ),
         )
         return cur.lastrowid
@@ -380,11 +422,35 @@ def _import(table: str, columns: Iterable[str], rows: Iterable[Dict[str, Any]]) 
 
 
 def import_articles(rows: Iterable[Dict[str, Any]]) -> int:
-    return _import("articles", ARTICLE_COLUMNS, rows)
+    return _import("articles", ARTICLE_COLUMNS + (ARTICLE_EN if has_english() else ()), rows)       # (English text comes along when the columns exist)
 
 
 def import_weekly(rows: Iterable[Dict[str, Any]]) -> int:
-    return _import("weekly_editions", WEEKLY_COLUMNS, rows)
+    return _import("weekly_editions", WEEKLY_COLUMNS + (WEEKLY_EN if has_english() else ()), rows)
+
+
+def fill_english(articles: Iterable[Dict[str, Any]], weekly: Iterable[Dict[str, Any]]) -> Dict[str, int]:
+    """Give rows that ALREADY exist their English text (the sample data in seed/*.json has it): matched by id / issue number, and
+    only English fields that are still EMPTY are filled - nothing typed in the Admin Panel is overwritten, no row is added.
+    Returns how many news items / issues got English text (0 / 0 when the English columns are missing)."""
+    done = {"articles": 0, "weekly_editions": 0}
+    if not has_english():
+        return done
+    jobs = (("articles", "id", ARTICLE_EN, articles), ("weekly_editions", "issue_no", WEEKLY_EN, weekly))
+    with connection() as conn:
+        cur = conn.cursor()
+        for table, key, columns, rows in jobs:
+            cur.execute(f"SELECT `{key}`, {', '.join(f'`{c}`' for c in columns)} FROM {table}")
+            current = {r[key]: r for r in cur.fetchall()}
+            for row in rows:
+                have = current.get(row.get(key))
+                if have is None:
+                    continue
+                fill = {c: row[c] for c in columns if str(row.get(c) or "").strip() and not str(have.get(c) or "").strip()}
+                if fill:
+                    cur.execute(f"UPDATE {table} SET {', '.join(f'`{c}` = %s' for c in fill)} WHERE `{key}` = %s", [*fill.values(), row[key]])
+                    done[table] += 1
+    return done
 
 
 def count_rows(table: str) -> int:
