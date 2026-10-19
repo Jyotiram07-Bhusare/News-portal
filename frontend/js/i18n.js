@@ -54,7 +54,7 @@
   var ENTRIES = [
     // ---- header, menu, footer
     ["होम", "Home", ["होम (Home)"]],
-    ["साप्ताहिक आवृत्ती", "Weekly Publication", ["Weekly publication", "साप्ताहिक आवृत्ती (Weekly)", "साप्ताहिक आवृत्ती (Weekly Publication)"]],
+    ["साप्ताहिक आवृत्ती", "Weekly Edition", ["Weekly Publication", "Weekly publication", "Weekly edition", "साप्ताहिक आवृत्ती (Weekly)", "साप्ताहिक आवृत्ती (Weekly Publication)", "साप्ताहिक आवृत्ती (Weekly Edition)"]],
     ["बातम्या", "News"],
     ["ब्लॉग्स", "Blogs", ["ब्लॉग्स (Blogs)"]],
     ["सामाजिक", "Social", ["Samajik", "Samajik (सामाजिक)", "सामाजिक (Samajik)", "सामाजिक (Social)"]],
@@ -76,7 +76,7 @@
     [". सर्व हक्क राखीव.", ". All rights reserved."],
     ["लोकमंगल वृत्तांत", "Lokmangal Vruttant"],
     ["लोकमंगल न्यूज पोर्टल - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ.",
-      "Lokmangal News Portal - a trusted digital platform for political and social news, the weekly publication and blogs.",
+      "Lokmangal News Portal - a trusted digital platform for political and social news, the weekly edition and blogs.",
       ["लोकमंगल न्यूज पोर्टल (Lokmangal News Portal) - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ."]],
     // ---- home
     ["ताज्या बातम्या", "Latest News"],
@@ -114,7 +114,7 @@
     ["ईमेलद्वारे शेअर करा", "Share by email", ["Email द्वारे शेअर करा"]],
     ["अधिक पर्याय", "More options"],
     ["अधिक शेअर बटणे", "More share buttons", ["More share buttons"]],
-    // ---- weekly publication
+    // ---- weekly edition
     ["नवीनतम अंक", "Latest Issue"],
     ["PDF ऑनलाईन वाचा", "Read PDF online"],
     ["अंकाचे पान", "Issue page"],
@@ -277,7 +277,7 @@
     ["सर्व {n} बातम्या दाखवल्या आहेत", "All {n} stories shown"],
     ["सर्व {n} अंक दाखवले आहेत", "All {n} issues shown"],
     ["सर्व {n} अंक व PDF पहा", "See all {n} issues and PDFs"],
-    ["📥 साप्ताहिक आवृत्ती ({x}) PDF डाऊनलोड होत आहे...", "📥 Weekly Publication ({x}) PDF is downloading..."],
+    ["📥 साप्ताहिक आवृत्ती ({x}) PDF डाऊनलोड होत आहे...", "📥 Weekly Edition ({x}) PDF is downloading..."],
     ["सर्व {n} अंक पहा", "See all {n} issues"],
     ["{x} विशेष अहवाल:", "{x} special report:"],
     ["{n} अंक", "{n} issues"],
@@ -294,7 +294,7 @@
     ["पुढील अंक ({x})", "Next issue ({x})"],
     ["{x} • लोकमंगल साप्ताहिक", "{x} • Lokmangal Weekly"],
     ["{x} • साप्ताहिक ई-पेपर", "{x} • Weekly E-paper"],
-    ["{x} • साप्ताहिक आवृत्ती", "{x} • Weekly Publication"],
+    ["{x} • साप्ताहिक आवृत्ती", "{x} • Weekly Edition"],
     ["{x} विभागाकडे परत", "Back to {x}"],
     ["पान {n1} / {n2}", "Page {n1} / {n2}"],
     ["HD व्हिडिओ स्ट्रीम उपलब्ध ({x})", "HD video stream available ({x})"],

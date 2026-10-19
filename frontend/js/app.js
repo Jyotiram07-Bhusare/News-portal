@@ -434,7 +434,7 @@ let articlesData = [
 ];
 
 // --- Built-in weekly issues ----------------------------------------------------------------------------
-// The issues of the Weekly publication live in js/weekly-data.js (window.WEEKLY_ISSUES, loaded before this file):
+// The issues of the Weekly Edition live in js/weekly-data.js (window.WEEKLY_ISSUES, loaded before this file):
 //   { no, date, title, img, thumb, desc }   - no = 1 for the oldest issue, the highest number is the newest
 // Issues added later in the Admin Panel (MySQL) reach the website through /api/weekly and are merged into these.
 // With no issue at all the Weekly page shows an empty card (weeklyEmptyHTML).
@@ -1641,7 +1641,7 @@ function initSearch() {
 // links all land exactly where you expect:
 //
 //   (no hash)      Home                 the lead story + the News section
-//   #weekly        Weekly publication   all issues (an empty card until the first issue is published)
+//   #weekly        Weekly Edition   all issues (an empty card until the first issue is published)
 //   #issue-42      one weekly issue     (previous / next issue; the PDF reader when WEEKLY_PDF is on)
 //   #cat-rajkiy  #cat-samajik  #cat-blogs  #cat-review      category sections
 //   #post-12       one news / blog / review article
@@ -1854,7 +1854,7 @@ function renderHomeView(container) {
   renderSecondaryPosts();
 }
 
-// ---- WEEKLY PUBLICATION section: every issue with its PDF ----
+// ---- WEEKLY EDITION section: every issue with its PDF ----
 function renderWeeklySection(container) {
   const issues = weeklyIssues();
   container.className = "main-content-box view-weekly";
@@ -1862,7 +1862,7 @@ function renderWeeklySection(container) {
     <div class="breadcrumb-bar" id="main-breadcrumb">
       ${crumbHTML([
         { label: "Home", onclick: "returnToHomeFeed()" },
-        { label: "साप्ताहिक आवृत्ती (Weekly Publication)" },
+        { label: "साप्ताहिक आवृत्ती (Weekly Edition)" },
       ])}
     </div>
 
@@ -1882,7 +1882,7 @@ function renderWeeklySection(container) {
   }
 }
 
-// The Weekly publication before its first issue: one calm card (no list, no search box, no PDF button)
+// The Weekly Edition before its first issue: one calm card (no list, no search box, no PDF button)
 function weeklyEmptyHTML() {
   return `
     <div class="weekly-empty" role="status">
@@ -2231,7 +2231,7 @@ function renderSecondaryPosts() {
     container.innerHTML = newsListHTML(homeNewsFilter);
     return;
   }
-  if (currentCategory === "weekly") {         // Weekly publication: every issue
+  if (currentCategory === "weekly") {         // Weekly Edition: every issue
     container.innerHTML = weeklyArchiveHTML();
     filterWeeklyIssuesList("");               // applies the kept year / "अधिक वाचा" state to the fresh list
     return;

@@ -1,5 +1,5 @@
 /*
- * LOKMANGAL - the weekly issues (Weekly publication), one line per issue.
+ * LOKMANGAL - the weekly issues (Weekly Edition), one line per issue.
  *   no     issue number = order of the dates (1 = the oldest, the highest = the newest). The site shows newest first.
  *   date   the Wednesday the issue is dated
  *   title  the main headline of the issue's front page
