@@ -6,6 +6,7 @@ With SERVE_FRONTEND=true (default) this server also delivers ../frontend:
 the website on "/" and the admin panel on "/admin/". Set it to false when the frontend is hosted elsewhere.
 """
 import os
+import re
 import socket
 import sys
 import time
@@ -21,6 +22,8 @@ import config
 import database
 
 ALLOWED_IMG_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
+ALLOWED_VIDEO_EXTENSIONS = {"mp4", "m4v", "mov", "webm", "ogv"}
+MB = 1024 * 1024
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -142,8 +145,133 @@ def delete_weekly(issue_no):
 
 
 # -------------------------------------------------------------
+# REST API: Videos (the file comes from POST /upload/video, the row from POST /videos)
+# -------------------------------------------------------------
+def _video_problem(data, creating):
+    """Why this request cannot be saved (an English sentence for the Admin Panel), or None. Numbers are normalised in place."""
+    if creating or "title" in data:
+        if not str(data.get("title") or "").strip():
+            return "Video title is required"
+    if creating or "video_url" in data:
+        url = str(data.get("video_url") or "").strip()
+        # a file this server saved (assets/videos/<name>) or a direct link to a video file on another host - nothing else
+        # (no javascript: / data: addresses, no ../ paths)
+        if not re.fullmatch(r"assets/videos/\w[\w.\-]*", url) and not re.fullmatch(r"https?://\S+", url):
+            return "A video file is required (upload it first)"
+    thumb = str(data.get("thumbnail") or "").strip()
+    if thumb and not re.fullmatch(r"assets/images/\w[\w.\-]*", thumb) and not re.fullmatch(r"https?://\S+", thumb):
+        return "The thumbnail must be an uploaded image"
+    for key in database.VIDEO_NUMBERS:
+        if key in data and str(data[key] if data[key] is not None else "").strip() != "":
+            try:
+                number = int(round(float(data[key])))
+            except (TypeError, ValueError, OverflowError):
+                return f"{key} must be a number"
+            if number < 0:
+                return f"{key} must not be negative"
+            data[key] = number
+    if "sort_order" in data and str(data["sort_order"] if data["sort_order"] is not None else "").strip() != "":
+        try:
+            place = int(round(float(data["sort_order"])))
+        except (TypeError, ValueError, OverflowError):
+            return "sort_order must be a number"
+        if place < 1:
+            return "sort_order must be 1 or more"
+        data["sort_order"] = place
+    return None
+
+
+@api.get("/videos")
+def get_videos():
+    videos = database.get_videos(limit=request.args.get("limit", type=int))
+    return ok(count=len(videos), videos=videos)
+
+
+@api.get("/videos/<int:video_id>")
+def get_video(video_id):
+    video = database.get_video(video_id)
+    if not video:
+        return fail("Video not found", 404)
+    return ok(video=video)
+
+
+@api.post("/videos")
+def create_video():
+    data = body()
+    problem = _video_problem(data, creating=True)
+    if problem:
+        return fail(problem, 400)
+    new_id = database.create_video(data)
+    return jsonify({"success": True, "message": "व्हिडिओ यशस्वीरीत्या प्रकाशित झाला!", "video": database.get_video(new_id)}), 201
+
+
+@api.route("/videos/<int:video_id>", methods=["PUT", "POST"])
+def update_video(video_id):
+    data = body()
+    if not data:
+        return fail("No update data provided", 400)
+    problem = _video_problem(data, creating=False)
+    if problem:
+        return fail(problem, 400)
+    before = database.get_video(video_id)
+    if not before:
+        return fail("Video not found", 404)
+    if not database.update_video(video_id, data):
+        return fail("No update data provided", 400)
+    after = database.get_video(video_id)
+    # a replaced video file / thumbnail is not kept on the disk
+    removed = [_remove_upload(before[k], video_id) for k in ("video_url", "thumbnail") if before[k] != after[k]]
+    return ok(message="व्हिडिओ अद्यतनित करण्यात आला!", video=after, files_removed=sum(removed))
+
+
+@api.delete("/videos/<int:video_id>")
+def delete_video(video_id):
+    row = database.delete_video(video_id)
+    if not row:
+        return fail("Video not found", 404)
+    removed = [_remove_upload(row[k], video_id) for k in ("video_url", "thumbnail")]
+    return ok(message="व्हिडिओ यशस्वीरीत्या हटवला!", files_removed=sum(removed))
+
+
+def _remove_upload(url, video_id):
+    """Delete the file of a video / thumbnail that was saved by this server (assets/videos/<name>, assets/images/video-poster_<...>).
+    Nothing else is ever deleted: other hosts, other folders, a picture that does not carry the video-poster_ prefix, a file another video uses."""
+    for prefix, folder, name_start in (("assets/videos/", config.VIDEO_DIR, ""), ("assets/images/", config.IMAGES_DIR, "video-poster_")):
+        if not url or not url.startswith(prefix):
+            continue
+        name = url[len(prefix):]
+        if not name or "/" in name or "\\" in name or name.startswith(".") or not name.startswith(name_start):
+            return False
+        if database.video_file_in_use(url, video_id):
+            return False
+        path = folder / name
+        try:
+            if path.is_file() and path.resolve().parent == folder.resolve():
+                path.unlink()
+                return True
+        except OSError:                   # e.g. Windows: the file is open in a player right now - it stays, the row is gone
+            pass
+        return False
+    return False
+
+
+# -------------------------------------------------------------
 # REST API: File uploads (image & PDF)
 # -------------------------------------------------------------
+def _upload_limit_mb(path):
+    """Images and weekly PDFs may be MAX_UPLOAD_MB, a video MAX_VIDEO_MB."""
+    return config.MAX_VIDEO_MB if path.rstrip("/").endswith("/upload/video") else config.MAX_UPLOAD_MB
+
+
+@api.before_request
+def refuse_too_large_request():
+    """The server-wide cap is the video limit; everything else (images, PDFs, JSON) is still held to MAX_UPLOAD_MB."""
+    if request.method in ("POST", "PUT") and request.content_length:
+        limit = _upload_limit_mb(request.path)
+        if request.content_length > limit * MB:
+            return fail(f"File too large. The limit is {limit} MB.", 413)
+
+
 def _uploaded_file():
     """(file, error response). The admin panel sends the file in the form field 'file'."""
     if "file" not in request.files:
@@ -206,6 +334,54 @@ def upload_pdf():
     return ok(url=f"assets/pdf/{name}", filename=name, size=path.stat().st_size)
 
 
+def _looks_like_video(path, ext):
+    """The first bytes must be those of the format the file name claims: a text file / PDF renamed to .mp4 is refused."""
+    with open(path, "rb") as fh:
+        head = fh.read(12)
+    if ext in ("mp4", "m4v", "mov"):          # ISO media / QuickTime: [size][type], the type is "ftyp" (or an older QuickTime atom)
+        return len(head) >= 8 and head[4:8] in (b"ftyp", b"moov", b"mdat", b"free", b"wide", b"skip", b"pnot")
+    if ext == "webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"
+    if ext == "ogv":
+        return head[:4] == b"OggS"
+    return False
+
+
+@api.post("/upload/video")
+def upload_video():
+    file, error = _uploaded_file()
+    if error:
+        return error
+    ext = _extension(file.filename)
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        return fail("Invalid video format. Allowed: mp4, webm, mov, m4v, ogv", 400)
+
+    base_name = (secure_filename(file.filename.rsplit(".", 1)[0]) or "video")[:60]
+    name = f"{base_name}_{int(time.time() * 1000)}.{ext}"
+    config.VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    path = config.VIDEO_DIR / name
+    temp = path.with_name(name + ".part")
+    file.save(temp)                       # a half-finished upload must never be listed or played
+    try:
+        if not _looks_like_video(temp, ext):
+            temp.unlink(missing_ok=True)
+            return fail("This is not a valid video file", 400)
+        os.replace(temp, path)
+    except OSError:
+        temp.unlink(missing_ok=True)
+        return fail("The video could not be saved. Try again.", 409)
+    return ok(url=f"assets/videos/{name}", filename=name, size=path.stat().st_size)
+
+
+@api.delete("/upload/video")
+def discard_uploaded_video():
+    """The Admin Panel takes back a file it uploaded but could not save a video for. Only a file no video points to is deleted."""
+    url = str(body().get("url") or "")
+    if not re.fullmatch(r"assets/videos/\w[\w.\-]*", url):
+        return fail("Not an uploaded video", 400)
+    return ok(removed=_remove_upload(url, None))
+
+
 # -------------------------------------------------------------
 # REST API: Stats, media library, health
 # -------------------------------------------------------------
@@ -231,7 +407,8 @@ def get_media():
 @api.get("/health")
 def health():
     database.ping()                       # raises -> handled below as "database not available"
-    return ok(database=config.DB_NAME, english=database.has_english())
+    return ok(database=config.DB_NAME, english=database.has_english(),
+              limits={"upload_mb": config.MAX_UPLOAD_MB, "video_mb": config.MAX_VIDEO_MB})
 
 
 # -------------------------------------------------------------
@@ -294,7 +471,7 @@ def register_errors(app):
         if not request.path.startswith("/api/"):
             return e
         if e.code == 413:
-            return fail(f"File too large. The limit is {config.MAX_UPLOAD_MB} MB.", 413)
+            return fail(f"File too large. The limit is {_upload_limit_mb(request.path)} MB.", 413)
         return fail(e.description, e.code)
 
     @app.errorhandler(Exception)
@@ -305,7 +482,7 @@ def register_errors(app):
 
 def create_app():
     app = Flask(__name__, static_folder=None)
-    app.config["MAX_CONTENT_LENGTH"] = config.MAX_UPLOAD_MB * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = max(config.MAX_UPLOAD_MB, config.MAX_VIDEO_MB) * MB     # (images / PDFs are held to their own limit by the check above)
     app.json.ensure_ascii = False         # Marathi text stays readable (and half the size) in API answers
     CORS(app, resources={r"/api/*": {"origins": config.CORS_ORIGINS}})
     app.register_blueprint(api)

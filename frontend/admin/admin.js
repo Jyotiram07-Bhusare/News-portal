@@ -17,11 +17,23 @@ let appState = {
   articlesLoaded: false,         // true once the list really came from the backend (an empty list that failed to load is not "no news")
   weeklyLoaded: false,
   weeklyPdfChosen: false,        // a PDF was uploaded in the open weekly form (an issue being edited already has its PDF)
-  dbEnglish: true                // false while the database has no English columns yet (python init_db.py adds them)
+  storyOnOpen: null,             // the saved HTML of the story + the plain text the box showed on opening (see storyHtml)
+  dbEnglish: true,               // false while the database has no English columns yet (python init_db.py adds them)
+  videos: [],                    // the Videos section (admin-videos.js)
+  videosLoaded: false,           // true once the list really came from the backend
+  videosFailed: false,           // the backend answered the other lists but not this one (an old backend without /api/videos, a dropped connection)
+  editingVideoId: null,          // id while the video form edits an existing video (null = a new video)
+  maxVideoMb: 200                // the backend's limit for one video file (/api/health tells it)
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
+
+// A message that is not page text (a confirm dialog, the backend banner): the Marathi or the English one, by the language chosen in the
+// sidebar (admin-i18n.js). Page text itself is translated by admin-i18n.js's dictionary.
+function msg(mr, en) {
+  return typeof window.tx === 'function' ? window.tx(mr, en) : mr;
+}
 // Reading is repeated once when the connection is dropped (a hiccup must not leave an empty list behind);
 // writing is never repeated by itself.
 const apiFetch = async (path, options) => {
@@ -132,7 +144,7 @@ function initNavigation() {
     const hash = window.location.hash.replace('#', '');
     if (hash === 'articles') switchTab('tab-articles');
     else if (hash === 'weekly') switchTab('tab-weekly');
-    else if (hash === 'media') switchTab('tab-media');
+    else if (hash === 'videos') switchTab('tab-videos');
     else switchTab('tab-dashboard');
   });
 
@@ -140,7 +152,7 @@ function initNavigation() {
     const h = window.location.hash.replace('#', '');
     if (h === 'articles') switchTab('tab-articles');
     else if (h === 'weekly') switchTab('tab-weekly');
-    else if (h === 'media') switchTab('tab-media');
+    else if (h === 'videos') switchTab('tab-videos');
   }
 }
 
@@ -156,8 +168,6 @@ function setFormLang(modalId, lang) {
     b.classList.toggle('active', on);
     b.setAttribute('aria-selected', String(on));
   });
-  const note = modal.querySelector('[data-db-note]');
-  if (note) note.hidden = !(lang === 'en' && appState.dbEnglish === false);
   updateLangDots(modal);
 }
 
@@ -224,17 +234,13 @@ function switchTab(tabId) {
     'tab-dashboard': 'डॅशबोर्ड (Dashboard)',
     'tab-articles': 'बातम्या व्यवस्थापन (News Manager)',
     'tab-weekly': 'साप्ताहिक ई-पेपर (Weekly PDF)',
-    'tab-media': 'मीडिया लायब्ररी (Media)'
+    'tab-videos': 'व्हिडिओ अपलोड (Videos)'
   };
   if (breadcrumb) breadcrumb.textContent = names[tabId] || 'डॅशबोर्ड';
 
   // Close mobile sidebar if open
   setSidebarOpen(false);
 
-  // Trigger loads if needed
-  if (tabId === 'tab-media') {
-    loadMediaData();
-  }
 }
 
 function initDateDisplay() {
@@ -285,6 +291,7 @@ async function checkServerStatus() {
     if (res.ok && data.success) {
       show('online', 'सुरू', 'MySQL database: ' + data.database);
       appState.dbEnglish = data.english !== false;
+      if (data.limits && Number(data.limits.video_mb) > 0) appState.maxVideoMb = Number(data.limits.video_mb);
       return 'online';
     }
     show('offline', 'MySQL बंद', data.error || '');
@@ -300,14 +307,15 @@ async function loadAllData() {
     checkServerStatus(),
     fetchStats(),
     fetchArticles(),
-    fetchWeekly()
+    fetchWeekly(),
+    fetchVideos()
   ]);
   // the backend answers but a list did not arrive (a dropped connection): say so, never show a silent empty list
   showBackendBanner(state === 'online' && !(appState.articlesLoaded && appState.weeklyLoaded) ? 'partial' : state);
 }
 
 // The numbers of the dashboard start as "…" (not as made-up numbers): a number that never arrives becomes "—", never a wrong "0".
-const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'stat-total-articles', 'stat-total-weekly',
+const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'sidebar-videos-count', 'stat-total-articles', 'stat-total-weekly',
                        'stat-total-rajkiy', 'stat-total-samajik', 'stat-total-popular', 'stat-total-random'];
 
 function backendProblem(state) {
@@ -315,44 +323,52 @@ function backendProblem(state) {
   const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
   if (state === 'partial') {
     return {
-      title: 'बातम्यांची / अंकांची यादी पूर्ण लोड झाली नाही',
-      text: 'बॅकएंड सुरू आहे, पण कनेक्शन तुटल्यामुळे काही माहिती मिळाली नाही — रिकामी दिसणारी यादी म्हणजे बातम्या / अंक नाहीत असे नाही. "पुन्हा तपासा" दाबा.'
+      title: msg('बातम्यांची / अंकांची यादी पूर्ण लोड झाली नाही', 'The list of news / issues did not load completely'),
+      text: msg('बॅकएंड सुरू आहे, पण कनेक्शन तुटल्यामुळे काही माहिती मिळाली नाही — रिकामी दिसणारी यादी म्हणजे बातम्या / अंक नाहीत असे नाही. "पुन्हा तपासा" दाबा.',
+                'The backend is running, but some data did not arrive because the connection dropped — an empty list does not mean there are no news / issues. Press “Check again”.')
     };
   }
   if (state === 'database') {
     return {
-      title: 'बॅकएंड सुरू आहे, पण MySQL डेटाबेसशी जोडणी नाही',
-      text: 'MySQL सेवा चालू आहे का ते तपासा आणि backend/.env मधील DB_* मूल्ये बरोबर आहेत का पाहा. डेटाबेस नवीन असेल तर backend फोल्डरमध्ये "python init_db.py --seed" चालवा. (बातम्या / अंक हरवलेले नाहीत.)'
+      title: msg('बॅकएंड सुरू आहे, पण MySQL डेटाबेसशी जोडणी नाही', 'The backend is running, but it cannot connect to the MySQL database'),
+      text: msg('MySQL सेवा चालू आहे का ते तपासा आणि backend/.env मधील DB_* मूल्ये बरोबर आहेत का पाहा. डेटाबेस नवीन असेल तर backend फोल्डरमध्ये "python init_db.py --seed" चालवा. (बातम्या / अंक हरवलेले नाहीत.)',
+                'Check that the MySQL service is running and that the DB_* values in backend/.env are correct. If the database is new, run "python init_db.py --seed" in the backend folder. (No news / issues are lost.)')
     };
   }
   if (window.location.protocol === 'file:') {
     return {
-      title: 'हे पान फाईल म्हणून उघडले आहे',
-      text: 'Admin Panel ला बॅकएंड लागतो. backend फोल्डरमध्ये "python app.py" चालवा आणि हा पत्ता उघडा:',
+      title: msg('हे पान फाईल म्हणून उघडले आहे', 'This page was opened as a file'),
+      text: msg('Admin Panel ला बॅकएंड लागतो. backend फोल्डरमध्ये "python app.py" चालवा आणि हा पत्ता उघडा:',
+                'The Admin Panel needs the backend. Run "python app.py" in the backend folder and open this address:'),
       link: 'http://localhost:5000/admin/'
     };
   }
   if (local) {
     return {
-      title: 'बॅकएंड (Python + MySQL) चालू नाही',
-      text: 'Admin Panel ला सर्व माहिती बॅकएंडकडूनच मिळते, म्हणून सध्या आकडे व याद्या रिकाम्या दिसतात — बातम्या / अंक हरवलेले नाहीत. backend फोल्डरमध्ये "python app.py" चालवा आणि "पुन्हा तपासा" दाबा.'
+      title: msg('बॅकएंड (Python + MySQL) चालू नाही', 'The backend (Python + MySQL) is not running'),
+      text: msg('Admin Panel ला सर्व माहिती बॅकएंडकडूनच मिळते, म्हणून सध्या आकडे व याद्या रिकाम्या दिसतात — बातम्या / अंक हरवलेले नाहीत. backend फोल्डरमध्ये "python app.py" चालवा आणि "पुन्हा तपासा" दाबा.',
+                'The Admin Panel gets all its data from the backend, so the numbers and lists look empty right now — no news / issues are lost. Run "python app.py" in the backend folder and press “Check again”.')
     };
   }
   if (API_BASE) {
     return {
-      title: 'बॅकएंडला पोहोचता आले नाही',
-      text: `${API_BASE} वरील बॅकएंड चालू नाही, किंवा त्याच्या CORS_ORIGINS मध्ये ही साईट नाही (backend/.env). बॅकएंड सुरू करून "पुन्हा तपासा" दाबा.`
+      title: msg('बॅकएंडला पोहोचता आले नाही', 'The backend could not be reached'),
+      text: msg(`${API_BASE} वरील बॅकएंड चालू नाही, किंवा त्याच्या CORS_ORIGINS मध्ये ही साईट नाही (backend/.env). बॅकएंड सुरू करून "पुन्हा तपासा" दाबा.`,
+                `The backend at ${API_BASE} is not running, or this site is not in its CORS_ORIGINS (backend/.env). Start the backend and press “Check again”.`)
     };
   }
   return {
-    title: 'या पत्त्यावर बॅकएंड नाही',
-    text: `"${window.location.host}" वर फक्त वेबसाईट (static फाईल्स) ठेवली आहे; Python + MySQL बॅकएंड तिथे चालत नाही. म्हणून Admin Panel काहीही वाचू किंवा जतन करू शकत नाही आणि आकडे रिकामे दिसतात — बातम्या व अंक हरवलेले नाहीत, साईटवर ते जसेच्या तसे आहेत. अंक / बातम्या व्यवस्थापित करण्यासाठी बॅकएंड असलेला Admin उघडा. तुमच्या PC वर:`,
+    title: msg('या पत्त्यावर बॅकएंड नाही', 'There is no backend at this address'),
+    text: msg(`"${window.location.host}" वर फक्त वेबसाईट (static फाईल्स) ठेवली आहे; Python + MySQL बॅकएंड तिथे चालत नाही. म्हणून Admin Panel काहीही वाचू किंवा जतन करू शकत नाही आणि आकडे रिकामे दिसतात — बातम्या व अंक हरवलेले नाहीत, साईटवर ते जसेच्या तसे आहेत. अंक / बातम्या व्यवस्थापित करण्यासाठी बॅकएंड असलेला Admin उघडा. तुमच्या PC वर:`,
+              `Only the website (static files) is hosted at "${window.location.host}"; the Python + MySQL backend does not run there. So the Admin Panel can neither read nor save anything and the numbers look empty — no news or issues are lost, they are on the site exactly as before. To manage issues / news open the Admin that has a backend. On your PC:`),
     link: 'http://localhost:5000/admin/',
-    tail: 'बॅकएंड इंटरनेटवर ठेवल्यावर frontend/js/config.js मध्ये त्याचा पत्ता द्या (README: "इंटरनेटवर ठेवताना").'
+    tail: msg('बॅकएंड इंटरनेटवर ठेवल्यावर frontend/js/config.js मध्ये त्याचा पत्ता द्या (README: "इंटरनेटवर ठेवताना").',
+              'When the backend is hosted on the internet, put its address in frontend/js/config.js (README: “Hosting on the internet”).')
   };
 }
 
 function showBackendBanner(state) {
+  appState.bannerState = state;          // (drawn again in the other language when the language switch is used)
   LIVE_COUNTERS.forEach((id) => {
     const el = document.getElementById(id);
     if (el && el.textContent.trim() === '…') el.textContent = '—';
@@ -376,6 +392,11 @@ function showBackendBanner(state) {
   if (msg.tail) text.append(' ', msg.tail);
   banner.hidden = false;
 }
+
+// admin-i18n.js calls this after the language was switched: the backend banner is made of messages (not page text), so it is drawn again
+window.onAdminLanguageChange = function () {
+  if (appState.bannerState && appState.bannerState !== 'online') showBackendBanner(appState.bannerState);
+};
 
 async function refreshDashboardData() {
   showToast('माहिती रीलोड होत आहे...', 'info');
@@ -428,12 +449,16 @@ async function fetchWeekly() {
   }
 }
 
+// The numbers in the sidebar: a list that did not load is not "0" - its badge stays as it is ("…", then "—" when the backend is down).
 function updateBadgeCounts() {
   const aCount = document.getElementById('sidebar-articles-count');
-  if (aCount) aCount.textContent = appState.articles.length;
+  if (aCount && appState.articlesLoaded) aCount.textContent = appState.articles.length;
 
   const wCount = document.getElementById('sidebar-weekly-count');
-  if (wCount) wCount.textContent = appState.weekly.length;
+  if (wCount && appState.weeklyLoaded) wCount.textContent = appState.weekly.length;
+
+  const vCount = document.getElementById('sidebar-videos-count');
+  if (vCount && appState.videosLoaded) vCount.textContent = appState.videos.length;
 }
 
 // -------------------------------------------------------------
@@ -458,7 +483,7 @@ function renderDashboardStats() {
   const leadEl = document.getElementById('dash-current-lead-title');
   if (leadEl) {
     if (s.current_lead && s.current_lead.title) {
-      leadEl.innerHTML = `<i class="fa-solid fa-star" style="color:#eab308; margin-right:4px;"></i> ${escapeHtml(s.current_lead.title)}`;
+      leadEl.innerHTML = `<i class="fa-solid fa-star" style="color:#eab308; margin-right:4px;"></i> <span data-no-i18n>${escapeHtml(s.current_lead.title)}</span>`;
     } else {
       leadEl.textContent = 'कोणतीही बातमी लीड म्हणून सेट केलेली नाही.';
     }
@@ -477,9 +502,9 @@ function renderRecentArticles() {
 
   container.innerHTML = recents.map(a => `
     <div class="recent-item" onclick="openEditArticleModal(${a.id})" style="cursor: pointer;">
-      <img src="${formatAssetUrl(a.image)}" class="recent-thumb" alt="${escapeHtml(a.title)}">
+      <img src="${formatAssetUrl(a.image)}" class="recent-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
       <div class="recent-body">
-        <h4 class="recent-title">${escapeHtml(a.title)}</h4>
+        <h4 class="recent-title" data-no-i18n>${escapeHtml(a.title)}</h4>
         <div class="recent-meta">
           <span class="category-pill pill-${a.category}">${escapeHtml(a.categoryLabel || a.category)}</span>
           <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(a.date)}</span>
@@ -504,7 +529,7 @@ function renderRecentWeekly() {
     <div class="recent-item">
       <img src="${formatAssetUrl(w.image)}" class="recent-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
       <div class="recent-body">
-        <h4 class="recent-title">${escapeHtml(w.title)}</h4>
+        <h4 class="recent-title" data-no-i18n>${escapeHtml(w.title)}</h4>
         <div class="recent-meta">
           <span class="category-pill pill-weekly">अंक ${w.issue_no}</span>
           <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(w.date)}</span>
@@ -569,11 +594,11 @@ function renderArticlesTable() {
     <tr>
       <td style="font-weight: 700; color: var(--text-muted);">${a.id}</td>
       <td>
-        <img src="${formatAssetUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}">
+        <img src="${formatAssetUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
       </td>
       <td>
-        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;">${escapeHtml(a.title)}${a.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
-        <div style="font-size: 0.78rem; color: var(--text-muted);">by ${escapeHtml(a.author || 'प्रतिनिधी')}</div>
+        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;" data-no-i18n>${escapeHtml(a.title)}${a.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
+        <div style="font-size: 0.78rem; color: var(--text-muted);"><span>by</span> <span data-no-i18n>${escapeHtml(a.author || 'प्रतिनिधी')}</span></div>
       </td>
       <td>
         <span class="category-pill pill-${a.category}">${a.categoryLabel || a.category}</span>
@@ -678,7 +703,8 @@ function openNewArticleModal() {
   document.getElementById('form-article-image').value = 'assets/images/bapu_portrait_lead.jpg';
   updateArticleImgPreview('assets/images/bapu_portrait_lead.jpg');
   document.getElementById('form-article-excerpt').value = '';
-  document.getElementById('form-article-content').value = '<p><strong>सोलापूर:</strong> बातमीचा सविस्तर मजकूर येथे लिहा...</p>';
+  document.getElementById('form-article-content').value = '';
+  appState.storyOnOpen = null;
   ['title', 'author', 'excerpt', 'content'].forEach((f) => { document.getElementById('form-article-' + f + '-en').value = ''; });
   setFormLang('article-modal', 'mr');
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बातमी प्रकाशित करा';
@@ -711,11 +737,14 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-image').value = a.image || '';
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
-  document.getElementById('form-article-content').value = a.content || '';
+  // the story boxes show plain text (no tags); what they showed is remembered, so an untouched story is saved back as it was
+  const plain = htmlToPlainText(a.content), plainEn = htmlToPlainText(a.content_en);
+  appState.storyOnOpen = { content: { html: a.content || '', plain }, content_en: { html: a.content_en || '', plain: plainEn } };
+  document.getElementById('form-article-content').value = plain;
   document.getElementById('form-article-title-en').value = a.title_en || '';
   document.getElementById('form-article-author-en').value = a.author_en || '';
   document.getElementById('form-article-excerpt-en').value = a.excerpt_en || '';
-  document.getElementById('form-article-content-en').value = a.content_en || '';
+  document.getElementById('form-article-content-en').value = plainEn;
   setFormLang('article-modal', 'mr');
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बदल जतन करा';
 
@@ -775,31 +804,46 @@ function autoSetCategoryLabel() {
   }
 }
 
-// Rich Content Helper Tags
-function insertContentTag(tag, targetId = 'form-article-content') {
-  const textarea = document.getElementById(targetId);
-  if (!textarea) return;
-
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const selected = textarea.value.substring(start, end) || 'येथे मजकूर लिहा';
-  const openTag = `<${tag}>`;
-  const closeTag = `</${tag}>`;
-  const replacement = `${openTag}${selected}${closeTag}`;
-
-  textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
-  textarea.focus();
-  textarea.setSelectionRange(start + openTag.length, start + openTag.length + selected.length);
-}
-
-// The content box takes HTML. If the editor typed plain text (no tags at all), turn it into paragraphs so the website
-// does not show it as one block: a blank line starts a new paragraph, a single line break becomes <br>.
-// Text that already contains HTML tags is kept exactly as typed.
+// The story box is a PLAIN text box: the editor writes normal text, a blank line starts a new paragraph, no HTML tags are needed.
+// The website gets the text as paragraphs (<p>…</p>, a single line break becomes <br>, & < > are escaped). Text that the editor
+// pastes WITH HTML tags in it is kept exactly as typed.
 function plainTextToParagraphs(text) {
   if (!text || /<[a-z!\/][^>]*>/i.test(text)) return text;
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return text.split(/\r?\n\s*\r?\n/).map((p) => p.trim()).filter(Boolean)
     .map((p) => `<p>${esc(p).replace(/\r?\n/g, '<br>')}</p>`).join('\n');
+}
+
+// The saved HTML of a story -> the plain text the editor sees in the box (paragraphs separated by a blank line, no tags,
+// &amp; & co. turned back into characters).
+function htmlToPlainText(html) {
+  const box = document.createElement('div');
+  box.innerHTML = String(html || '');
+  const blocks = [];
+  let line = '';
+  const flush = () => { const t = line.replace(/[ \t]*\n[ \t]*/g, '\n').trim(); if (t) blocks.push(t); line = ''; };
+  const walk = (node) => {
+    node.childNodes.forEach((n) => {
+      if (n.nodeType === 3) line += n.nodeValue.replace(/\s+/g, ' ');
+      else if (n.nodeType === 1) {
+        if (n.tagName === 'BR') line += '\n';
+        else if (/^(P|DIV|H[1-6]|BLOCKQUOTE|UL|OL|LI|TABLE|TR|HR|FIGURE)$/.test(n.tagName)) { flush(); walk(n); flush(); }
+        else walk(n);
+      }
+    });
+  };
+  walk(box);
+  flush();
+  return blocks.join('\n\n');
+}
+
+// What goes to the database for one story box: the text the editor sees is made into paragraphs; but when it was NOT changed
+// (the box still holds exactly what it showed on opening), the saved HTML stays as it was (an old story keeps its bold dateline etc.).
+function storyHtml(fieldId, key) {
+  const typed = document.getElementById(fieldId).value.trim();
+  const open = appState.storyOnOpen && appState.storyOnOpen[key];
+  if (open && open.html && typed === open.plain) return open.html;
+  return plainTextToParagraphs(typed);
 }
 
 // Form Submit: Create or Update Article
@@ -813,11 +857,11 @@ async function handleArticleFormSubmit(e) {
   const views = document.getElementById('form-article-views').value.trim() || '1.5K';
   const image = document.getElementById('form-article-image').value.trim() || 'assets/images/lokmangal_what_we_do.jpg';
   const excerpt = document.getElementById('form-article-excerpt').value.trim();
-  const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim());
+  const content = storyHtml('form-article-content', 'content');
   const title_en = document.getElementById('form-article-title-en').value.trim();
   const author_en = document.getElementById('form-article-author-en').value.trim();
   const excerpt_en = document.getElementById('form-article-excerpt-en').value.trim();
-  const content_en = plainTextToParagraphs(document.getElementById('form-article-content-en').value.trim());
+  const content_en = storyHtml('form-article-content-en', 'content_en');
 
   // Placement checkbox states
   const is_lead = document.getElementById('form-article-is-lead')?.checked ? 1 : 0;
@@ -895,7 +939,7 @@ async function confirmDeleteArticle(articleId, title) {
     const known = (appState.articles || []).find((a) => a.id === articleId);
     title = known ? known.title : '';
   }
-  if (!confirm(`तुम्हाला खात्री आहे की ही बातमी हटवायची आहे?\n\n"${title}"`)) {
+  if (!confirm(`${msg('तुम्हाला खात्री आहे की ही बातमी हटवायची आहे?', 'Are you sure you want to delete this article?')}\n\n"${title}"`)) {
     return;
   }
 
@@ -984,8 +1028,8 @@ function renderWeeklyTable() {
           <img src="${formatAssetUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
         </td>
         <td>
-          <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(w.title)}${w.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);">${w.description ? escapeHtml(w.description.length > 75 ? w.description.slice(0, 75) + '…' : w.description) : ''}</div>
+          <div style="font-weight: 600; color: var(--text-primary);" data-no-i18n>${escapeHtml(w.title)}${w.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" data-no-i18n>${w.description ? escapeHtml(w.description.length > 75 ? w.description.slice(0, 75) + '…' : w.description) : ''}</div>
         </td>
         <td style="font-size: 0.85rem;">${escapeHtml(w.date)}</td>
         <td>
@@ -1024,7 +1068,7 @@ function setWeeklyFormMode(issueNo) {
   document.getElementById('form-weekly-no').readOnly = editing;      // the number is the key of the issue (its PDF is lokmangal-weekly-<no>.pdf)
   document.getElementById('form-weekly-no-hint').innerHTML = editing
     ? 'संपादन करताना क्रमांक बदलता येत नाही (PDF चे नाव त्यावर अवलंबून आहे). दुसरा क्रमांक हवा असेल तर नवीन अंक जोडा.'
-    : 'पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन <b>तारीख</b> असलेला अंक "नवीनतम अंक" होतो.';
+    : 'पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन तारीख असलेला अंक "नवीनतम अंक" होतो.';
   document.getElementById('btn-save-weekly').innerHTML = editing
     ? '<i class="fa-solid fa-check"></i> बदल जतन करा'
     : '<i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा';
@@ -1200,7 +1244,8 @@ async function handleWeeklyPdfUpload(input) {
       // a new issue: the cover comes from the PDF unless it was chosen by hand; an issue that is being edited already has a real cover: ask first
       let makeCover = imgField.dataset.auto === '1';
       if (!makeCover && appState.editingWeeklyNo !== null &&
-          confirm('मुखपृष्ठ नव्या PDF च्या पहिल्या पानावरून बदलायचे का?\n\n(रद्द केल्यास आधीचे मुखपृष्ठ तसेच राहील.)')) {
+          confirm(msg('मुखपृष्ठ नव्या PDF च्या पहिल्या पानावरून बदलायचे का?\n\n(रद्द केल्यास आधीचे मुखपृष्ठ तसेच राहील.)',
+                      'Replace the cover with the first page of the new PDF?\n\n(If you cancel, the old cover stays.)'))) {
         makeCover = true;
       }
       if (makeCover) {
@@ -1271,10 +1316,12 @@ async function handleWeeklyFormSubmit(e) {
 
   // A new issue with a number that is already published would REPLACE that issue: ask first
   const existing = appState.editingWeeklyNo === null && (appState.weekly || []).find((x) => Number(x.issue_no) === issue_no);
-  if (existing && !confirm(`अंक ${issue_no} (${existing.date}) आधीच प्रकाशित आहे.\n\nहा नवीन अंक त्याच्या जागी ठेवायचा का? (जुना अंक बदलला जाईल.)\n\nवेगळा अंक जोडायचा असेल तर "रद्द करा" दाबा आणि क्रमांक बदला.`)) return;
+  if (existing && !confirm(msg(`अंक ${issue_no} (${existing.date}) आधीच प्रकाशित आहे.\n\nहा नवीन अंक त्याच्या जागी ठेवायचा का? (जुना अंक बदलला जाईल.)\n\nवेगळा अंक जोडायचा असेल तर "रद्द करा" दाबा आणि क्रमांक बदला.`,
+                               `Issue ${issue_no} (${existing.date}) is already published.\n\nShould this new issue take its place? (The old issue will be replaced.)\n\nTo add a different issue, press "Cancel" and change the number.`))) return;
 
   // No PDF chosen: the issue is saved, but the website can only say "the PDF will be available soon": ask, so it is not forgotten
-  if (!appState.weeklyPdfChosen && !confirm('PDF फाईल निवडलेली नाही.\n\nअंक PDF शिवाय प्रकाशित होईल — वेबसाईटवर "या अंकाचा PDF लवकरच उपलब्ध होईल" असे दिसेल. तरी जतन करायचे का?\n\n(PDF नंतर जोडायची असेल तर: अंकाच्या ओळीतील ✏️ संपादन बटण → PDF निवडा.)')) return;
+  if (!appState.weeklyPdfChosen && !confirm(msg('PDF फाईल निवडलेली नाही.\n\nअंक PDF शिवाय प्रकाशित होईल — वेबसाईटवर "या अंकाचा PDF लवकरच उपलब्ध होईल" असे दिसेल. तरी जतन करायचे का?\n\n(PDF नंतर जोडायची असेल तर: अंकाच्या ओळीतील ✏️ संपादन बटण → PDF निवडा.)',
+                                                'No PDF file has been chosen.\n\nThe issue will be published without a PDF — the website will say "the PDF of this issue will be available soon". Save anyway?\n\n(To add the PDF later: the ✏️ edit button in the issue\'s row → choose the PDF.)'))) return;
 
   const payload = {
     issue_no,
@@ -1323,7 +1370,9 @@ async function handleWeeklyFormSubmit(e) {
 async function confirmDeleteWeekly(issueNo) {
   const known = (appState.weekly || []).find((x) => Number(x.issue_no) === Number(issueNo));
   const what = known && known.date ? `अंक ${issueNo} (${known.date})` : `अंक ${issueNo}`;
-  if (!confirm(`तुम्हाला खात्री आहे की ${what} हटवायचा आहे?\n\nहा अंक वेबसाईटवरूनही निघून जाईल. (त्याची PDF फाईल व मुखपृष्ठ फोटो assets फोल्डरमध्ये तसेच राहतात.)`)) return;
+  const whatEn = known && known.date ? `issue ${issueNo} (${known.date})` : `issue ${issueNo}`;
+  if (!confirm(msg(`तुम्हाला खात्री आहे की ${what} हटवायचा आहे?\n\nहा अंक वेबसाईटवरूनही निघून जाईल. (त्याची PDF फाईल व मुखपृष्ठ फोटो assets फोल्डरमध्ये तसेच राहतात.)`,
+                   `Are you sure you want to delete ${whatEn}?\n\nThe issue will also disappear from the website. (Its PDF file and cover photo stay in the assets folder.)`))) return;
 
   try {
     const res = await apiFetch(`/api/weekly/${issueNo}`, { method: 'DELETE' });
@@ -1342,125 +1391,8 @@ async function confirmDeleteWeekly(issueNo) {
 }
 
 // -------------------------------------------------------------
-// Media Library
+// Utilities: Toast
 // -------------------------------------------------------------
-async function loadMediaData() {
-  try {
-    const res = await apiFetch('/api/media');
-    const data = await res.json();
-    if (data.success) {
-      renderMedia(data.images, data.pdfs);
-    }
-  } catch (err) {
-    console.error('Error loading media:', err);
-  }
-}
-
-function renderMedia(images, pdfs) {
-  const imgCount = document.getElementById('media-images-count');
-  if (imgCount) imgCount.textContent = images.length;
-
-  const pdfCount = document.getElementById('media-pdfs-count');
-  if (pdfCount) pdfCount.textContent = pdfs.length;
-
-  const imgGrid = document.getElementById('media-images-grid');
-  if (imgGrid) {
-    imgGrid.innerHTML = images.map(img => `
-      <div class="media-card">
-        <img src="${formatAssetUrl(img.url)}" class="media-card-img" alt="${img.filename}">
-        <div class="media-card-body">
-          <div class="media-card-name" title="${img.filename}">${img.filename}</div>
-          <div class="media-card-size">${Math.round(img.size / 1024)} KB</div>
-          <div class="media-card-actions">
-            <button class="btn btn-sm btn-outline" onclick="copyToClipboard('${img.url}')" title="URL कॉपी करा">
-              <i class="fa-regular fa-copy"></i> कॉपी मार्ग
-            </button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  const pdfGrid = document.getElementById('media-pdfs-grid');
-  if (pdfGrid) {
-    pdfGrid.innerHTML = pdfs.map(pdf => `
-      <div class="media-card">
-        <div class="media-card-pdf">
-          <i class="fa-solid fa-file-pdf"></i>
-          <span style="font-weight: 700; font-size: 0.8rem;">PDF दस्तऐवज</span>
-        </div>
-        <div class="media-card-body">
-          <div class="media-card-name" title="${pdf.filename}">${pdf.filename}</div>
-          <div class="media-card-size">${Math.round(pdf.size / 1024)} KB</div>
-          <div class="media-card-actions">
-            <a href="${formatPdfUrl(pdf.url)}" target="_blank" class="btn btn-sm btn-outline">
-              <i class="fa-regular fa-eye"></i> उघडा
-            </a>
-            <button class="btn btn-sm btn-outline" onclick="copyToClipboard('${pdf.url}')" title="URL कॉपी करा">
-              <i class="fa-regular fa-copy"></i> कॉपी
-            </button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  }
-}
-
-function toggleMediaTab(type) {
-  const btnImgs = document.getElementById('btn-show-images');
-  const btnPdfs = document.getElementById('btn-show-pdfs');
-  const gridImgs = document.getElementById('media-images-grid');
-  const gridPdfs = document.getElementById('media-pdfs-grid');
-
-  if (type === 'images') {
-    btnImgs.classList.add('active');
-    btnPdfs.classList.remove('active');
-    gridImgs.style.display = 'grid';
-    gridPdfs.style.display = 'none';
-  } else {
-    btnPdfs.classList.add('active');
-    btnImgs.classList.remove('active');
-    gridPdfs.style.display = 'grid';
-    gridImgs.style.display = 'none';
-  }
-}
-
-async function handleMediaQuickUpload(input) {
-  if (!input.files || !input.files[0]) return;
-  const file = input.files[0];
-  const isPdf = file.name.toLowerCase().endsWith('.pdf');
-  const endpoint = isPdf ? '/api/upload/pdf' : '/api/upload/image';
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  showToast('फाईल अपलोड होत आहे...', 'info');
-
-  try {
-    const res = await apiFetch(endpoint, { method: 'POST', body: formData });
-    const data = await res.json();
-    if (data.success) {
-      showToast('फाईल यशस्वीरीत्या अपलोड झाली!', 'success');
-      loadMediaData();
-    } else {
-      showToast(data.error || 'अपलोड अयशस्वी.', 'error');
-    }
-  } catch (err) {
-    showToast('अपलोड त्रुटी.', 'error');
-  }
-}
-
-// -------------------------------------------------------------
-// Utilities: Toast & Clipboard
-// -------------------------------------------------------------
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    showToast(`मार्ग कॉपी झाला: ${text}`, 'success');
-  }).catch(() => {
-    showToast('कॉपी करणे अयशस्वी.', 'error');
-  });
-}
-
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;

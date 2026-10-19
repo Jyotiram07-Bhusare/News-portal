@@ -39,7 +39,6 @@ button:focus-visible,
 }
 
 /* Grey placeholder while a photo loads (no white flash, no layout jump) */
-.popular-card-large,
 .popular-sub-thumb,
 .secondary-post-thumb,
 .random-grid-thumb,
@@ -51,8 +50,7 @@ button:focus-visible,
 
 /* The mobile-only helpers are hidden on desktop */
 .mobile-chips,
-.drawer-nav,
-.hero-badge {
+.drawer-nav {
   display: none;
 }
 
@@ -62,7 +60,7 @@ button:focus-visible,
 
 /* Touch screens: no "stuck hover" after a tap, instead a quick press feedback */
 @media (hover: none) {
-  .popular-card-large:hover img,
+  .popular-card-large:hover .popular-card-media img,
   .popular-sub-item:hover .popular-sub-thumb img,
   .secondary-post-item:hover .secondary-post-thumb img,
   .random-grid-item:hover .random-grid-thumb img,
@@ -78,7 +76,7 @@ button:focus-visible,
   }
 
   .popular-card-large:hover .popular-card-title {
-    color: #ffffff;
+    color: var(--title-color);
   }
 
   .video-card-large:hover .video-play-center-btn {
@@ -444,11 +442,6 @@ button:focus-visible,
     margin-bottom: 20px;
   }
 
-  .hero-badge {
-    display: block;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  }
-
   /* ---- Breadcrumb never forces the page wider ------------------------- */
   .breadcrumb-bar {
     min-width: 0;
@@ -483,8 +476,7 @@ button:focus-visible,
   }
 
   .main-featured-media img,
-  .single-post-media img,
-  .popular-card-large img {
+  .single-post-media img {
     position: absolute;
     top: 0;
     left: 0;
@@ -678,11 +670,11 @@ button:focus-visible,
   }
 
   .main-post-headline {
-    font-size: 24px;
+    font-size: 18px;
   }
 
   .single-post-headline {
-    font-size: 22px;
+    font-size: 17px;
   }
 
   .related-posts-grid {
@@ -706,15 +698,12 @@ button:focus-visible,
   }
 
   /* Popular Posts, Follow Us and Random Posts run the full width; Ads | Labels and
-     Latest Reviews | Featured Videos then pair up on their own (app.js keeps Follow Us under Labels) */
+     Featured Videos also runs the full width (app.js keeps Follow Us under Labels) */
   #widget-popular,
   #widget-follow,
-  #widget-random {
+  #widget-random,
+  #widget-videos {
     grid-column: 1 / -1;
-  }
-
-  #widget-popular .popular-card-large {
-    height: 260px;
   }
 
   #sidebar-wrapper .random-posts-grid {
@@ -807,7 +796,7 @@ button:focus-visible,
   .view-home .main-post-headline {
     order: 2;
     margin: 18px 0 14px;
-    font-size: clamp(19px, 5.3vw, 22px);
+    font-size: clamp(15px, 4vw, 16.5px);
     line-height: 1.4;
     letter-spacing: 0;
   }
@@ -817,11 +806,6 @@ button:focus-visible,
   .view-home .home-post-footer-bar { order: 5; }
   .view-home .more-posts-header   { order: 6; }
   .view-home #secondary-posts-feed { order: 7; }
-
-  .hero-badge {
-    top: 12px;
-    left: max(12px, var(--pad-l));
-  }
 
   .author-meta-bar {
     gap: 8px 14px;
@@ -919,7 +903,7 @@ button:focus-visible,
   }
 
   .secondary-post-title {
-    font-size: 15.5px;
+    font-size: 13px;
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 6;           /* safety net only — normal headlines show in full */
@@ -940,13 +924,12 @@ button:focus-visible,
   }
 
   /* ---- Sidebar widgets -------------------------------------------------- */
-  .popular-card-large {
-    height: auto;
-    aspect-ratio: 16 / 10;
+  .popular-card-media {
     border-radius: 6px;
   }
 
   .popular-card-title {
+    font-size: 13px;
     line-height: 1.4;
   }
 
@@ -961,7 +944,7 @@ button:focus-visible,
   }
 
   .popular-sub-title {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.45;
   }
 
@@ -992,7 +975,7 @@ button:focus-visible,
   }
 
   .random-grid-title {
-    font-size: 13.5px;
+    font-size: 12px;
     line-height: 1.45;
   }
 
@@ -1060,7 +1043,7 @@ button:focus-visible,
 
   .single-post-headline {
     margin-bottom: 12px;
-    font-size: clamp(19px, 5.4vw, 22px);
+    font-size: clamp(15px, 4vw, 16.5px);
     line-height: 1.4;
   }
 
@@ -1356,7 +1339,7 @@ button:focus-visible,
 @supports not (aspect-ratio: 1 / 1) {
   .main-featured-media,
   .single-post-media { min-height: 200px; }
-  .popular-card-large { min-height: 200px; }
+  .popular-card-media { min-height: 160px; }
   .random-grid-thumb { min-height: 90px; }
   .video-player-screen { min-height: 200px; }
 }
@@ -1490,11 +1473,6 @@ button:focus-visible,
    Home "News" section · Weekly publication section · weekly issue page · PDF reader
    ========================================================================== */
 @media (max-width: 980px) {
-  /* the blue badge on the photo already says "नवीनतम अंक" on these layouts */
-  .main-featured-media .latest-ribbon {
-    display: none;
-  }
-
   .weekly-latest {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1524,10 +1502,6 @@ button:focus-visible,
   .weekly-latest-actions > * {
     flex: 1 1 170px;
     justify-content: center;
-  }
-
-  .news-featured {
-    height: 270px;
   }
 
   .weekly-search-input-wrap {
@@ -1574,19 +1548,23 @@ button:focus-visible,
     font-size: 14px;
   }
 
+  /* phone: the photo runs edge to edge, the text below it keeps the page margins */
   .news-featured {
-    height: auto;
-    aspect-ratio: 16 / 10;
-    margin: 8px calc(var(--pad-r) * -1) 6px calc(var(--pad-l) * -1);
-    border-radius: 0;
+    margin: 8px 0 6px;
   }
 
-  .news-featured .popular-card-overlay {
-    padding: 14px var(--pad-l);
+  .news-featured .popular-card-media {
+    margin: 0 calc(var(--pad-r) * -1) 0 calc(var(--pad-l) * -1);
+    border-radius: 0;
+    aspect-ratio: 16 / 10;
+  }
+
+  .news-featured .popular-card-caption {
+    padding: 12px 0 0;
   }
 
   .news-featured .popular-card-title {
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .btn-xapify-pdf {

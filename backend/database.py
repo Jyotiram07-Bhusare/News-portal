@@ -4,9 +4,10 @@ Port of the old SQLite module (data/database.py): same functions, same results, 
 Each call borrows its own connection from a small pool (never shared between threads), so it is thread-safe.
 """
 import queue
+import re
 import time
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
 import pymysql
@@ -32,6 +33,8 @@ DEFAULT_IMAGE = "assets/images/lokmangal_what_we_do.jpg"
 ARTICLE_COLUMNS = ("id", "title", "category", "categoryLabel", "author", "date", "image", "excerpt",
                    "content", "views", "created_at", "is_lead", "is_popular", "is_random")
 WEEKLY_COLUMNS = ("id", "issue_no", "date", "title", "image", "pdf_filename", "views", "description", "created_at")
+VIDEO_TEXT = ("title", "title_en", "description", "description_en", "video_url", "thumbnail")
+VIDEO_NUMBERS = ("duration_sec", "size_bytes")
 
 # The English version of a news item / weekly issue (typed in the Admin Panel's "English" tab).
 ARTICLE_EN = ("title_en", "author_en", "excerpt_en", "content_en")
@@ -41,6 +44,12 @@ ENGLISH_COLUMNS = {
     "articles": (("title_en", "VARCHAR(500) NOT NULL DEFAULT ''"), ("author_en", "VARCHAR(200) NOT NULL DEFAULT ''"),
                  ("excerpt_en", "TEXT NULL"), ("content_en", "MEDIUMTEXT NULL")),
     "weekly_editions": (("title_en", "VARCHAR(500) NOT NULL DEFAULT ''"), ("description_en", "TEXT NULL")),
+}
+# The website lists the most recently UPDATED news first (edited, moved to another section, marked Popular / Random / Lead).
+# update_article() / toggle_placement() stamp updated_at (never the client). Rows that exist when the column is added all get the same
+# stamp, so nothing is reordered until something is edited.
+UPDATED_COLUMNS = {
+    "articles": (("updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"),),
 }
 
 
@@ -130,25 +139,66 @@ def ping() -> bool:
         return cur.fetchone()["ok"] == 1
 
 
+def schema_statements() -> List[str]:
+    """The statements of schema.sql, one by one (comment lines removed)."""
+    sql = config.SCHEMA_FILE.read_text(encoding="utf-8")
+    sql = "\n".join(line for line in sql.splitlines() if not line.strip().startswith("--"))
+    return [s.strip() for s in sql.split(";") if s.strip()]
+
+
+_videos_state = {"ok": False}
+
+
+def ensure_videos_table() -> None:
+    """The `videos` table was added after the first two: a database made before that gets it here, the first time videos are used
+    (CREATE TABLE IF NOT EXISTS from schema.sql - nothing that exists is touched). `python init_db.py` creates it too."""
+    if _videos_state["ok"]:
+        return
+    with connection() as conn:
+        cur = conn.cursor()
+        for statement in schema_statements():
+            if re.match(r"CREATE TABLE IF NOT EXISTS\s+videos\b", statement, re.I):
+                cur.execute(statement)
+        cur.execute("SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'videos' AND COLUMN_NAME = 'sort_order'",
+                    (config.DB_NAME,))
+        if not cur.fetchone()["n"]:
+            cur.execute("ALTER TABLE videos ADD COLUMN sort_order INT NULL")          # a videos table made before the order numbers existed
+        cur.execute("SELECT COUNT(*) AS n FROM videos WHERE sort_order IS NULL")
+        if cur.fetchone()["n"]:
+            _renumber_videos(cur)                                                    # old rows get 1..N, newest first
+    _videos_state["ok"] = True
+
+
 _english_state = {"ok": False, "checked": 0.0}
+_updated_state = {"ok": False, "checked": 0.0}
 
 
-def has_english() -> bool:
-    """True when both tables have their English columns. An older database gets them from `python init_db.py`; until then
-    the API keeps working without English text (and says so). A "no" is looked up again every 10 seconds."""
-    if _english_state["ok"] or time.time() - _english_state["checked"] < 10:
-        return _english_state["ok"]
-    _english_state["checked"] = time.time()
+def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
+    """True when every table of `spec` has all its columns. A "no" is looked up again every 10 seconds, a "yes" is kept."""
+    if state["ok"] or time.time() - state["checked"] < 10:
+        return state["ok"]
+    state["checked"] = time.time()
     with connection() as conn:
         cur = conn.cursor()
         ok = True
-        for table, columns in ENGLISH_COLUMNS.items():
+        for table, columns in spec.items():
             cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
                         (config.DB_NAME, table))
             have = {r["COLUMN_NAME"] for r in cur.fetchall()}
             ok = ok and all(name in have for name, _ in columns)
-    _english_state["ok"] = ok
+    state["ok"] = ok
     return ok
+
+
+def has_english() -> bool:
+    """True when both tables have their English columns. An older database gets them from `python init_db.py`; until then
+    the API keeps working without English text (and says so)."""
+    return _has_columns(ENGLISH_COLUMNS, _english_state)
+
+
+def has_updated() -> bool:
+    """True when `articles` has updated_at (an older database gets it from `python init_db.py`; until then nothing is stamped)."""
+    return _has_columns(UPDATED_COLUMNS, _updated_state)
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:
@@ -267,6 +317,8 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
             values.append(_flag(data[key]) if key in PLACEMENT_FIELDS else data[key])
     if not fields:
         return False
+    if has_updated():
+        fields.append("`updated_at` = CURRENT_TIMESTAMP")       # saved = the newest: the website lists it first
 
     with connection() as conn:
         cur = conn.cursor()
@@ -295,6 +347,9 @@ def toggle_placement(article_id: int, field: str, value: Any = None) -> Optional
             cur.execute("UPDATE articles SET is_lead = (id = %s)", (article_id,))
         else:
             cur.execute(f"UPDATE articles SET `{field}` = %s WHERE id = %s", (new_value, article_id))
+        if new_value == 1 and has_updated():
+            # marked Lead / Popular / Random: it is the newest there. (Turning a flag OFF, or another article becoming the Lead, stamps nothing.)
+            cur.execute("UPDATE articles SET `updated_at` = CURRENT_TIMESTAMP WHERE id = %s", (article_id,))
         cur.execute("SELECT * FROM articles WHERE id = %s", (article_id,))
         article = cur.fetchone()
         if article is None:                                     # deleted by someone else in the meantime
@@ -364,6 +419,109 @@ def delete_weekly_edition(issue_no: int) -> bool:
 
 
 # -------------------------------------------------------------
+# Videos (Admin Panel > Videos -> the website's "Featured Videos" widget)
+# -------------------------------------------------------------
+def _video_number(value: Any) -> Optional[int]:
+    """'' / None -> NULL (not known); otherwise a whole number."""
+    return None if value is None or str(value).strip() == "" else int(value)
+
+
+def _renumber_videos(cur, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
+    """Number the videos 1..N in their current order (numbered ones by their number, the rest newest first). `move_id` is first put at
+    `position` (1 = the very top; a number beyond the end = the last place)."""
+    cur.execute("SELECT id FROM videos ORDER BY (sort_order IS NULL), sort_order, id DESC")
+    ids = [r["id"] for r in cur.fetchall()]
+    if move_id is not None and move_id in ids:
+        ids.remove(move_id)
+        ids.insert(max(0, min(len(ids), (position or 1) - 1)), move_id)
+    for number, video_id in enumerate(ids, start=1):
+        cur.execute("UPDATE videos SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, video_id, number))
+
+
+def get_videos(limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    ensure_videos_table()
+    sql = "SELECT * FROM videos ORDER BY (sort_order IS NULL), sort_order, id DESC"
+    params: List[Any] = []
+    if limit and limit > 0:
+        sql += " LIMIT %s"
+        params.append(limit)
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        return [_row(r) for r in cur.fetchall()]
+
+
+def get_video(video_id: int) -> Optional[Dict[str, Any]]:
+    ensure_videos_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM videos WHERE id = %s", (video_id,))
+        return _row(cur.fetchone())
+
+
+def create_video(data: Dict[str, Any]) -> int:
+    ensure_videos_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO videos (title, title_en, description, description_en, video_url, thumbnail, duration_sec, size_bytes)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (*(_text(data, c) for c in VIDEO_TEXT), *(_video_number(data.get(c)) for c in VIDEO_NUMBERS)),
+        )
+        new_id = cur.lastrowid
+        _renumber_videos(cur, new_id, _video_number(data.get("sort_order")) or 1)      # a new video goes to the top unless a place is given
+        return new_id
+
+
+def update_video(video_id: int, data: Dict[str, Any]) -> bool:
+    """Change the fields that came with the request (a video file is replaced by sending a new video_url)."""
+    ensure_videos_table()
+    fields: List[str] = []
+    values: List[Any] = []
+    for key in (*VIDEO_TEXT, *VIDEO_NUMBERS):
+        if key in data:
+            fields.append(f"`{key}` = %s")
+            values.append(_video_number(data[key]) if key in VIDEO_NUMBERS else _text(data, key))
+    position = _video_number(data.get("sort_order"))
+    if not fields and position is None:
+        return False
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM videos WHERE id = %s", (video_id,))
+        if cur.fetchone() is None:
+            return False
+        if fields:
+            cur.execute(f"UPDATE videos SET {', '.join(fields)} WHERE id = %s", values + [video_id])
+        if position is not None:
+            _renumber_videos(cur, video_id, position)          # the video takes that place, the others move over
+        return True
+
+
+def delete_video(video_id: int) -> Optional[Dict[str, Any]]:
+    """Remove the row; returns it (the caller deletes the files it pointed to), or None when there is no such video."""
+    ensure_videos_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM videos WHERE id = %s", (video_id,))
+        row = _row(cur.fetchone())
+        if row is None:
+            return None
+        cur.execute("DELETE FROM videos WHERE id = %s", (video_id,))
+        _renumber_videos(cur)                                   # no gap is left in the numbers
+        return row
+
+
+def video_file_in_use(url: str, except_id: Optional[int] = None) -> bool:
+    """True when another video still points to this video file / thumbnail (then the file must stay)."""
+    ensure_videos_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) AS n FROM videos WHERE (video_url = %s OR thumbnail = %s) AND id != %s",
+                    (url, url, -1 if except_id is None else except_id))
+        return cur.fetchone()["n"] > 0
+
+
+# -------------------------------------------------------------
 # Dashboard statistics
 # -------------------------------------------------------------
 def get_stats() -> Dict[str, Any]:
@@ -422,7 +580,14 @@ def _import(table: str, columns: Iterable[str], rows: Iterable[Dict[str, Any]]) 
 
 
 def import_articles(rows: Iterable[Dict[str, Any]]) -> int:
-    return _import("articles", ARTICLE_COLUMNS + (ARTICLE_EN if has_english() else ()), rows)       # (English text comes along when the columns exist)
+    columns = ARTICLE_COLUMNS + (ARTICLE_EN if has_english() else ())       # (English text comes along when the columns exist)
+    rows = list(rows)
+    if has_updated():
+        # one common stamp for the whole import: the rows keep the order they were given (a second boundary must not reorder them)
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        rows = [{"updated_at": stamp, **row} for row in rows]
+        columns += ("updated_at",)
+    return _import("articles", columns, rows)
 
 
 def import_weekly(rows: Iterable[Dict[str, Any]]) -> int:

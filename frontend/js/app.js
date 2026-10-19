@@ -503,6 +503,13 @@ function fillBuiltInEnglish() {
 }
 fillBuiltInEnglish();
 
+// The most recently UPDATED news is listed first: a story that was edited in the Admin Panel, moved to another section or marked
+// Popular / Random / Lead jumps to the top of Latest (Home), Popular, Random, Reviews and its section. The backend stamps every
+// change (updated_at). Stories with the same stamp - or none (built-in data / a static host without a backend) - keep their order,
+// because Array.sort is stable.
+const stampOf = (a) => String((a && a.updated_at) || "");
+const newerFirst = (a, b) => (stampOf(a) < stampOf(b) ? 1 : stampOf(a) > stampOf(b) ? -1 : 0);
+
 // --- Weekly issues -----------------------------------------------------------------------------------
 // Devanagari digits <-> plain numbers
 const DEV_DIGITS = "०१२३४५६७८९";
@@ -584,9 +591,6 @@ async function hydratePdfBox(box) {
     box.querySelectorAll("[data-pdf-action]").forEach((el) => { el.hidden = true; });
     const note = box.querySelector(".pdf-missing-note");
     if (note) note.hidden = false;
-    // nothing else on the card may promise a PDF either: the "PDF" tag on the cover, the "read online" badge
-    const card = box.closest(".weekly-edition-item, .weekly-latest, .issue-pdf-card");
-    if (card) card.querySelectorAll(".pdf-tag-overlay, .issue-read-badge").forEach((el) => { el.style.display = "none"; });
   } else if (info.bytes) {
     box.querySelectorAll(".pdf-size").forEach((el) => { el.textContent = fmtSize(info.bytes); });
   }
@@ -646,6 +650,22 @@ function fluidImg(url, alt, widths, sizes, attrs = LAZY_IMG) {
   const mid = widths[Math.floor(widths.length / 2)];
   const srcset = widths.map(w => `${imgW(url, w)} ${w}w`).join(", ");
   return `<img src="${imgW(url, mid)}" srcset="${srcset}" sizes="${sizes}" alt="${alt}" ${attrs} />`;
+}
+
+// The large card (Popular, Latest Reviews, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
+// it - a headline, label or date never sits on a photo. `mediaExtra` is for icons only (the play button of a video).
+function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = "", title, titleTag = "h4", byline = "" }) {
+  return `
+    <div class="popular-card-large${cls ? " " + cls : ""}" onclick="${onclick}">
+      <div class="popular-card-media">
+        ${imgHTML}${mediaExtra}
+      </div>
+      <div class="popular-card-caption">
+        ${badge}
+        <${titleTag} class="popular-card-title">${title}</${titleTag}>
+        <div class="popular-card-byline">${byline}</div>
+      </div>
+    </div>`;
 }
 
 // First paragraph of an article as a well-formed teaser. (The old content.substring(0, 280) could cut
@@ -1112,9 +1132,9 @@ function renderLeftSidebar() {
   const container = document.getElementById("popular-posts-container");
   if (!container) return;
 
-  // Pick articles explicitly marked as popular in Admin Panel - the newest (highest id) first, so a story marked now
-  // shows at once and the oldest marked one makes room (the widget has three places)
-  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => b.id - a.id);
+  // Pick articles explicitly marked as popular in Admin Panel - the most recently updated / marked first (then the highest id), so a story
+  // marked or edited now shows at once and the oldest one makes room (the widget has three places)
+  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
   
   // If fewer than 3, top up with other non-weekly articles
   if (popularList.length < 3) {
@@ -1129,15 +1149,14 @@ function renderLeftSidebar() {
   if (!item0) return;
 
   container.innerHTML = `
-    <!-- Item 0 Large Card with Overlay -->
-    <div class="popular-card-large" onclick="openArticlePage(${item0.id})">
-      ${fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px")}
-      <div class="popular-card-overlay">
-        <span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>
-        <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline"><span class="by-word">by </span>${item0.author} - ${item0.date}</div>
-      </div>
-    </div>
+    <!-- Item 0 Large Card: photo, then the text below it -->
+    ${largeCardHTML({
+      onclick: `openArticlePage(${item0.id})`,
+      imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
+      badge: `<span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>`,
+      title: item0.title,
+      byline: `<span class="by-word">by </span>${item0.author} - ${item0.date}`,
+    })}
 
     <!-- Item 1 List Card -->
     ${item1 ? `
@@ -1170,8 +1189,8 @@ function renderRightSidebar() {
   const container = document.getElementById("random-posts-grid");
   if (!container) return;
 
-  // Pick articles explicitly marked as random in Admin Panel - newest (highest id) first, four places (see Popular above)
-  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort((a, b) => b.id - a.id);
+  // Pick articles explicitly marked as random in Admin Panel - the most recently updated / marked first, four places (see Popular above)
+  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
 
   // If fewer than 4, fill remaining slots with other non-weekly articles
   if (randomList.length < 4) {
@@ -1206,18 +1225,14 @@ function renderLatestReviews() {
   const item3 = reviewArticles[3]; // Auto tractor review (Sub item 3)
 
   container.innerHTML = `
-    <!-- Item 0 Large Card with Overlay -->
-    <div class="popular-card-large" onclick="openArticleModal(${item0.id})">
-      ${fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px")}
-      <div class="popular-card-overlay">
-        <span class="category-tag-badge">${item0.categoryLabel}</span>
-        <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline">
-          <span class="by-word">by </span>${item0.author} - ${item0.date}
-          ${stars(item0)}
-        </div>
-      </div>
-    </div>
+    <!-- Item 0 Large Card: photo, then the text below it -->
+    ${largeCardHTML({
+      onclick: `openArticleModal(${item0.id})`,
+      imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
+      badge: `<span class="category-tag-badge">${item0.categoryLabel}</span>`,
+      title: item0.title,
+      byline: `<span class="by-word">by </span>${item0.author} - ${item0.date} ${stars(item0)}`,
+    })}
 
     <!-- Item 1 List Card -->
     <div class="popular-sub-item" onclick="openArticleModal(${item1.id})">
@@ -1263,187 +1278,252 @@ function renderLatestReviews() {
   `;
 }
 
-// --- Video Posts Dataset (4 Featured Videos) ---
-const videoPostsData = [
-  {
-    id: "v1",
-    title: "सोलापूर दक्षिण ऐतिहासिक विजयोत्सव: आमदार सुभाष बापू देशमुख यांचे जाहीर आभार व कार्यकर्त्यांना संबोधन",
-    author: "लोकमंगल राजकीय विशेष",
-    duration: "०६:१५",
-    views: "४८.२K व्ह्यूज",
-    date: "१३ ऑक्टोबर २०२६",
-    categoryLabel: "राजकीय व्हिडिओ",
-    thumbnail: "assets/images/bapu_portrait_lead.jpg",
-    description: "सोलापूर दक्षिण विधानसभा निवडणुकीत प्रचंड मताधिक्याने विजय मिळवल्यानंतर आमदार सुभाष बापू देशमुख यांनी मतदारांचे आणि कार्यकर्त्यांचे मानले मनःपूर्वक आभार."
-  },
-  {
-    id: "v2",
-    title: "थेट ग्राऊंड रिपोर्ट: लोकमंगल जलक्रांती - दुष्काळी भागात सिमेंट बंधारे व नाला खोलीकरणाचा प्रत्यक्ष आढावा",
-    author: "ग्रामीण ब्युरो",
-    duration: "०५:४०",
-    views: "३२.८K व्ह्यूज",
-    date: "१२ ऑक्टोबर २०२६",
-    categoryLabel: "सामाजिक व्हिडिओ",
-    thumbnail: "assets/images/lokmangal_jalkranti_01.jpg",
-    description: "लोकमंगलच्या वतीने दुष्काळी भागात राबवण्यात आलेल्या जलसंधारण कामांमुळे विहिरींच्या पाणीपातळीत झालेली वाढ आणि शेतकऱ्यांचे मनोगत."
-  },
-  {
-    id: "v3",
-    title: "आनंदाचा मंगलक्षण: लोकमंगल फाऊंडेशन सर्वधर्मीय सामुदायिक विवाह सोहळा विशेष माहितीपट",
-    author: "लोकमंगल वार्ता",
-    duration: "०७:२०",
-    views: "४१.५K व्ह्यूज",
-    date: "११ ऑक्टोबर २०२६",
-    categoryLabel: "सामाजिक व्हिडिओ",
-    thumbnail: "assets/images/lokmangal_vivah_01.jpg",
-    description: "आर्थिक दुर्बल घटकांतील शेकडो कुटुंबांना मोफत संसारोपयोगी साहित्य, मंगळसूत्र व मानाचा आहेर देऊन विवाह संपन्न करणाऱ्या सोहळ्याचा विशेष माहितीपट."
-  },
-  {
-    id: "v4",
-    title: "शेतकरी संवाद: आधुनिक ऊस शेती तंत्रज्ञान व ठिबक सिंचन - लोकमंगल कृषी मेळावा विशेष वार्ता",
-    author: "अ‍ॅग्रो टेक",
-    duration: "०४:४५",
-    views: "२३.४K व्ह्यूज",
-    date: "०९ ऑक्टोबर २०२६",
-    categoryLabel: "कृषी व्हिडिओ",
-    thumbnail: "assets/images/lokmangal_what_we_do.jpg",
-    description: "एकरी १०० टन ऊस उत्पादनाचे ध्येय गाठण्यासाठी कृषी विद्यापीठातील शास्त्रज्ञ व लोकमंगल कृषी तज्ज्ञांनी केलेले मार्गदर्शन."
-  }
-];
+// --- Videos of the Featured Videos widget: only what the owner uploads / links in the Admin Panel (see videoPostsData below) ---
+const builtInVideos = [];   // (the old sample videos were removed: with no uploaded video the widget shows its empty card)
 
-// --- Render Featured Videos (4 Posts with Play Buttons & Duration Badges) ---
+// The videos the widget shows: the sample videos above until the owner uploads one (Admin Panel > Videos), then HIS uploads, newest
+// first. A sample video only pretends to play; an uploaded video has `src` - the real file - and is played by the browser's own player.
+let videoPostsData = builtInVideos;
+
+const VIDEO_PLACEHOLDER = "assets/images/video-placeholder.svg";   // the picture of a video that has none (a dark box, the play button is drawn on it)
+
+// the 11-character id of a YouTube link (watch?v=, youtu.be/, /embed/, /shorts/, /live/), or "" for any other address
+function youtubeIdOf(url) {
+  const m = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#\s]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{11})(?![\w-])/i.exec(String(url || "").trim());
+  return m ? m[1] : "";
+}
+
+// one row of GET /api/videos -> the shape of the sample videos (the text stays raw: videoView() picks the language and makes it safe).
+// `video_url` is a file this server saved, a YouTube link (played in YouTube's own player) or the direct link of a video file.
+function videoFromRow(row) {
+  const yt = youtubeIdOf(row.video_url);
+  return {
+    id: "u" + row.id,
+    uploaded: true,
+    yt,
+    src: row.video_url,
+    title: row.title,
+    title_en: row.title_en,
+    description: row.description || "",
+    description_en: row.description_en || "",
+    duration_sec: row.duration_sec,
+    created_at: row.created_at,
+    thumbnail: row.thumbnail || (yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : VIDEO_PLACEHOLDER),
+  };
+}
+
+// "०६:१५" (Marathi) / "06:15" (English); "" when the length is not known
+function videoLengthText(sec) {
+  const n = Number(sec);
+  if (sec === null || sec === undefined || sec === "" || !isFinite(n) || n <= 0) return "";
+  const s = Math.round(n);
+  const two = (x) => String(x).padStart(2, "0");
+  const h = Math.floor(s / 3600);
+  const text = h ? `${h}:${two(Math.floor((s % 3600) / 60))}:${two(s % 60)}` : `${two(Math.floor(s / 60))}:${two(s % 60)}`;
+  return getLang() === "en" ? text : toDevanagari(text);
+}
+
+// the day of the upload, in the language of the page (the database keeps UTC; the visitor sees his own day)
+function videoDateText(createdAt) {
+  const d = createdAt ? new Date(String(createdAt).replace(" ", "T") + "Z") : null;
+  if (!d || isNaN(d.getTime())) return "";
+  return localizeDates(`${toDevanagari(d.getDate())} ${MARATHI_MONTHS[d.getMonth()]} ${toDevanagari(d.getFullYear())}`);
+}
+
+// A video as the page shows it right now: the language chosen (title_en / description_en when English is on), its length and date, and
+// every text made safe for HTML (a title may contain " or <). The sample videos are Marathi text that js/i18n.js translates after drawing.
+function videoView(v) {
+  if (!v.uploaded) return { ...v, title: escText(v.title), description: escText(v.description) };
+  const en = getLang() === "en";
+  const text = (mr, enText) => escText(en && enText && String(enText).trim() ? enText : mr);
+  return {
+    ...v,
+    title: text(v.title, v.title_en),
+    description: text(v.description, v.description_en),
+    duration: videoLengthText(v.duration_sec),
+    date: videoDateText(v.created_at),
+    categoryLabel: "व्हिडिओ",
+    views: "",                                    // nothing counts the viewers of an uploaded video: no made-up number
+    thumbnail: escText(v.thumbnail),
+    src: escText(v.src),
+  };
+}
+
+// "length • views • date" - the parts that exist
+function videoMetaParts(v) {
+  return [
+    v.duration ? `<i class="fa-solid fa-video"></i> ${v.duration}` : "",
+    v.views ? `<i class="fa-solid fa-eye"></i> ${v.views}` : "",
+    v.date,
+  ].filter(Boolean);
+}
+
+function videoRowHTML(v) {
+  return `
+    <div class="popular-sub-item video-sub-item" onclick="openVideoModal('${v.id}')">
+      <div class="popular-sub-thumb video-sub-thumb">
+        ${thumbImg(v.thumbnail, v.title, 240)}
+        <div class="video-mini-play-overlay">
+          <i class="fa-solid fa-play"></i>
+        </div>
+      </div>
+      <div class="popular-sub-content">
+        <h5 class="popular-sub-title">${v.title}</h5>
+        <div class="popular-sub-date">
+          ${videoMetaParts(v).map((part, i) => `<span>${i ? "• " : ""}${part}</span>`).join("\n          ")}
+        </div>
+      </div>
+    </div>`;
+}
+
+// --- Render Featured Videos: the newest video as a large card, the 3 before it as rows, the rest after "अधिक पहा" ---
+const VIDEO_ROWS_SHOWN = 3;
 function renderFeaturedVideos() {
   const container = document.getElementById("featured-videos-container");
   if (!container) return;
 
-  const item0 = videoPostsData[0];
-  const item1 = videoPostsData[1];
-  const item2 = videoPostsData[2];
-  const item3 = videoPostsData[3];
+  const [first, ...rest] = videoPostsData.map(videoView);
+  if (!first) {                                  // nothing uploaded (or all deleted): the section stays, with a note
+    container.innerHTML = `<div class="video-empty"><i class="fa-solid fa-film"></i><p>सध्या एकही व्हिडिओ उपलब्ध नाही</p></div>`;
+    return;
+  }
+  const shown = rest.slice(0, VIDEO_ROWS_SHOWN);
+  const more = rest.slice(VIDEO_ROWS_SHOWN);
 
   container.innerHTML = `
-    <!-- Item 0 Large Featured Video Card -->
-    <div class="popular-card-large video-card-large" onclick="openVideoModal('v1')">
-      ${fluidImg(item0.thumbnail, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px")}
-      <div class="video-play-center-btn" title="व्हिडिओ पाहा">
-        <i class="fa-solid fa-play"></i>
-      </div>
-      <div class="video-duration-tag">
-        <i class="fa-solid fa-video"></i> ${item0.duration}
-      </div>
-      <div class="popular-card-overlay">
-        <span class="category-tag-badge video-badge">${item0.categoryLabel}</span>
-        <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline">
-          <i class="fa-solid fa-eye"></i> ${item0.views} • ${item0.date}
-        </div>
-      </div>
-    </div>
+    <!-- Large Featured Video Card: thumbnail with the play icon, the text (and the length) below it -->
+    ${largeCardHTML({
+      cls: "video-card-large",
+      onclick: `openVideoModal('${first.id}')`,
+      imgHTML: fluidImg(first.thumbnail, first.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
+      mediaExtra: `<div class="video-play-center-btn" title="व्हिडिओ पाहा"><i class="fa-solid fa-play"></i></div>`,
+      badge: `<span class="category-tag-badge video-badge">${first.categoryLabel}</span>`,
+      title: first.title,
+      byline: videoMetaParts(first).join(" • "),
+    })}
 
-    <!-- Item 1 List Video Item -->
-    <div class="popular-sub-item video-sub-item" onclick="openVideoModal('v2')">
-      <div class="popular-sub-thumb video-sub-thumb">
-        ${thumbImg(item1.thumbnail, item1.title, 240)}
-        <div class="video-mini-play-overlay">
-          <i class="fa-solid fa-play"></i>
-        </div>
-        <span class="video-mini-duration">${item1.duration}</span>
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item1.title}</h5>
-        <div class="popular-sub-date">
-          <span><i class="fa-solid fa-eye"></i> ${item1.views}</span>
-          <span>• ${item1.date}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Item 2 List Video Item -->
-    <div class="popular-sub-item video-sub-item" onclick="openVideoModal('v3')">
-      <div class="popular-sub-thumb video-sub-thumb">
-        ${thumbImg(item2.thumbnail, item2.title, 240)}
-        <div class="video-mini-play-overlay">
-          <i class="fa-solid fa-play"></i>
-        </div>
-        <span class="video-mini-duration">${item2.duration}</span>
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item2.title}</h5>
-        <div class="popular-sub-date">
-          <span><i class="fa-solid fa-eye"></i> ${item2.views}</span>
-          <span>• ${item2.date}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Item 3 List Video Item -->
-    <div class="popular-sub-item video-sub-item" onclick="openVideoModal('v4')">
-      <div class="popular-sub-thumb video-sub-thumb">
-        ${thumbImg(item3.thumbnail, item3.title, 240)}
-        <div class="video-mini-play-overlay">
-          <i class="fa-solid fa-play"></i>
-        </div>
-        <span class="video-mini-duration">${item3.duration}</span>
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item3.title}</h5>
-        <div class="popular-sub-date">
-          <span><i class="fa-solid fa-eye"></i> ${item3.views}</span>
-          <span>• ${item3.date}</span>
-        </div>
-      </div>
-    </div>
+    <!-- List Video Items (the 3 before it) -->
+    ${shown.map(videoRowHTML).join("")}
+    ${more.length ? `
+    <div class="video-more-rows" hidden>${more.map(videoRowHTML).join("")}</div>
+    <div class="load-more-wrap video-more-wrap">
+      <button type="button" class="btn-load-more" onclick="showMoreVideos(this)">
+        <i class="fa-solid fa-angles-down"></i>
+        <span>अधिक पहा</span>
+      </button>
+    </div>` : ""}
   `;
 }
 
+// "अधिक पहा": the rest of the videos appear
+window.showMoreVideos = function(btn) {
+  const box = btn.closest("#featured-videos-container");
+  if (!box) return;
+  const rows = box.querySelector(".video-more-rows");
+  if (rows) rows.hidden = false;
+  const wrap = btn.closest(".video-more-wrap");
+  if (wrap) wrap.remove();
+};
+
+// The video must not keep playing (or downloading) behind a closed window: the player is taken out of the page.
+function stopVideoPlayer() {
+  const body = document.getElementById("video-modal-body");
+  if (!body) return;
+  body.querySelectorAll("video").forEach((el) => {
+    el.pause();
+    el.removeAttribute("src");
+    el.load();
+  });
+  body.innerHTML = "";
+}
+
+window.copyVideoLink = function(btn) {
+  navigator.clipboard?.writeText(btn.dataset.url || window.location.href);
+  showToast("व्हिडिओ लिंक कॉपी केली!");
+};
+
 // --- Video Player Modal Opener ---
 window.openVideoModal = function(videoId) {
-  const video = videoPostsData.find(v => v.id === videoId);
-  if (!video) return;
+  const raw = videoPostsData.find(v => v.id === videoId);
+  if (!raw) return;
+  const video = videoView(raw);
 
   const modal = document.getElementById("video-player-modal");
   const body = document.getElementById("video-modal-body");
   if (!modal || !body) return;
 
-  body.innerHTML = `
-    <div class="video-player-wrapper">
-      <div class="video-player-screen">
+  // an uploaded video: the real player (play / pause, seeking, volume, full screen); a sample video: the poster with a pulsing icon
+  const screen = video.yt
+    ? `<div class="video-player-screen video-player-yt">
+        <iframe src="https://www.youtube-nocookie.com/embed/${video.yt}?autoplay=1&rel=0&playsinline=1" title="${video.title}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>`
+    : video.uploaded
+    ? `<div class="video-player-screen video-player-real">
+        <video class="video-player-el" controls autoplay playsinline preload="metadata" poster="${video.thumbnail}" src="${video.src}"></video>
+        <div class="video-player-error" hidden>
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>हा व्हिडिओ चालू होऊ शकला नाही.</span>
+          <a class="btn-read-full" href="${video.src}" target="_blank" rel="noopener">व्हिडिओ फाईल उघडा</a>
+        </div>
+      </div>`
+    : `<div class="video-player-screen">
         ${fluidImg(video.thumbnail, video.title, [640, 800], "(max-width: 760px) 100vw, 720px", 'class="video-poster-img" decoding="async"')}
         <div class="video-playing-overlay">
           <div class="video-playing-pulse" onclick="showToast('व्हिडिओ प्लेबॅक सक्रिय')">
             <i class="fa-solid fa-circle-play"></i>
           </div>
-          <p style="color:#ffffff; font-weight:600; margin-top:12px; font-size:14px">
-            <i class="fa-solid fa-video"></i> HD व्हिडिओ स्ट्रीम उपलब्ध (${video.duration})
-          </p>
         </div>
-      </div>
+      </div>`;
+  const lengthLine = video.uploaded
+    ? (video.duration ? `<i class="fa-solid fa-video"></i> ${video.duration}` : "")
+    : `<i class="fa-solid fa-video"></i> HD व्हिडिओ स्ट्रीम उपलब्ध (${video.duration})`;
+  const whenLine = video.uploaded
+    ? `<i class="fa-regular fa-clock"></i> ${video.date}`
+    : `<i class="fa-solid fa-eye"></i> ${video.views} • <i class="fa-regular fa-clock"></i> ${video.date}`;
+  const buttons = video.uploaded
+    ? `<button class="btn-listen-audio" data-url="${escText(new URL(raw.src, window.location.href).href)}" onclick="copyVideoLink(this)">
+            <i class="fa-solid fa-share-nodes"></i> शेअर करा
+          </button>`
+    : `<button class="btn-read-full" onclick="showToast('व्हिडिओ प्लेलिस्टमध्ये सेव्ह केला')">
+            <i class="fa-regular fa-bookmark"></i> नंतर पाहा
+          </button>
+          <button class="btn-listen-audio" onclick="navigator.clipboard?.writeText(window.location.href); showToast('व्हिडिओ लिंक कॉपी केली!')">
+            <i class="fa-solid fa-share-nodes"></i> शेअर करा
+          </button>`;
+
+  body.innerHTML = `
+    <div class="video-player-wrapper">
+      ${screen}
       <div class="video-details-pad">
+        ${lengthLine ? `<p style="font-size:13px; font-weight:600; color:var(--meta-color); margin:0 0 10px">${lengthLine}</p>` : ""}
         <div class="video-meta-row">
           <span class="category-tag-badge video-badge" style="position:static">${video.categoryLabel}</span>
           <span style="font-size:12px; color:var(--meta-color)">
-            <i class="fa-solid fa-eye"></i> ${video.views} • <i class="fa-regular fa-clock"></i> ${video.date}
+            ${whenLine}
           </span>
         </div>
         <h3 style="font-size:18px; font-weight:700; color:var(--title-color); margin:10px 0 8px; line-height:1.4">
           ${video.title}
         </h3>
-        <p style="font-size:13.5px; color:var(--text-color); line-height:1.6; margin-bottom:14px">
-          ${video.description}
-        </p>
+        ${video.description ? `<p style="font-size:13.5px; color:var(--text-color); line-height:1.6; margin-bottom:14px">${video.description}</p>` : ""}
         <div style="display:flex; gap:10px; flex-wrap:wrap">
-          <button class="btn-read-full" onclick="showToast('व्हिडिओ प्लेलिस्टमध्ये सेव्ह केला')">
-            <i class="fa-regular fa-bookmark"></i> नंतर पाहा
-          </button>
-          <button class="btn-listen-audio" onclick="navigator.clipboard?.writeText(window.location.href); showToast('व्हिडिओ लिंक कॉपी केली!')">
-            <i class="fa-solid fa-share-nodes"></i> शेअर करा
-          </button>
+          ${buttons}
         </div>
       </div>
     </div>
   `;
 
   showModal(modal);
+
+  const player = body.querySelector("video.video-player-el");
+  if (player) {
+    player.addEventListener("error", () => {
+      const box = body.querySelector(".video-player-error");
+      if (box) box.hidden = false;
+    });
+    const started = player.play();            // (autoplay is also set; a browser that refuses leaves the play button of the controls)
+    if (started && started.catch) started.catch(() => {});
+  }
 };
 
 // --- Render Popular Items inside Slide-Out Drawer (Matching Image 2) ---
@@ -1451,7 +1531,7 @@ function renderDrawerPopularItems() {
   const container = document.getElementById("drawer-popular-list");
   if (!container) return;
 
-  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly");
+  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);   // (same order as the Popular widget)
   if (popularList.length < 4) {
     const remaining = articlesData.filter(a => a.category !== "weekly" && !popularList.some(p => p.id === a.id));
     popularList = popularList.concat(remaining).slice(0, 5);
@@ -1463,15 +1543,15 @@ function renderDrawerPopularItems() {
   if (!item0) return;
 
   container.innerHTML = `
-    <!-- Item 0 Large Card with Overlay (Matching Image 2) -->
-    <div class="popular-card-large" onclick="openArticlePage(${item0.id})" style="height:190px">
-      ${fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px")}
-      <div class="popular-card-overlay">
-        <span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>
-        <h4 class="popular-card-title">${item0.title}</h4>
-        <div class="popular-card-byline"><span class="by-word">by </span>${item0.author} - ${item0.date}</div>
-      </div>
-    </div>
+    <!-- Item 0 Large Card: photo, then the text below it -->
+    ${largeCardHTML({
+      cls: "drawer-popular-card",
+      onclick: `openArticlePage(${item0.id})`,
+      imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
+      badge: `<span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>`,
+      title: item0.title,
+      byline: `<span class="by-word">by </span>${item0.author} - ${item0.date}`,
+    })}
 
     <!-- Items List (Matching Image 2) -->
     ${otherItems.map(item => `
@@ -1815,10 +1895,9 @@ function weeklyLatestHTML(a) {
     <article class="weekly-latest">
       <div class="weekly-latest-cover" onclick="openArticlePage(${a.id})">
         ${fluidImg(a.image, issueLabel(a) + " — " + a.title, [480, 800, 1200], "(max-width: 980px) 100vw, 320px", HERO_IMG_ATTRS)}
-        <span class="latest-ribbon"><i class="fa-solid fa-bolt"></i> नवीनतम अंक</span>
-        ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="weekly-latest-info">
+        <span class="latest-chip"><i class="fa-solid fa-bolt"></i> नवीनतम अंक</span>
         <h2 class="weekly-latest-title" onclick="openArticlePage(${a.id})">${a.title}</h2>
         <div class="weekly-latest-meta">
           <span><i class="fa-regular fa-calendar"></i> ${a.date}</span>
@@ -1870,23 +1949,8 @@ function leadStoryHTML(article, { pdf = false, label = "" } = {}) {
       ${article.title}
     </h1>
 
-    <div class="author-meta-bar">
-      <div class="author-info-left">
-        <div class="author-circle-avatar">${article.author.substring(0, 2)}</div>
-        <div class="author-byline-text">
-          <span class="by-word">by </span><span class="author-name">${article.author}</span> - <span id="main-article-date">${article.date}</span>
-        </div>
-      </div>
-      <div class="author-meta-right">
-        <span><i class="fa-regular fa-comment"></i> ${getArticleComments(article.id).length} प्रतिक्रिया</span>
-        <span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>
-      </div>
-    </div>
-
     <div class="main-featured-media" id="main-featured-img-wrap" onclick="${open}">
       ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", `${HERO_IMG_ATTRS} id="main-story-image"`)}
-      <span class="category-tag-badge hero-badge">${label || article.categoryLabel}</span>
-      ${pdf && isIssue ? `<span class="latest-ribbon"><i class="fa-solid fa-bolt"></i> नवीनतम साप्ताहिक अंक</span>` : ""}
     </div>
 
     <div class="main-article-body" id="main-story-body">
@@ -1923,7 +1987,7 @@ function sharePillsHTML(article) {
           </a>
 
           <!-- X (Twitter) -->
-          <a href="https://twitter.com/intent/tweet?text=${t}&url=${u}" target="_blank" rel="noopener noreferrer" class="x-share-btn share-x" title="X (Twitter) वर शेअर करा">
+          <a href="https://twitter.com/intent/tweet?text=${t}&url=${u}" target="_blank" rel="noopener noreferrer" class="x-share-btn share-x" title="X वर शेअर करा">
             <i class="fa-brands fa-x-twitter"></i>
           </a>
 
@@ -2070,14 +2134,15 @@ function newsListHTML(filter) {
     </div>` : "");
 
   return `
-    <div class="popular-card-large news-featured" onclick="openArticlePage(${first.id})">
-      ${fluidImg(first.image, first.title, [480, 800, 1200], "(max-width: 980px) 100vw, 640px")}
-      <div class="popular-card-overlay">
-        <span class="category-tag-badge cat-${first.category}">${first.categoryLabel}</span>
-        <h3 class="popular-card-title">${first.title}</h3>
-        <div class="popular-card-byline">${first.date} • <i class="fa-regular fa-eye"></i> ${first.views}</div>
-      </div>
-    </div>
+    ${largeCardHTML({
+      cls: "news-featured",
+      onclick: `openArticlePage(${first.id})`,
+      imgHTML: fluidImg(first.image, first.title, [480, 800, 1200], "(max-width: 980px) 100vw, 640px"),
+      badge: `<span class="category-tag-badge cat-${first.category}">${first.categoryLabel}</span>`,
+      title: first.title,
+      titleTag: "h3",
+      byline: `${first.date} • <i class="fa-regular fa-eye"></i> ${first.views}`,
+    })}
     ${rest.map(postRowHTML).join("")}
     ${loadMoreBtnHTML}`;
 }
@@ -2102,7 +2167,6 @@ function weeklyRowHTML(item, folded) {
     <div class="secondary-post-item weekly-edition-item" data-year="${yearOfDate(item.date)}" data-search="${escText([item.title, item._mr_title, item.title_en, item.date, item._mr_date, item.excerpt, item._mr_excerpt, item.excerpt_en].filter(Boolean).join(" ").toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
         ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
-        ${WEEKLY_PDF ? `<span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>` : ""}
       </div>
       <div class="secondary-post-details">
         <h4 class="secondary-post-title">${item.title}</h4>
@@ -2382,10 +2446,6 @@ window.submitUserComment = function(articleId) {
   }
   
   // Update counts
-  const bylineCount = document.getElementById("post-comment-count");
-  if (bylineCount) {
-    bylineCount.innerHTML = `<i class="fa-regular fa-comment"></i> ${comments.length} प्रतिक्रिया`;
-  }
   const headingCount = document.getElementById("comments-heading-count");
   if (headingCount) {
     headingCount.innerText = `(${comments.length})`;
@@ -2456,27 +2516,12 @@ function renderArticleView(article) {
       ${article.title}
     </h1>
 
-    ${isIssue ? "" : `<div class="author-meta-bar">
-      <div class="author-info-left">
-        <div class="author-circle-avatar">${article.author.substring(0, 2)}</div>
-        <div class="author-byline-text">
-          <span class="by-word">by </span><span class="author-name">${article.author}</span> - <span>${article.date}</span>
-        </div>
-      </div>
-      <div class="author-meta-right">
-        <span id="post-comment-count"><i class="fa-regular fa-comment"></i> ${comments.length} प्रतिक्रिया</span>
-        <span><i class="fa-regular fa-eye"></i> ${article.views} वाचक</span>
-      </div>
-    </div>`}
-
     ${isIssue && WEEKLY_PDF ? `
     <!-- The weekly issue: cover + PDF e-paper -->
     <div class="issue-pdf-card">
       <div class="issue-pdf-cover" onclick="openWeeklyModal(${article.id})" role="button" tabindex="0" aria-label="PDF ई-पेपर वाचा"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWeeklyModal(${article.id});}">
         ${fluidImg(article.image, issueLabel(article) + " — " + article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", HERO_IMG_ATTRS)}
-        <span class="pdf-tag-overlay"><i class="fa-solid fa-file-pdf"></i> PDF</span>
-        <span class="issue-read-badge"><i class="fa-solid fa-book-open"></i> ऑनलाईन वाचा</span>
       </div>
       <div class="issue-pdf-info">
         <h2 class="issue-pdf-title">ई-पेपर (PDF) — मोफत वाचा व डाउनलोड करा</h2>
@@ -2518,7 +2563,7 @@ function renderArticleView(article) {
         <i class="fa-brands fa-facebook-f"></i> Facebook
       </a>
       <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(pageUrl)}" target="_blank" rel="noopener" class="social-icon-box tw share-btn">
-        <i class="fa-brands fa-x-twitter"></i> Twitter
+        <i class="fa-brands fa-x-twitter"></i> X
       </a>
       <button class="social-icon-box cp share-btn" onclick="navigator.clipboard?.writeText('${pageUrl}'); showToast('${isIssue ? "अंकाची" : "बातमी"} लिंक कॉपी केली!')">
         <i class="fa-solid fa-link"></i> कॉपी लिंक
@@ -3025,6 +3070,8 @@ window.closeModals = function(silent) {
   const wasOpen = !!document.querySelector(".modal-overlay.active");
   const reader = document.getElementById("weekly-epaper-modal");
   if (reader && reader.classList.contains("active")) resetReader();   // free the PDF pages
+  const videoWindow = document.getElementById("video-player-modal");
+  if (videoWindow && videoWindow.classList.contains("active")) stopVideoPlayer();   // the video stops with its window
   document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
   syncScrollLock();
   if (wasOpen && focusBeforeModal && document.contains(focusBeforeModal)) {
@@ -3192,21 +3239,32 @@ window.localizeDates = window.localizeDates || ((text) => text);
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
 
 // ===================================================================
-// Sync Portal with Python Flask REST API (/api/articles & /api/weekly)
-// Allows newly created articles/editions in the Admin Panel to show immediately
+// Sync Portal with Python Flask REST API (/api/articles, /api/weekly & /api/videos)
+// Allows newly created articles/editions/videos in the Admin Panel to show immediately
 // ===================================================================
+// One answer of the backend (parsed JSON), or null when there is none. A dropped connection - or an answer that breaks off halfway - is
+// asked ONCE more: on a flaky phone network one hiccup must not leave the built-in data on the screen (or send a shared #post link to Home).
+// A clear "no" (404 on a static host, any other 4xx) is not asked again.
+async function apiJson(path) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(API_BASE + path);
+      if (res.ok) return await res.json();
+      if (res.status < 500) return null;
+    } catch (err) { /* connection dropped / half an answer: one more try below */ }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return null;
+}
+
 async function syncPortalWithApi() {
   try {
     // The four built-in reviews are not in the database; remember them before the database data is merged in.
     const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
-    const [artRes, weekRes] = await Promise.all([
-      fetch(API_BASE + '/api/articles').catch(() => null),
-      fetch(API_BASE + '/api/weekly').catch(() => null)
-    ]);
+    const [artJson, weekJson, vidJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos')]);
     articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
-    if (artRes && artRes.ok) {
-      const artJson = await artRes.json();
+    if (artJson) {
       // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
       if (artJson.success && Array.isArray(artJson.articles)) {
         const dbIds = new Set(artJson.articles.map((a) => a.id));
@@ -3226,8 +3284,7 @@ async function syncPortalWithApi() {
         articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id) || builtInReviewIds.has(a.id));
       }
     }
-    if (weekRes && weekRes.ok) {
-      const weekJson = await weekRes.json();
+    if (weekJson) {
       // (an EMPTY list counts too: when the last issue is deleted in the Admin Panel the 68 built-in issues must not come back)
       if (weekJson.success && Array.isArray(weekJson.issues)) {
         const dbIssues = new Set();
@@ -3253,9 +3310,15 @@ async function syncPortalWithApi() {
         articlesData = articlesData.filter((a) => a.category !== 'weekly' || dbIssues.has(a.issue));
       }
     }
-    if (artRes && artRes.ok || weekRes && weekRes.ok) {
+    if (vidJson && vidJson.success && Array.isArray(vidJson.videos)) {
+      // the owner's uploads, newest first; none uploaded (or all deleted) = the sample videos
+      videoPostsData = vidJson.videos.length ? vidJson.videos.map(videoFromRow) : builtInVideos;
+      renderFeaturedVideos();
+    }
+    if (artJson || weekJson) {
       apiSyncPending = false;          // from now on an unknown address really is unknown
       routeWaitingForApi = false;
+      articlesData.sort(newerFirst);   // the most recently updated news first (Latest, Reviews, every section)
       fillBuiltInEnglish();            // (a row without English text must not wipe the built-in English)
       applyDataLanguage();
       if (typeof renderLabelCounts === 'function') renderLabelCounts();

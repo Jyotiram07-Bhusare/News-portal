@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS articles (
   excerpt_en    TEXT          NULL,
   content_en    MEDIUMTEXT    NULL,
   created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- set when the news is edited / marked Popular, Random, Lead: the website lists it first
   is_lead       TINYINT(1)    NOT NULL DEFAULT 0,
   is_popular    TINYINT(1)    NOT NULL DEFAULT 0,
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
@@ -41,4 +42,21 @@ CREATE TABLE IF NOT EXISTS weekly_editions (
   created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_weekly_issue_no (issue_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Videos uploaded in the Admin Panel (Videos). The website's "Featured Videos" widget lists the newest ones and plays the file itself.
+-- The backend also creates this table by itself the first time it is needed (an older database does not have it).
+CREATE TABLE IF NOT EXISTS videos (
+  id             INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  title          VARCHAR(500)    NOT NULL,
+  title_en       VARCHAR(500)    NOT NULL DEFAULT '',
+  description    TEXT            NULL,
+  description_en TEXT            NULL,
+  video_url      VARCHAR(1000)   NOT NULL,                 -- assets/videos/<file>, saved by POST /api/upload/video
+  thumbnail      VARCHAR(1000)   NOT NULL DEFAULT '',      -- a picture taken from the video by the Admin Panel (assets/images/video-poster_*.jpg)
+  duration_sec   INT UNSIGNED    NULL,
+  size_bytes     BIGINT UNSIGNED NULL,
+  sort_order     INT             NULL,                     -- the place on the website: 1 = first (the Admin Panel keeps the numbers 1..N)
+  created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

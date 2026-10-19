@@ -39,6 +39,12 @@
         </button>
       </div>
 
+      <!-- Language of the Admin Panel: one language at a time (admin-i18n.js). The two names stay as they are in both languages. -->
+      <div class="admin-lang-switch" role="group" aria-label="भाषा / Language" data-no-i18n>
+        <button type="button" class="admin-lang-opt active" data-lang="mr" aria-pressed="true" onclick="setLanguage('mr')">मराठी</button>
+        <button type="button" class="admin-lang-opt" data-lang="en" aria-pressed="false" onclick="setLanguage('en')">English</button>
+      </div>
+
       <nav class="sidebar-nav">
         <div class="nav-section-title">मुख्य मेनू</div>
         <a href="#dashboard" class="nav-item active" data-tab="tab-dashboard">
@@ -55,9 +61,10 @@
           <span>साप्ताहिक ई-पेपर (Weekly PDF)</span>
           <span class="nav-badge" id="sidebar-weekly-count">…</span>
         </a>
-        <a href="#media" class="nav-item" data-tab="tab-media">
-          <i class="fa-regular fa-images"></i>
-          <span>मीडिया लायब्ररी (Media)</span>
+        <a href="#videos" class="nav-item" data-tab="tab-videos">
+          <i class="fa-solid fa-film"></i>
+          <span>व्हिडिओ अपलोड (Videos)</span>
+          <span class="nav-badge" id="sidebar-videos-count">…</span>
         </a>
 
         <div class="nav-section-title">थेट पोर्टल</div>
@@ -331,37 +338,39 @@
         </section>
 
         <!-- ============================================== -->
-        <!-- TAB 4: MEDIA LIBRARY -->
+        <!-- TAB 4: VIDEOS (upload -> the website's "Featured Videos" widget, played on the website itself) -->
         <!-- ============================================== -->
-        <section class="admin-tab" id="tab-media">
+        <section class="admin-tab" id="tab-videos">
           <div class="tab-toolbar">
             <div class="toolbar-left">
-              <h2 class="tab-title">मीडिया लायब्ररी (Media Files)</h2>
-              <p class="tab-desc">पोर्टलवरील सर्व फोटो व PDF दस्तऐवज संग्रह.</p>
+              <h2 class="tab-title">व्हिडिओ अपलोड व व्यवस्थापन</h2>
+              <p class="tab-desc">येथे अपलोड केलेला व्हिडिओ आणि त्याचे शीर्षक वेबसाईटवरील "निवडक व्हिडिओ" मध्ये दिसते आणि तिथेच प्ले होते.</p>
             </div>
             <div class="toolbar-right">
-              <input type="file" id="media-quick-upload-input" accept="image/*,application/pdf" style="display:none;" onchange="handleMediaQuickUpload(this)">
-              <button class="btn btn-primary" onclick="document.getElementById('media-quick-upload-input').click()">
-                <i class="fa-solid fa-cloud-arrow-up"></i> थेट फाईल अपलोड करा
+              <button class="btn btn-primary" onclick="openNewVideoModal()">
+                <i class="fa-solid fa-video"></i> नवीन व्हिडिओ अपलोड करा
               </button>
             </div>
           </div>
 
-          <div class="media-tabs-nav">
-            <button class="media-tab-btn active" id="btn-show-images" onclick="toggleMediaTab('images')">
-              <i class="fa-regular fa-image"></i> फोटो संग्रह (<span id="media-images-count">0</span>)
-            </button>
-            <button class="media-tab-btn" id="btn-show-pdfs" onclick="toggleMediaTab('pdfs')">
-              <i class="fa-regular fa-file-pdf"></i> PDF दस्तऐवज (<span id="media-pdfs-count">0</span>)
-            </button>
-          </div>
-
-          <div class="media-grid" id="media-images-grid">
-            <!-- Injected via JS -->
-          </div>
-
-          <div class="media-grid" id="media-pdfs-grid" style="display: none;">
-            <!-- Injected via JS -->
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="videos-table">
+                <thead>
+                  <tr>
+                    <th style="width: 120px;">व्हिडिओ</th>
+                    <th>व्हिडिओचे शीर्षक</th>
+                    <th style="width: 90px;">कालावधी</th>
+                    <th style="width: 100px;">आकार</th>
+                    <th style="width: 130px;">अपलोड तारीख</th>
+                    <th style="width: 150px; text-align: center;">कृती</th>
+                  </tr>
+                </thead>
+                <tbody id="videos-table-body">
+                  <tr><td colspan="6" style="text-align: center; padding: 30px;">लोड होत आहे...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </div>
@@ -384,26 +393,22 @@
             <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('article-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
             <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('article-modal', 'en')">English <i class="lang-dot"></i></button>
           </div>
-          <p class="form-hint lang-help" data-lang-field="en" hidden>English आवृत्ती ऐच्छिक आहे. ती रिकामी ठेवली तर वेबसाईट English मध्ये दाखवताना मराठी मजकूरच दाखवेल. तारीख, फोटो, श्रेणी आणि बाकीची माहिती दोन्ही भाषांसाठी एकच असते.</p>
-          <p class="form-hint lang-note" data-db-note hidden>⚠ या डेटाबेसमध्ये अजून English कॉलम्स नाहीत, म्हणून English मजकूर जतन होणार नाही (मराठी जतन होईल). backend फोल्डरमध्ये <b>python init_db.py</b> एकदा चालवा, मग English जतन होईल.</p>
-
-
           <div class="form-row">
             <div class="form-group flex-2" data-lang-field="mr">
               <label for="form-article-title">बातमीचे मुख्य शीर्षक (Headline) <span class="req">*</span></label>
-              <input type="text" id="form-article-title" required maxlength="500" placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control">
+              <input type="text" id="form-article-title" required maxlength="500" placeholder="उदा. सोलापूर दक्षिण विधानसभा: आमदार सुभाष बापू देशमुख यांचा ऐतिहासिक विजय..." class="form-control" data-no-i18n>
             </div>
             <div class="form-group flex-2" data-lang-field="en" hidden>
               <label for="form-article-title-en">News headline (English)</label>
-              <input type="text" id="form-article-title-en" maxlength="500" placeholder="e.g. Solapur South: MLA Subhash Bapu Deshmukh wins by a record margin" class="form-control">
+              <input type="text" id="form-article-title-en" maxlength="500" placeholder="e.g. Solapur South: MLA Subhash Bapu Deshmukh wins by a record margin" class="form-control" data-no-i18n>
             </div>
             <div class="form-group flex-1">
               <label for="form-article-category">बातमीची श्रेणी (Category) <span class="req">*</span></label>
               <select id="form-article-category" required class="form-control" onchange="autoSetCategoryLabel()">
-                <option value="rajkiy">राजकीय (आमदार सुभाष बापू देशमुख)</option>
-                <option value="samajik">सामाजिक (लोकमंगल प्रकल्प)</option>
-                <option value="blogs">ब्लॉग्स (विचारमंथन)</option>
-                <option value="review">परीक्षण / रिव्ह्यू (साहित्य/कला)</option>
+                <option value="rajkiy">राजकीय</option>
+                <option value="samajik">सामाजिक</option>
+                <option value="blogs">ब्लॉग्स</option>
+                <option value="review">परीक्षण / रिव्ह्यू</option>
               </select>
             </div>
           </div>
@@ -419,7 +424,6 @@
                     <span class="badge-icon gold"><i class="fa-solid fa-star"></i></span>
                     <strong>मुख्य प्रमुख बातमी (Lead Story)</strong>
                   </div>
-                  <p>होम पेजच्या सर्वात वर ठळक मुख्य बातमी म्हणून दिसेल.</p>
                 </div>
               </label>
 
@@ -430,7 +434,6 @@
                     <span class="badge-icon red"><i class="fa-solid fa-fire"></i></span>
                     <strong>लोकप्रिय बातम्या (Popular Posts)</strong>
                   </div>
-                  <p>डाव्या बाजूच्या 'लोकप्रिय बातम्या' विजेटमध्ये दिसेल.</p>
                 </div>
               </label>
 
@@ -441,7 +444,6 @@
                     <span class="badge-icon green"><i class="fa-solid fa-shuffle"></i></span>
                     <strong>यादृच्छिक बातम्या (Random Posts)</strong>
                   </div>
-                  <p>उजव्या बाजूच्या 2x2 यादृच्छिक ग्रीडमध्ये दिसेल.</p>
                 </div>
               </label>
             </div>
@@ -454,7 +456,7 @@
             </div>
             <div class="form-group flex-1" data-lang-field="en" hidden>
               <label for="form-article-author-en">Reporter / author (English)</label>
-              <input type="text" id="form-article-author-en" maxlength="200" class="form-control" placeholder="e.g. Special Correspondent">
+              <input type="text" id="form-article-author-en" maxlength="200" class="form-control" placeholder="e.g. Special Correspondent" data-no-i18n>
             </div>
             <div class="form-group flex-1">
               <label for="form-article-date">प्रकाशन तारीख <span class="req">*</span></label>
@@ -477,7 +479,6 @@
                 <div class="file-drop-area" onclick="document.getElementById('article-file-input').click()">
                   <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
                   <span>संगणकातून फोटो निवडा (Upload Image)</span>
-                  <small>JPG, PNG, WebP सपोर्टेड</small>
                 </div>
                 <input type="file" id="article-file-input" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(this)">
                 
@@ -490,37 +491,21 @@
           <!-- Excerpt -->
           <div class="form-group" data-lang-field="mr">
             <label for="form-article-excerpt">थोडक्यात सारांश (Excerpt / Lead Summary) <span class="req">*</span></label>
-            <textarea id="form-article-excerpt" rows="2" class="form-control" required placeholder="बातमीचा संक्षिप्त सारांश जो मुख्य पानावर दिसेल..."></textarea>
+            <textarea id="form-article-excerpt" rows="2" class="form-control" required placeholder="बातमीचा संक्षिप्त सारांश जो मुख्य पानावर दिसेल..." data-no-i18n></textarea>
           </div>
           <div class="form-group" data-lang-field="en" hidden>
             <label for="form-article-excerpt-en">Short summary (English)</label>
-            <textarea id="form-article-excerpt-en" rows="2" class="form-control" placeholder="A short summary that appears on the front page..."></textarea>
+            <textarea id="form-article-excerpt-en" rows="2" class="form-control" placeholder="A short summary that appears on the front page..." data-no-i18n></textarea>
           </div>
 
           <!-- Content with Rich Helpers -->
           <div class="form-group" data-lang-field="mr">
-            <div class="editor-header">
-              <label for="form-article-content">सविस्तर बातमी मजकूर (Full Content / HTML) <span class="req">*</span></label>
-              <div class="editor-toolbar">
-                <button type="button" class="btn-tool" onclick="insertContentTag('p')" title="परिच्छेद (Paragraph)">&lt;p&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('strong')" title="ठळक (Bold)">&lt;b&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('h4')" title="उपशीर्षक (Subheading)">&lt;h4&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('blockquote')" title="उद्धरण (Quote)">&lt;quote&gt;</button>
-              </div>
-            </div>
-            <textarea id="form-article-content" rows="6" class="form-control font-code" required placeholder="<p><strong>सोलापूर:</strong> बातमीचा सविस्तर मजकूर येथे लिहा...</p>"></textarea>
+            <label for="form-article-content">सविस्तर बातमी मजकूर <span class="req">*</span></label>
+            <textarea id="form-article-content" rows="9" class="form-control" required placeholder="बातमीचा सविस्तर मजकूर येथे लिहा… (नवा परिच्छेद सुरू करण्यासाठी एक ओळ सोडा)"></textarea>
           </div>
           <div class="form-group" data-lang-field="en" hidden>
-            <div class="editor-header">
-              <label for="form-article-content-en">Full story (English, HTML allowed)</label>
-              <div class="editor-toolbar">
-                <button type="button" class="btn-tool" onclick="insertContentTag('p', 'form-article-content-en')" title="Paragraph">&lt;p&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('strong', 'form-article-content-en')" title="Bold">&lt;b&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('h4', 'form-article-content-en')" title="Subheading">&lt;h4&gt;</button>
-                <button type="button" class="btn-tool" onclick="insertContentTag('blockquote', 'form-article-content-en')" title="Quote">&lt;quote&gt;</button>
-              </div>
-            </div>
-            <textarea id="form-article-content-en" rows="6" class="form-control font-code" placeholder="<p><strong>Solapur:</strong> the full story in English...</p>"></textarea>
+            <label for="form-article-content-en">Full story (English)</label>
+            <textarea id="form-article-content-en" rows="9" class="form-control" placeholder="Write the full story in English here… (leave a blank line to start a new paragraph)"></textarea>
           </div>
 
           <div class="modal-footer">
@@ -552,14 +537,11 @@
             <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('weekly-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
             <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('weekly-modal', 'en')">English <i class="lang-dot"></i></button>
           </div>
-          <p class="form-hint lang-help" data-lang-field="en" hidden>English आवृत्ती ऐच्छिक आहे. ती रिकामी ठेवली तर वेबसाईट English मध्ये दाखवताना मराठी मजकूरच दाखवेल. तारीख, फोटो, श्रेणी आणि बाकीची माहिती दोन्ही भाषांसाठी एकच असते.</p>
-          <p class="form-hint lang-note" data-db-note hidden>⚠ या डेटाबेसमध्ये अजून English कॉलम्स नाहीत, म्हणून English मजकूर जतन होणार नाही (मराठी जतन होईल). backend फोल्डरमध्ये <b>python init_db.py</b> एकदा चालवा, मग English जतन होईल.</p>
-
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="form-weekly-no">क्रम क्रमांक (तारखेनुसार) <span class="req">*</span></label>
               <input type="number" id="form-weekly-no" required min="1" max="9999" class="form-control" placeholder="उदा. ६९">
-              <small class="form-hint" id="form-weekly-no-hint">पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन <b>तारीख</b> असलेला अंक "नवीनतम अंक" होतो.</small>
+              <small class="form-hint" id="form-weekly-no-hint">पुढचा क्रमांक आपोआप येतो. साईटवर क्रमांक दिसत नाही, तारीख दिसते — सर्वात नवीन तारीख असलेला अंक "नवीनतम अंक" होतो.</small>
             </div>
             <div class="form-group flex-2">
               <label for="form-weekly-date">प्रकाशन तारीख <span class="req">*</span></label>
@@ -570,11 +552,11 @@
 
           <div class="form-group" data-lang-field="mr">
             <label for="form-weekly-title">अंकाचे शीर्षक (पहिल्या पानावरची मुख्य हेडलाईन) <span class="req">*</span></label>
-            <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. मंत्री दादाजी भुसे यांची शाळांच्या दुरुस्तीबाबत बैठक !">
+            <input type="text" id="form-weekly-title" required class="form-control" placeholder="उदा. मंत्री दादाजी भुसे यांची शाळांच्या दुरुस्तीबाबत बैठक !" data-no-i18n>
           </div>
           <div class="form-group" data-lang-field="en" hidden>
             <label for="form-weekly-title-en">Issue headline (English) - the main headline of the front page</label>
-            <input type="text" id="form-weekly-title-en" maxlength="500" class="form-control" placeholder="e.g. Minister Dadaji Bhuse holds a meeting on school repairs">
+            <input type="text" id="form-weekly-title-en" maxlength="500" class="form-control" placeholder="e.g. Minister Dadaji Bhuse holds a meeting on school repairs" data-no-i18n>
           </div>
 
           <!-- PDF Upload Field -->
@@ -607,17 +589,97 @@
 
           <div class="form-group" data-lang-field="mr">
             <label for="form-weekly-desc">अंकाचा थोडक्यात परिचय / वर्णन</label>
-            <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="मुख्य बातमीची सुरुवात (छोटा मजकूर, २-३ वाक्ये)..."></textarea>
+            <textarea id="form-weekly-desc" rows="2" class="form-control" placeholder="मुख्य बातमीची सुरुवात (छोटा मजकूर, २-३ वाक्ये)..." data-no-i18n></textarea>
           </div>
           <div class="form-group" data-lang-field="en" hidden>
             <label for="form-weekly-desc-en">Short introduction (English)</label>
-            <textarea id="form-weekly-desc-en" rows="2" class="form-control" placeholder="Start of the main story (2-3 sentences)"></textarea>
+            <textarea id="form-weekly-desc-en" rows="2" class="form-control" placeholder="Start of the main story (2-3 sentences)" data-no-i18n></textarea>
           </div>
 
           <div class="modal-footer">
             <button type="button" class="btn btn-outline" onclick="closeWeeklyModal()">रद्द करा</button>
             <button type="submit" class="btn btn-primary" id="btn-save-weekly">
               <i class="fa-solid fa-cloud-arrow-up"></i> अंक जतन व प्रकाशित करा
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: UPLOAD / EDIT VIDEO -->
+  <!-- ========================================================= -->
+  <div class="admin-modal-backdrop" id="video-modal">
+    <div class="admin-modal">
+      <div class="modal-header">
+        <h3 id="video-modal-title"><i class="fa-solid fa-film"></i> नवीन व्हिडिओ अपलोड करा</h3>
+        <button class="modal-close-btn" onclick="closeVideoModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="video-form" onsubmit="handleVideoFormSubmit(event)">
+          <!-- The video file: chosen here, uploaded when the form is saved (cancelling leaves nothing behind) -->
+          <div class="form-group">
+            <label>व्हिडिओ (फाईल अपलोड करा किंवा लिंक द्या) <span class="req">*</span></label>
+            <div class="file-drop-area video-drop-area" id="video-drop-area" tabindex="0" role="button" onclick="document.getElementById('video-file-input').click()">
+              <i class="fa-solid fa-film drop-icon"></i>
+              <span id="video-filename-display">व्हिडिओ फाईल निवडा किंवा ड्रॅग करा</span>
+              <small id="video-limit-note">MP4 किंवा WebM • कमाल मर्यादा २०० MB</small>
+            </div>
+            <input type="file" id="video-file-input" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.m4v,.mov,.webm,.ogv" style="display:none;" onchange="handleVideoFileChosen(this)">
+            <div class="video-link-field">
+              <input type="text" id="form-video-link" class="form-control" inputmode="url" autocomplete="off" placeholder="किंवा YouTube / .mp4 लिंक येथे paste करा (https://...)" oninput="handleVideoLinkInput()">
+            </div>
+            <div class="video-link-preview" id="video-link-preview" hidden>
+              <img id="video-link-thumb" class="video-form-preview video-link-thumb" alt="" hidden data-no-i18n>
+              <div class="video-form-meta" id="video-link-note"></div>
+              <p class="video-form-warn" id="video-link-warn" hidden></p>
+            </div>
+            <div class="video-form-preview-wrap" id="video-preview-wrap" hidden>
+              <video id="video-preview" class="video-form-preview" controls playsinline preload="metadata"></video>
+              <div class="video-form-meta" id="video-form-meta" data-no-i18n></div>
+              <p class="video-form-warn" id="video-form-warn" hidden><i class="fa-solid fa-triangle-exclamation"></i> हा व्हिडिओ या ब्राउझरमध्ये चालत नाही — वेबसाईटवरही चालणार नाही. MP4 (H.264) मध्ये convert करून पुन्हा निवडा.</p>
+            </div>
+          </div>
+
+          <div class="lang-tabs" role="tablist" aria-label="भाषा / Language">
+            <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('video-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
+            <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('video-modal', 'en')">English <i class="lang-dot"></i></button>
+          </div>
+          <div class="form-group" data-lang-field="mr">
+            <label for="form-video-title">व्हिडिओचे शीर्षक <span class="req">*</span></label>
+            <input type="text" id="form-video-title" required maxlength="500" class="form-control" placeholder="उदा. सोलापूर दक्षिण विजयोत्सव: आमदारांचे जाहीर आभार" data-no-i18n>
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-video-title-en">Video title (English)</label>
+            <input type="text" id="form-video-title-en" maxlength="500" class="form-control" placeholder="e.g. Solapur South victory celebration: the MLA's public thanks" data-no-i18n>
+          </div>
+          <div class="form-group" data-lang-field="mr">
+            <label for="form-video-desc">थोडक्यात वर्णन</label>
+            <textarea id="form-video-desc" rows="2" class="form-control" placeholder="व्हिडिओबद्दल १-२ वाक्ये (पर्यायी)" data-no-i18n></textarea>
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-video-desc-en">Short description (English)</label>
+            <textarea id="form-video-desc-en" rows="2" class="form-control" placeholder="1-2 sentences about the video (optional)" data-no-i18n></textarea>
+          </div>
+
+          <div class="form-group video-order-group">
+            <label for="form-video-order">क्रम क्रमांक (१ = सर्वात वर)</label>
+            <input type="number" id="form-video-order" class="form-control" min="1" step="1" required>
+          </div>
+
+          <div class="video-upload-progress" id="video-progress" role="status" aria-live="polite" hidden>
+            <div class="video-progress-track"><div class="video-progress-bar" id="video-progress-bar"></div></div>
+            <div class="video-progress-line">
+              <span id="video-progress-label">व्हिडिओ अपलोड होत आहे...</span>
+              <span id="video-progress-pct" data-no-i18n></span>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeVideoModal()">रद्द करा</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-video">
+              <i class="fa-solid fa-cloud-arrow-up"></i> व्हिडिओ जतन व प्रकाशित करा
             </button>
           </div>
         </form>
@@ -637,15 +699,15 @@
       <div class="modal-body preview-modal-body">
         <div class="preview-article-header">
           <span class="preview-badge" id="prev-badge">राजकीय</span>
-          <h2 class="preview-title" id="prev-title">बातमी शीर्षक</h2>
+          <h2 class="preview-title" id="prev-title" data-no-i18n>बातमी शीर्षक</h2>
           <div class="preview-byline">
-            by <span id="prev-author">प्रतिनिधी</span> • <span id="prev-date">तारीख</span> • <span id="prev-views">वाचक</span>
+            by <span id="prev-author" data-no-i18n>प्रतिनिधी</span> • <span id="prev-date">तारीख</span> • <span id="prev-views">वाचक</span>
           </div>
         </div>
         <div class="preview-image-wrap">
           <img src="" id="prev-img" alt="Preview Image">
         </div>
-        <div class="preview-content" id="prev-content">
+        <div class="preview-content" id="prev-content" data-no-i18n>
           <!-- Injected -->
         </div>
       </div>
@@ -660,6 +722,8 @@
 
   <!-- Admin JS Engine -->
   <script src="/js/config.js"></script>
+  <script src="/admin/admin-i18n.js"></script>
   <script src="/admin/admin.js"></script>
+  <script src="/admin/admin-videos.js"></script>
 </body>
 </html>

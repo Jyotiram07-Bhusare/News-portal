@@ -1,7 +1,7 @@
 """Create the MySQL database and its tables. Safe to run again - nothing is dropped or overwritten.
 
-    python init_db.py            create the database + tables (an older database also gets the English columns, and the sample
-                                 news / issues that exist get their English text - only where it is still empty)
+    python init_db.py            create the database + tables (articles, weekly_editions, videos; an older database also gets the English columns
+                                 and updated_at, and the sample news / issues that exist get their English text - only where it is still empty)
     python init_db.py --seed     ... and load the sample content (seed/*.json) when the tables are empty
 """
 import argparse
@@ -27,29 +27,28 @@ def create_database():
 
 
 def create_tables():
-    sql = config.SCHEMA_FILE.read_text(encoding="utf-8")
-    sql = "\n".join(line for line in sql.splitlines() if not line.strip().startswith("--"))
     with database.connection() as conn:
         cur = conn.cursor()
-        for statement in (s.strip() for s in sql.split(";")):
-            if statement:
-                cur.execute(statement)
+        for statement in database.schema_statements():
+            cur.execute(statement)
 
 
 def add_missing_columns():
-    """An older database has no English columns yet: add them (nothing is dropped or changed). Returns the names added."""
+    """An older database lacks the English columns / updated_at: add them (nothing is dropped or changed). Returns the names added."""
     added = []
     with database.connection() as conn:
         cur = conn.cursor()
-        for table, columns in database.ENGLISH_COLUMNS.items():
-            cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
-                        (config.DB_NAME, table))
-            have = {r["COLUMN_NAME"] for r in cur.fetchall()}
-            for name, ddl in columns:
-                if name not in have:
-                    cur.execute(f"ALTER TABLE `{table}` ADD COLUMN `{name}` {ddl}")
-                    added.append(f"{table}.{name}")
+        for spec in (database.ENGLISH_COLUMNS, database.UPDATED_COLUMNS):
+            for table, columns in spec.items():
+                cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
+                            (config.DB_NAME, table))
+                have = {r["COLUMN_NAME"] for r in cur.fetchall()}
+                for name, ddl in columns:
+                    if name not in have:
+                        cur.execute(f"ALTER TABLE `{table}` ADD COLUMN `{name}` {ddl}")
+                        added.append(f"{table}.{name}")
     database._english_state.update(ok=False, checked=0.0)        # a running backend in this process looks again
+    database._updated_state.update(ok=False, checked=0.0)
     return added
 
 
@@ -68,7 +67,7 @@ def main():
         sys.exit(1)
     print("Database and tables are ready.")
     if added:
-        print("English columns added: " + ", ".join(added))
+        print("Columns added: " + ", ".join(added))
     try:
         filled = seed_data.fill_english()       # the sample news / issues that exist get their English text (empty English fields only)
     except pymysql.MySQLError as e:
