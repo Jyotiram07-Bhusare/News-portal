@@ -38,7 +38,7 @@ def add_missing_columns():
     added = []
     with database.connection() as conn:
         cur = conn.cursor()
-        for spec in (database.ENGLISH_COLUMNS, database.UPDATED_COLUMNS):
+        for spec in (database.ENGLISH_COLUMNS, database.UPDATED_COLUMNS, database.LATEST_COLUMNS):
             for table, columns in spec.items():
                 cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
                             (config.DB_NAME, table))
@@ -49,6 +49,7 @@ def add_missing_columns():
                         added.append(f"{table}.{name}")
     database._english_state.update(ok=False, checked=0.0)        # a running backend in this process looks again
     database._updated_state.update(ok=False, checked=0.0)
+    database._latest_state.update(ok=False, checked=0.0)
     return added
 
 

@@ -565,6 +565,8 @@ function renderArticlesTable() {
       list = list.filter(a => Number(a.is_popular) === 1);
     } else if (appState.placementFilter === 'random') {
       list = list.filter(a => Number(a.is_random) === 1);
+    } else if (appState.placementFilter === 'latest') {
+      list = list.filter(a => a.is_latest === undefined || Number(a.is_latest) === 1);
     }
   }
 
@@ -619,6 +621,11 @@ function renderArticlesTable() {
                   onclick="toggleArticlePlacement(${a.id}, 'is_random')" 
                   title="${Number(a.is_random) === 1 ? 'यादृच्छिक मधून काढा' : 'यादृच्छिक बातम्यांमध्ये जोडा'}">
             <i class="fa-solid fa-shuffle"></i> Random
+          </button>
+          <button type="button" class="placement-btn ${a.is_latest === undefined || Number(a.is_latest) === 1 ? 'is-active-latest' : ''}" 
+                  onclick="toggleArticlePlacement(${a.id}, 'is_latest')" 
+                  title="${a.is_latest === undefined || Number(a.is_latest) === 1 ? 'ताज्या बातम्यांमधून काढा' : 'ताज्या बातम्यांमध्ये जोडा'}">
+            <i class="fa-regular fa-newspaper"></i> Latest
           </button>
         </div>
       </td>
@@ -697,6 +704,8 @@ function openNewArticleModal() {
   if (popChk) popChk.checked = false;
   const rndChk = document.getElementById('form-article-is-random');
   if (rndChk) rndChk.checked = false;
+  const latestChk = document.getElementById('form-article-is-latest');
+  if (latestChk) latestChk.checked = true;                 // a new news is listed in Latest News unless it is un-ticked
 
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
   document.getElementById('form-article-views').value = '1.8K';
@@ -730,6 +739,8 @@ function openEditArticleModal(articleId) {
   if (popChk) popChk.checked = Number(a.is_popular) === 1;
   const rndChk = document.getElementById('form-article-is-random');
   if (rndChk) rndChk.checked = Number(a.is_random) === 1;
+  const latestChk = document.getElementById('form-article-is-latest');
+  if (latestChk) latestChk.checked = a.is_latest === undefined || Number(a.is_latest) === 1;
 
   document.getElementById('form-article-author').value = a.author || 'प्रतिनिधी';
   document.getElementById('form-article-date').value = a.date || '';
@@ -867,6 +878,7 @@ async function handleArticleFormSubmit(e) {
   const is_lead = document.getElementById('form-article-is-lead')?.checked ? 1 : 0;
   const is_popular = document.getElementById('form-article-is-popular')?.checked ? 1 : 0;
   const is_random = document.getElementById('form-article-is-random')?.checked ? 1 : 0;
+  const is_latest = document.getElementById('form-article-is-latest')?.checked ? 1 : 0;
 
   const labels = {
     rajkiy: 'राजकीय',
@@ -882,6 +894,7 @@ async function handleArticleFormSubmit(e) {
     is_lead,
     is_popular,
     is_random,
+    is_latest,
     author,
     date,
     views,

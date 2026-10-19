@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS articles (
   is_lead       TINYINT(1)    NOT NULL DEFAULT 0,
   is_popular    TINYINT(1)    NOT NULL DEFAULT 0,
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
+  is_latest     TINYINT(1)    NOT NULL DEFAULT 1,                   -- 1 = listed in the Home page's Latest News section
   PRIMARY KEY (id),
   KEY idx_articles_category (category)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

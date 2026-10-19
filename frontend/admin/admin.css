@@ -1327,6 +1327,20 @@ body.dark-theme .placement-btn.is-active-random {
   color: #bbf7d0;
 }
 
+.placement-btn.is-active-latest {
+  background: #e0f2fe;
+  border-color: #0ea5e9;
+  color: #0369a1;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(14, 165, 233, 0.25);
+}
+
+body.dark-theme .placement-btn.is-active-latest {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: #38bdf8;
+  color: #bae6fd;
+}
+
 /* Modal Placement Selection Cards */
 /* compact: three small tiles (icon + name + tick box), no description line */
 .placement-box-group {
@@ -1344,9 +1358,15 @@ body.dark-theme .placement-btn.is-active-random {
 
 .placement-cards-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-top: 8px;
+}
+
+@media (max-width: 860px) {
+  .placement-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));      /* tablet: two tiles per row (the phone rule below makes it one) */
+  }
 }
 
 .placement-box-group .placement-card {       /* (beats ".form-group label { display: block; margin-bottom }") */

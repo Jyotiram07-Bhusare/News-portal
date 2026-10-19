@@ -490,6 +490,10 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": config.CORS_ORIGINS}})
     app.register_blueprint(api)
     register_errors(app)
+    try:
+        database.ensure_latest_column()      # an older database gets articles.is_latest (the Latest News placement) once, here
+    except pymysql.MySQLError:
+        pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:
         register_frontend(app)
     return app

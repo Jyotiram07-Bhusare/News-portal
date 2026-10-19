@@ -53,6 +53,11 @@ ENGLISH_COLUMNS = {
 UPDATED_COLUMNS = {
     "articles": (("updated_at", "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"),),
 }
+# The 4th placement: is_latest = 1 -> the news is listed in the Home page's "ताज्या बातम्या" (Latest News) section. Every news is 1 until the
+# Admin Panel un-ticks it (so an older database looks the same after the column is added).
+LATEST_COLUMNS = {
+    "articles": (("is_latest", "TINYINT(1) NOT NULL DEFAULT 1"),),
+}
 
 
 # -------------------------------------------------------------
@@ -173,6 +178,7 @@ def ensure_videos_table() -> None:
 
 _english_state = {"ok": False, "checked": 0.0}
 _updated_state = {"ok": False, "checked": 0.0}
+_latest_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -201,6 +207,25 @@ def has_english() -> bool:
 def has_updated() -> bool:
     """True when `articles` has updated_at (an older database gets it from `python init_db.py`; until then nothing is stamped)."""
     return _has_columns(UPDATED_COLUMNS, _updated_state)
+
+
+def has_latest() -> bool:
+    """True when `articles` has is_latest."""
+    return _has_columns(LATEST_COLUMNS, _latest_state)
+
+
+def ensure_latest_column() -> bool:
+    """An older database gets articles.is_latest here (once, at start-up; every existing news = 1). Returns whether the column is there."""
+    if has_latest():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN is_latest TINYINT(1) NOT NULL DEFAULT 1")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _latest_state.update(ok=False, checked=0.0)
+    return has_latest()
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:
@@ -245,7 +270,7 @@ def get_articles(category: Optional[str] = None, search: Optional[str] = None,
         sql += " AND category = %s"
         params.append(category)
 
-    column = {"lead": "is_lead", "popular": "is_popular", "random": "is_random"}.get(placement or "")
+    column = {"lead": "is_lead", "popular": "is_popular", "random": "is_random", "latest": "is_latest" if has_latest() else None}.get(placement or "")
     if column:
         sql += f" AND {column} = 1"
 
@@ -276,6 +301,7 @@ def create_article(data: Dict[str, Any]) -> int:
     category_label = _text(data, "categoryLabel") or CATEGORY_LABELS.get(category, DEFAULT_CATEGORY_LABEL)
     is_lead, is_popular, is_random = (_flag(data.get(f, 0)) for f in PLACEMENT_FIELDS)
     english = ARTICLE_EN if has_english() else ()
+    latest = ("is_latest",) if has_latest() else ()
 
     with connection() as conn:
         cur = conn.cursor()
@@ -284,8 +310,8 @@ def create_article(data: Dict[str, Any]) -> int:
         cur.execute(
             f"""INSERT INTO articles
                    (title, category, categoryLabel, author, `date`, image, excerpt, content, views,
-                    is_lead, is_popular, is_random{"".join(f", {c}" for c in english)})
-               VALUES ({", ".join(["%s"] * (12 + len(english)))})""",
+                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *latest))})
+               VALUES ({", ".join(["%s"] * (12 + len(english) + len(latest)))})""",
             (
                 _text(data, "title"),
                 category,
@@ -300,6 +326,7 @@ def create_article(data: Dict[str, Any]) -> int:
                 is_popular,
                 is_random,
                 *(_text(data, c) for c in english),
+                *((_flag(data.get("is_latest", 1)),) if latest else ()),        # (listed in Latest News unless the form says no)
             ),
         )
         return cur.lastrowid
@@ -313,10 +340,10 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
     fields: List[str] = []
     values: List[Any] = []
     for key in ("title", "category", "categoryLabel", "author", "date", "image", "excerpt", "content", "views",
-                *PLACEMENT_FIELDS, *(ARTICLE_EN if has_english() else ())):
+                *PLACEMENT_FIELDS, *(("is_latest",) if has_latest() else ()), *(ARTICLE_EN if has_english() else ())):
         if key in data:
             fields.append(f"`{key}` = %s")
-            values.append(_flag(data[key]) if key in PLACEMENT_FIELDS else data[key])
+            values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest") else data[key])
     if not fields:
         return False
     if has_updated():
@@ -335,7 +362,7 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
 
 def toggle_placement(article_id: int, field: str, value: Any = None) -> Optional[Dict[str, Any]]:
     """Turn one placement flag (is_lead / is_popular / is_random) on or off; returns the updated article."""
-    if field not in PLACEMENT_FIELDS:
+    if field not in (*PLACEMENT_FIELDS, *(("is_latest",) if has_latest() else ())):
         return None
     with connection() as conn:
         cur = conn.cursor()

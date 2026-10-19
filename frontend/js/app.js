@@ -2113,7 +2113,8 @@ function newsListHTML(filter) {
        || 1)
     : mainStoryId;
 
-  const list = articlesData.filter((a) => NEWS_CATEGORIES.includes(a.category) && (filter === "all" || a.category === filter) && a.id !== currentLeadId);
+  // (a news the Admin Panel un-ticked under "ताज्या बातम्या" is not listed here; one without the flag - built-in, older backend - is)
+  const list = articlesData.filter((a) => NEWS_CATEGORIES.includes(a.category) && (filter === "all" || a.category === filter) && a.id !== currentLeadId && Number(a.is_latest ?? 1) !== 0);
   if (!list.length) return `<p class="empty-note">या विभागात बातम्या लवकरच जोडल्या जातील.</p>`;
 
   // Slice to homeNewsLimit (default 8 items: 1 big card + 7 rows)
