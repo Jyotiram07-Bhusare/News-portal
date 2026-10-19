@@ -3,6 +3,8 @@
 Port of the old SQLite module (data/database.py): same functions, same results, MySQL underneath.
 Each call borrows its own connection from a small pool (never shared between threads), so it is thread-safe.
 """
+import json
+import os
 import queue
 import re
 import time
@@ -509,6 +511,30 @@ def delete_video(video_id: int) -> Optional[Dict[str, Any]]:
         cur.execute("DELETE FROM videos WHERE id = %s", (video_id,))
         _renumber_videos(cur)                                   # no gap is left in the numbers
         return row
+
+
+VIDEOS_DATA_FIELDS = ("id", "title", "title_en", "description", "description_en", "video_url", "thumbnail", "duration_sec", "size_bytes",
+                      "sort_order", "created_at")
+
+
+def publish_videos_file() -> bool:
+    """Keep frontend/js/videos-data.js equal to the videos table. A static host (Vercel) has no backend, so the website shows the videos
+    from this file there; with a backend the website asks /api/videos instead. Only videos that are LINKS (YouTube / the https address of
+    a file) go in: a file uploaded here is not on the static host. Written only when something changed. Returns True when it was rewritten."""
+    rows = [{k: v[k] for k in VIDEOS_DATA_FIELDS} for v in get_videos() if re.match(r"https?://", v["video_url"] or "")]
+    text = ("// Written by the backend (Admin Panel > Videos) after every change - do not edit by hand.\n"
+            "// The website shows these videos where it has no backend (a static host); with a backend it asks /api/videos instead.\n"
+            "window.VIDEOS_DATA = " + json.dumps(rows, ensure_ascii=False, indent=2) + ";\n")
+    path = config.FRONTEND_DIR / "js" / "videos-data.js"
+    try:
+        if path.is_file() and path.read_text(encoding="utf-8") == text:
+            return False
+        temp = path.with_name(path.name + ".part")
+        temp.write_text(text, encoding="utf-8", newline="\n")
+        os.replace(temp, path)
+        return True
+    except OSError:                                     # a read-only / missing frontend folder (API-only hosting): nothing to keep in step
+        return False
 
 
 def video_file_in_use(url: str, except_id: Optional[int] = None) -> bool:

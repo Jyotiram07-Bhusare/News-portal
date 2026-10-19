@@ -202,6 +202,7 @@ def create_video():
     if problem:
         return fail(problem, 400)
     new_id = database.create_video(data)
+    database.publish_videos_file()
     return jsonify({"success": True, "message": "व्हिडिओ यशस्वीरीत्या प्रकाशित झाला!", "video": database.get_video(new_id)}), 201
 
 
@@ -221,6 +222,7 @@ def update_video(video_id):
     after = database.get_video(video_id)
     # a replaced video file / thumbnail is not kept on the disk
     removed = [_remove_upload(before[k], video_id) for k in ("video_url", "thumbnail") if before[k] != after[k]]
+    database.publish_videos_file()
     return ok(message="व्हिडिओ अद्यतनित करण्यात आला!", video=after, files_removed=sum(removed))
 
 
@@ -230,6 +232,7 @@ def delete_video(video_id):
     if not row:
         return fail("Video not found", 404)
     removed = [_remove_upload(row[k], video_id) for k in ("video_url", "thumbnail")]
+    database.publish_videos_file()
     return ok(message="व्हिडिओ यशस्वीरीत्या हटवला!", files_removed=sum(removed))
 
 

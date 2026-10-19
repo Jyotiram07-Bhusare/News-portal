@@ -1312,6 +1312,10 @@ function videoFromRow(row) {
   };
 }
 
+// Where there is no backend (a static host) the videos come from js/videos-data.js, which the backend keeps in step with the Admin Panel;
+// with a backend the website asks /api/videos and that answer replaces this (see syncPortalWithApi).
+videoPostsData = (Array.isArray(window.VIDEOS_DATA) ? window.VIDEOS_DATA : []).map(videoFromRow);
+
 // "०६:१५" (Marathi) / "06:15" (English); "" when the length is not known
 function videoLengthText(sec) {
   const n = Number(sec);
