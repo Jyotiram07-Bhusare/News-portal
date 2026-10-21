@@ -142,10 +142,6 @@ button:focus-visible,
     min-height: 56px;
   }
 
-  .footer-links-row a {
-    padding: 10px 4px;
-  }
-
   /* breadcrumb links fill the (taller) bar, so the whole strip is really tappable */
   .breadcrumb-bar {
     min-height: 44px;
@@ -1211,7 +1207,8 @@ button:focus-visible,
   /* ---- Footer ---------------------------------------------------------- */
   .site-footer {
     margin-top: 0;                    /* #content-wrapper already leaves 24px of breathing room */
-    padding: 22px 0 calc(22px + env(safe-area-inset-bottom, 0px));
+    /* (the round back-to-top button sits at the bottom right: the last link stays above it) */
+    padding: 22px 0 calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   .footer-inner-flex {
@@ -1222,20 +1219,6 @@ button:focus-visible,
 
   .footer-copy {
     line-height: 1.6;
-  }
-
-  .footer-links-row {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .footer-links-row a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 0 14px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.07);
   }
 
   /* ---- Modals become bottom sheets -------------------------------------- */

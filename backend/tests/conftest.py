@@ -49,8 +49,8 @@ class FakeDB:
     """Just enough of database.py for the API: rows live in dicts."""
 
     def __init__(self):
-        self.articles, self.weekly, self.videos = {}, {}, {}
-        self.next_article, self.next_video = 10000, 1
+        self.articles, self.weekly, self.videos, self.ads = {}, {}, {}, {}
+        self.next_article, self.next_video, self.next_ad = 10000, 1, 1
 
     # ---- articles
     def get_articles(self, category=None, search=None, limit=None, placement=None):
@@ -116,8 +116,31 @@ class FakeDB:
     def delete_video(self, video_id):
         return self.videos.pop(video_id, None)
 
-    def video_file_in_use(self, url, except_id=None):
-        return any(v["id"] != except_id and url in (v["video_url"], v["thumbnail"]) for v in self.videos.values())
+    def upload_in_use(self, url, except_video=None, except_ad=None):
+        return (any(v["id"] != except_video and url in (v["video_url"], v["thumbnail"]) for v in self.videos.values())
+                or any(a["id"] != except_ad and url in (a["media_url"], a["thumbnail"]) for a in self.ads.values()))
+
+    # ---- ads
+    def get_ads(self, limit=None):
+        return sorted(self.ads.values(), key=lambda r: r.get("sort_order", 0))[: limit or None]
+
+    def get_ad(self, ad_id):
+        return self.ads.get(ad_id)
+
+    def create_ad(self, data):
+        new_id, self.next_ad = self.next_ad, self.next_ad + 1
+        self.ads[new_id] = {"id": new_id, "title_en": "", "thumbnail": "", "link_url": "", "duration_sec": None, "size_bytes": None,
+                            "sort_order": new_id, **data}
+        return new_id
+
+    def update_ad(self, ad_id, data):
+        if ad_id not in self.ads or not data:
+            return False
+        self.ads[ad_id].update(data)
+        return True
+
+    def delete_ad(self, ad_id):
+        return self.ads.pop(ad_id, None)
 
 
 @pytest.fixture
@@ -125,11 +148,13 @@ def db(monkeypatch):
     fake = FakeDB()
     for name in ("get_articles", "get_article", "create_article", "update_article", "toggle_placement", "delete_article",
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
-                 "get_videos", "get_video", "create_video", "update_video", "delete_video", "video_file_in_use"):
+                 "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
+                 "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad"):
         monkeypatch.setattr(database, name, getattr(fake, name))
     monkeypatch.setattr(database, "ping", lambda: True)
     monkeypatch.setattr(database, "has_english", lambda: True)
     monkeypatch.setattr(database, "publish_videos_file", lambda: False)
+    monkeypatch.setattr(database, "publish_ads_file", lambda: False)
     monkeypatch.setattr(database, "get_stats", lambda: {"total_articles": len(fake.articles)})
     return fake
 

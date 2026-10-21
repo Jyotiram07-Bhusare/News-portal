@@ -262,6 +262,7 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | DELETE | `/api/videos/<id>` | हटवा — व्हिडिओ फाईल व तिचा `video-poster_...` फोटोही डिलीट होतो (दुसरा व्हिडिओ वापरत असेल तर नाही) |
 | POST | `/api/upload/image` · `/api/upload/pdf` · `/api/upload/video` | फोटो / PDF / व्हिडिओ अपलोड (form-data `file`; PDF सोबत `issue_no`). व्हिडिओ: mp4, m4v, mov, webm, ogv — फाईलचे पहिले बाइट्स तपासले जातात (नाव बदललेली text फाईल नाकारली जाते) |
 | DELETE | `/api/upload/video` | `{"url": "assets/videos/..."}` — अपलोड झालेली पण कोणत्याही व्हिडिओला न जोडलेली फाईल परत घेतो |
+| GET / POST / PUT / DELETE | `/api/ads` · `/api/ads/<id>` · DELETE `/api/upload/ad` | जाहिराती (फोटो किंवा व्हिडिओ; वाचणे खुले, बाकी लॉगिनसह) — वेबसाईटच्या "जाहिरात" स्लायडरसाठी |
 | GET | `/api/stats` · `/api/media` · `/api/health` | डॅशबोर्ड आकडे · अपलोड केलेल्या फाईल्स · तपासणी |
 
 - उत्तर नेहमी JSON: `{"success": true, ...}` किंवा `{"success": false, "error": "..."}`. MySQL बंद असेल तर `503`.

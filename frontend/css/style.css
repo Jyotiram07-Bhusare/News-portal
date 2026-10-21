@@ -733,6 +733,37 @@ html.is-dark .widget-title-wrap {
   object-fit: contain;
 }
 
+/* an ad with a click link is an <a>; a video ad is muted and plays by itself (initAdSlider / adSync in app.js) */
+a.ad-slide {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.ad-slide:focus-visible {
+  outline: 2px solid var(--main-color);
+  outline-offset: -2px;
+}
+
+/* every ad was deleted in the Admin Panel: the widget stays, with a quiet empty frame */
+.ad-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--meta-color);
+  font-size: 13px;
+}
+
+.ad-empty i {
+  font-size: 28px;
+  opacity: 0.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ad-slide,
   .ad-slide.active {
@@ -2030,6 +2061,133 @@ html.is-dark .video-more-wrap .btn-load-more:hover {
   margin-top: 40px;
 }
 
+/* Footer columns (like a classic footer): Quick Links | Office contact. One column on a phone. */
+.footer-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 28px 48px;
+  margin-bottom: 18px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-col-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Quick Links: the header's sections as a plain list, one below the other (the section you are in is orange) */
+.footer-quick-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.footer-quick-link {
+  padding: 7px 0;
+  border: 0;
+  background: none;
+  color: var(--border-cream, #ECE4DC);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.footer-quick-link:hover,
+.footer-quick-link.active {
+  color: var(--orange, #EE7B30);
+}
+
+.footer-quick-link.active {
+  font-weight: 700;
+}
+
+.footer-quick-link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Office contact: address, phone, e-mail */
+.footer-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.footer-contact-item > i {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--orange, #EE7B30);
+  font-size: 14px;
+}
+
+.footer-contact-text {
+  min-width: 0;
+}
+
+.footer-contact-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: rgba(236, 228, 220, 0.7);
+}
+
+.footer-contact-value {
+  display: block;
+  font-size: 13.5px;
+  font-style: normal;
+  line-height: 1.55;
+  color: var(--border-cream, #ECE4DC);
+  overflow-wrap: anywhere;
+}
+
+a.footer-contact-value:hover {
+  color: var(--orange, #EE7B30);
+}
+
+@media (max-width: 760px) {
+  .footer-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* comfortable tap targets */
+  .footer-quick-link {
+    padding: 11px 0;
+    font-size: 16px;
+  }
+
+  a.footer-contact-value {
+    padding: 6px 0;
+    margin: -4px 0;                 /* (the tap area grows, the look stays the same as the address line) */
+  }
+}
+
 .footer-inner-flex {
   display: flex;
   align-items: center;
@@ -2045,20 +2203,6 @@ html.is-dark .video-more-wrap .btn-load-more:hover {
 
 .footer-copy strong {
   color: #ffffff;
-}
-
-.footer-links-row {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-
-.footer-links-row a {
-  color: var(--border-cream, #ECE4DC);
-}
-
-.footer-links-row a:hover {
-  color: var(--orange, #EE7B30);
 }
 
 /* Modals */

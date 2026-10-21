@@ -33,6 +33,8 @@ ALLOWED_IMG_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "m4v", "mov", "webm", "ogv"}
 VIDEO_CONTENT_TYPES = {"mp4": "video/mp4", "m4v": "video/x-m4v", "mov": "video/quicktime", "webm": "video/webm", "ogv": "video/ogg"}
 MB = 1024 * 1024
+# the pictures this program makes for videos and ads (named after the Admin Panel's upload): only these may be deleted again
+OWN_PICTURE_PREFIXES = ("video-poster_", "ad-image_", "ad-poster_")
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -265,18 +267,91 @@ def delete_video(video_id):
     return ok(message="व्हिडिओ यशस्वीरीत्या हटवला!", files_removed=sum(removed))
 
 
-def _remove_upload(url, video_id):
-    """Delete the stored file of a video / thumbnail that was uploaded through this server (a video file, or a picture named
-    video-poster_<...>). Nothing else is ever deleted: other hosts, other folders, any other picture, a file another video uses."""
+def _remove_upload(url, video_id=None, ad_id=None):
+    """Delete the stored file of a video / ad / thumbnail that was uploaded through this server (a video file, or a picture named
+    video-poster_<...> / ad-image_<...> / ad-poster_<...>). Nothing else is ever deleted: other hosts, other folders, any other picture
+    (the built-in ads assets/ad-1.jpg ... included), a file another video / ad uses."""
     parsed = storage.get().parse(url or "")
     if not parsed:
         return False
     kind, name = parsed
-    if not (kind == "video" or (kind == "image" and name.startswith("video-poster_"))):
+    if not (kind == "video" or (kind == "image" and name.startswith(OWN_PICTURE_PREFIXES))):
         return False
-    if database.video_file_in_use(url, video_id):
+    if database.upload_in_use(url, video_id, ad_id):
         return False
     return storage.get().delete(kind, name)
+
+
+# -------------------------------------------------------------
+# REST API: Ads (the photo / video comes from POST /upload/image or /upload/video, the row from POST /ads)
+# -------------------------------------------------------------
+@api.get("/ads")
+def get_ads():
+    ads = database.get_ads(limit=request.args.get("limit", type=int))
+    return ok(count=len(ads), ads=ads)
+
+
+@api.get("/ads/<int:ad_id>")
+def get_ad(ad_id):
+    ad = database.get_ad(ad_id)
+    if not ad:
+        return fail("Ad not found", 404)
+    return ok(ad=ad)
+
+
+@api.post("/ads")
+@auth.admin_required
+def create_ad():
+    try:
+        clean = sanitize.ad(body(), creating=True)
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400)
+    new_id = database.create_ad(clean)
+    database.publish_ads_file()
+    return jsonify({"success": True, "message": "जाहिरात यशस्वीरीत्या प्रकाशित झाली!", "ad": database.get_ad(new_id)}), 201
+
+
+@api.route("/ads/<int:ad_id>", methods=["PUT", "POST"])
+@auth.admin_required
+def update_ad(ad_id):
+    data = body()
+    if not data:
+        return fail("No update data provided", 400)
+    try:
+        clean = sanitize.ad(data, creating=False)
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400)
+    before = database.get_ad(ad_id)
+    if not before:
+        return fail("Ad not found", 404)
+    if not database.update_ad(ad_id, clean):
+        return fail("No update data provided", 400)
+    after = database.get_ad(ad_id)
+    removed = [_remove_upload(before[k], None, ad_id) for k in ("media_url", "thumbnail") if before[k] != after[k]]    # a replaced file is not kept
+    database.publish_ads_file()
+    return ok(message="जाहिरात अद्यतनित करण्यात आली!", ad=after, files_removed=sum(removed))
+
+
+@api.delete("/ads/<int:ad_id>")
+@auth.admin_required
+def delete_ad(ad_id):
+    row = database.delete_ad(ad_id)
+    if not row:
+        return fail("Ad not found", 404)
+    removed = [_remove_upload(row[k], None, ad_id) for k in ("media_url", "thumbnail")]
+    database.publish_ads_file()
+    return ok(message="जाहिरात यशस्वीरीत्या हटवली!", files_removed=sum(removed))
+
+
+@api.delete("/upload/ad")
+@auth.admin_required
+def discard_uploaded_ad_image():
+    """The Admin Panel takes back a photo / poster it uploaded for an ad but could not save the ad for. Only a file no video / ad points to is deleted."""
+    url = str(body().get("url") or "")
+    parsed = storage.get().parse(url)
+    if not parsed or parsed[0] != "image" or not parsed[1].startswith(("ad-image_", "ad-poster_")):
+        return fail("Not an uploaded ad picture", 400)
+    return ok(removed=_remove_upload(url))
 
 
 # -------------------------------------------------------------
@@ -468,7 +543,7 @@ def health():
 
 # Reads that every visitor makes may be kept by browsers / CloudFront for a few seconds; the Admin Panel always sends its token and so
 # always gets fresh data (Vary: Authorization keeps the two apart).
-PUBLIC_CACHEABLE = {"api.get_articles", "api.get_article", "api.get_weekly", "api.get_videos", "api.get_video"}
+PUBLIC_CACHEABLE = {"api.get_articles", "api.get_article", "api.get_weekly", "api.get_videos", "api.get_video", "api.get_ads", "api.get_ad"}
 
 
 @api.after_request

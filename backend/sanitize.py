@@ -80,6 +80,7 @@ def picture(value: Any, default: str = "", label: str = "The picture") -> str:
     raise ValidationError(f"{label} must be an uploaded picture or an https:// address.")
 
 
+_ANY_WEB_URL = re.compile(r"https?://[^\s\"'<>\\`]+")
 _VIDEO_ADDRESS = re.compile(r"(https?://[^\s\"'<>\\`]+)|(assets/videos/[\w][\w.\-]*)")
 
 
@@ -208,6 +209,56 @@ def video(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
     if "thumbnail" in data:
         thumb = str(data.get("thumbnail") or "").strip()
         out["thumbnail"] = picture(thumb, label="The thumbnail") if thumb else ""
+    for key in ("duration_sec", "size_bytes"):
+        if key in data and str(data[key] if data[key] is not None else "").strip() != "":
+            out[key] = whole_number(data[key], key, 0, 2**40)
+        elif key in data:
+            out[key] = None
+    if "sort_order" in data and str(data["sort_order"] if data["sort_order"] is not None else "").strip() != "":
+        out["sort_order"] = whole_number(data["sort_order"], "sort_order", 1, 100_000)
+    return out
+
+
+def link_address(value: Any, label: str = "The click link") -> str:
+    """The address an ad opens when it is clicked: http:// or https:// only (no javascript: / data: addresses, no quotes)."""
+    text = "" if value is None else str(value).strip()
+    if not text:
+        return ""
+    if len(text) > 1000 or not _ANY_WEB_URL.fullmatch(text):
+        raise ValidationError(f"{label} must start with http:// or https://")
+    return text
+
+
+AD_TYPES = ("image", "video")
+
+
+def ad(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
+    """An advertisement of the website's ad slider: a photo or a video (only the keys that were sent)."""
+    out: Dict[str, Any] = {}
+    kind = str(data.get("media_type") or "").strip()
+    if creating or "media_type" in data:
+        if kind not in AD_TYPES:
+            raise ValidationError("The ad must be a photo or a video")
+        out["media_type"] = kind
+    if creating or "title" in data:
+        title = plain(data.get("title"), 300, "The ad title")
+        if not title:
+            raise ValidationError("Ad title is required")
+        out["title"] = title
+    if "title_en" in data:
+        out["title_en"] = plain(data.get("title_en"), 300, "The English ad title")
+    if creating or "media_url" in data:
+        try:
+            out["media_url"] = picture(data.get("media_url"), label="The photo") if kind == "image" else video_address(data.get("media_url"))
+            if not out["media_url"]:
+                raise ValidationError("")
+        except ValidationError:
+            raise ValidationError("A photo or a video is required (upload it first)")
+    if "thumbnail" in data:
+        thumb = str(data.get("thumbnail") or "").strip()
+        out["thumbnail"] = picture(thumb, label="The thumbnail") if thumb else ""
+    if "link_url" in data:
+        out["link_url"] = link_address(data.get("link_url"))
     for key in ("duration_sec", "size_bytes"):
         if key in data and str(data[key] if data[key] is not None else "").strip() != "":
             out[key] = whole_number(data[key], key, 0, 2**40)

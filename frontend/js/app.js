@@ -728,6 +728,7 @@ window.onLanguageChange = function () {
   renderRightSidebar();
   renderLatestReviews();
   renderFeaturedVideos();
+  updateAdLanguage();
   if (drawerPopularRendered && typeof renderDrawerPopularItems === "function") renderDrawerPopularItems();
   if (typeof renderRoute === "function") renderRoute({ scroll: false });
 };
@@ -755,45 +756,137 @@ document.addEventListener("DOMContentLoaded", () => {
   initAdSlider();
 });
 
-// "Responsive Ads" widget: the ads (.ad-slide) are shown one after the other, each for AD_SLIDE_MS, then it starts again.
+// "Responsive Ads" widget: the ads the owner uploads in the Admin Panel (Advertisements) - a photo or a video each - are shown one after the
+// other, then it starts again. A photo stays AD_SLIDE_MS; a video plays (muted, it is an ad) for its own length, at most AD_VIDEO_MAX_MS.
 // The clock runs only while the widget is on the screen, the tab is open and the ad that is showing has loaded, so a
 // visitor who scrolls down to it always sees the first ad for its full time (and nothing runs for nobody).
 const AD_SLIDE_MS = 4000;
+const AD_VIDEO_MAX_MS = 30000;
+
+// The ads where nothing else is known (no ads-data.js, no backend): the three the website always had. Normally the list is js/ads-data.js
+// (kept by the backend, for a static host) and then GET /api/ads - an EMPTY list from either means "no ads", not "the old three".
+const builtInAds = [
+  { id: 1, media_type: "image", title: "लोकमंगल पतसंस्था — सोने खरेदी कर्ज", title_en: "Lokmangal Patsanstha — gold purchase loan", media_url: "assets/ad-1.jpg" },
+  { id: 2, media_type: "image", title: "लोकमंगल बँक — दसरा दिवाळी, नवी सुरुवात", title_en: "Lokmangal Bank — Dasara Diwali, a new beginning", media_url: "assets/ad-2.jpg" },
+  { id: 3, media_type: "image", title: "लोकमंगल फाउंडेशन — अन्नपूर्णा योजना", title_en: "Lokmangal Foundation — Annapurna Yojana", media_url: "assets/ad-3.jpg" },
+];
+let adsData = Array.isArray(window.ADS_DATA) ? window.ADS_DATA : builtInAds;
+const adSlider = { box: null, at: 0, timer: null, onScreen: true, sig: "", shown: [] };
+
+// only a file of this site or an http(s) address is ever put into the page
+const safeAdUrl = (u) => { const s = String(u || "").trim(); return /^(assets\/[\w.\-\/]+|https?:\/\/\S+)$/i.test(s) ? s : ""; };
+const adTitle = (a) => (getLang() === "en" && a.title_en && String(a.title_en).trim() ? a.title_en : a.title) || "";
+
+function renderAds() {
+  const box = adSlider.box || document.getElementById("ad-slider");
+  if (!box) return;
+  adSlider.box = box;
+  const sig = JSON.stringify(adsData.map((a) => [a.id, a.media_type, a.media_url, a.thumbnail, a.link_url, a.duration_sec]));
+  if (sig === adSlider.sig && box.children.length) { updateAdLanguage(); return; }      // nothing changed: the ad on show is not restarted
+  adSlider.sig = sig;
+  clearTimeout(adSlider.timer);
+  adSlider.timer = null;
+  const ads = adsData.filter((a) => safeAdUrl(a.media_url));
+  if (!ads.length) {
+    adSlider.shown = [];
+    box.innerHTML = `<div class="ad-empty"><i class="fa-regular fa-image"></i><span>${escText(trUI("जाहिरात"))}</span></div>`;
+    return;
+  }
+  box.innerHTML = ads.map((a, i) => {
+    const url = escText(safeAdUrl(a.media_url));
+    const poster = escText(safeAdUrl(a.thumbnail));
+    const link = /^https?:\/\/\S+$/i.test(String(a.link_url || "").trim()) ? escText(String(a.link_url).trim()) : "";
+    const title = escText(adTitle(a));
+    const media = a.media_type === "video"
+      ? `${poster ? `<img class="ad-bg" src="${poster}" alt="" aria-hidden="true" decoding="async" />` : ""}
+         <video class="ad-img ad-video" src="${url}" ${poster ? `poster="${poster}"` : ""} muted loop playsinline preload="metadata" aria-label="${title}"></video>`
+      : `<img class="ad-bg" src="${url}" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+         <img class="ad-img" src="${url}" alt="${title}" loading="lazy" decoding="async" />`;
+    const attrs = `class="ad-slide" data-ad="${i}"${a.duration_sec ? ` data-sec="${Number(a.duration_sec) || 0}"` : ""}`;
+    return link
+      ? `<a ${attrs} href="${link}" target="_blank" rel="noopener noreferrer sponsored">${media}</a>`
+      : `<div ${attrs}>${media}</div>`;
+  }).join("");
+  adSlider.shown = ads;
+  adSlides().forEach((slide) => {               // the ad on show finished loading late: the clock starts now
+    const media = slide.querySelector(".ad-img");
+    media.addEventListener(media.tagName === "VIDEO" ? "loadeddata" : "load", () => { if (adSlides()[adSlider.at] === slide) adSync(); });
+  });
+  adShow(0);
+}
+
+// the language was switched: the text of the pictures (alt) follows, nothing is restarted
+function updateAdLanguage() {
+  const ads = adSlider.shown || [];
+  adSlides().forEach((slide, i) => {
+    const title = ads[i] ? adTitle(ads[i]) : "";
+    const media = slide.querySelector(".ad-img");
+    if (media) media.setAttribute(media.tagName === "VIDEO" ? "aria-label" : "alt", title);
+  });
+  const empty = adSlider.box && adSlider.box.querySelector(".ad-empty span");
+  if (empty) empty.textContent = trUI("जाहिरात");
+}
+
+const adSlides = () => (adSlider.box ? [...adSlider.box.querySelectorAll(".ad-slide")] : []);
+
+// the ad has loaded (a photo is complete, a video has its first picture; a broken one counts: the show goes on)
+function adReady(slide) {
+  const media = slide.querySelector(".ad-img");
+  if (!media) return true;
+  return media.tagName === "VIDEO" ? media.readyState >= 2 || !!media.error : media.complete;
+}
+
+// how long the ad stays: a photo AD_SLIDE_MS, a video its own length (at least a photo's time, at most AD_VIDEO_MAX_MS)
+function adDelay(slide) {
+  const video = slide.querySelector("video");
+  if (!video) return AD_SLIDE_MS;
+  const sec = Number(slide.dataset.sec) || video.duration;
+  return sec && isFinite(sec) ? Math.min(AD_VIDEO_MAX_MS, Math.max(AD_SLIDE_MS, Math.round(sec * 1000))) : 10000;
+}
+
+// slide n is the one on show (a video before it stops, a video that comes on starts from its beginning)
+function adShow(n) {
+  const slides = adSlides();
+  if (!slides.length) return;
+  slides.forEach((slide, i) => {
+    const on = i === n;
+    slide.classList.toggle("active", on);
+    if (on) slide.removeAttribute("aria-hidden"); else slide.setAttribute("aria-hidden", "true");
+    const video = slide.querySelector("video");
+    if (video && !on) video.pause();
+    if (video && on) { try { video.currentTime = 0; } catch (e) { /* not loaded yet: it starts at 0 anyway */ } }
+  });
+  adSlider.at = n;
+  adSync();
+}
+
+// (re)start what belongs to the ad on show: its video, and the clock for the next ad - only while the widget is seen
+function adSync() {
+  clearTimeout(adSlider.timer);
+  adSlider.timer = null;
+  const slides = adSlides();
+  const slide = slides[adSlider.at];
+  if (!slide) return;
+  const seen = adSlider.onScreen && !document.hidden;
+  const video = slide.querySelector("video");
+  if (video) { if (seen) video.play().catch(() => { /* the browser refused to autoplay: the poster stays */ }); else video.pause(); }
+  if (slides.length < 2 || !seen || !adReady(slide)) return;
+  adSlider.timer = setTimeout(() => adShow((adSlider.at + 1) % slides.length), adDelay(slide));
+}
+
 function initAdSlider() {
   const box = document.getElementById("ad-slider");
-  const slides = box ? [...box.querySelectorAll(".ad-slide")] : [];
-  if (slides.length < 2) return;
-  let at = slides.findIndex((s) => s.classList.contains("active"));
-  if (at < 0) at = 0;
-  let timer = null;
-  let onScreen = !("IntersectionObserver" in window);
-
-  const show = (n) => {
-    slides[at].classList.remove("active");
-    slides[at].setAttribute("aria-hidden", "true");
-    at = n % slides.length;
-    slides[at].classList.add("active");
-    slides[at].removeAttribute("aria-hidden");
-  };
-  const stop = () => { clearInterval(timer); timer = null; };
-  const loaded = () => { const img = slides[at].querySelector(".ad-img"); return !img || img.complete; };
-  const play = () => {
-    stop();
-    if (onScreen && !document.hidden && loaded()) timer = setInterval(() => show(at + 1), AD_SLIDE_MS);
-  };
-  slides.forEach((s) => {                       // the ad on show finished loading late: the clock starts now
-    const img = s.querySelector(".ad-img");
-    if (img) img.addEventListener("load", () => { if (slides[at] === s && !timer) play(); });
-  });
-
+  if (!box) return;
+  adSlider.box = box;
+  adSlider.onScreen = !("IntersectionObserver" in window);
   if ("IntersectionObserver" in window) {
     new IntersectionObserver((entries) => {
-      onScreen = entries[entries.length - 1].isIntersecting;
-      play();
+      adSlider.onScreen = entries[entries.length - 1].isIntersecting;
+      adSync();
     }, { threshold: 0.25 }).observe(box);
   }
-  document.addEventListener("visibilitychange", play);
-  play();
+  document.addEventListener("visibilitychange", adSync);
+  renderAds();
 }
 
 // "सर्व बातम्या (१६)"-style counters in the Labels widget come from the data, not from typed numbers
@@ -1103,6 +1196,14 @@ function updateNavActiveStates(category) {
   });
   const activeChip = document.querySelector(".chip.active");
   if (activeChip) centerChip(activeChip);
+
+  // Footer quick links (the same buttons as the header)
+  document.querySelectorAll(".footer-quick-link").forEach(btn => {
+    const on = btn.dataset.cat === category;
+    btn.classList.toggle("active", on);
+    if (on) btn.setAttribute("aria-current", "true");
+    else btn.removeAttribute("aria-current");
+  });
 
   // Slide-out menu
   document.querySelectorAll(".drawer-nav-link[data-cat]").forEach(link => {
@@ -3234,7 +3335,7 @@ async function syncPortalWithApi() {
   try {
     // The four built-in reviews are not in the database; remember them before the database data is merged in.
     const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
-    const [artJson, weekJson, vidJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos')]);
+    const [artJson, weekJson, vidJson, adJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos'), apiJson('/api/ads')]);
     articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
     if (artJson) {
@@ -3289,6 +3390,10 @@ async function syncPortalWithApi() {
       // the owner's uploads, newest first; none uploaded (or all deleted) = the sample videos
       videoPostsData = vidJson.videos.length ? vidJson.videos.map(videoFromRow) : builtInVideos;
       renderFeaturedVideos();
+    }
+    if (adJson && adJson.success && Array.isArray(adJson.ads)) {
+      adsData = adJson.ads;                // (an EMPTY list counts too: every ad deleted in the Admin Panel leaves the website)
+      renderAds();
     }
     if (artJson || weekJson) {
       apiSyncPending = false;          // from now on an unknown address really is unknown

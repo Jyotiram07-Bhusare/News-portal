@@ -14,6 +14,10 @@ WRITES = [
     ("post", "/api/videos", {"title": "x", "video_url": "https://example.org/a.mp4"}),
     ("put", "/api/videos/1", {"title": "x"}),
     ("delete", "/api/videos/1", None),
+    ("post", "/api/ads", {"media_type": "image", "title": "x", "media_url": "assets/images/a.jpg"}),
+    ("put", "/api/ads/1", {"title": "x"}),
+    ("delete", "/api/ads/1", None),
+    ("delete", "/api/upload/ad", {"url": "assets/images/ad-image_1.jpg"}),
     ("post", "/api/upload/image", None),
     ("post", "/api/upload/pdf", None),
     ("post", "/api/upload/video", None),
@@ -33,7 +37,7 @@ def test_admin_reads_need_login(client, path):
     assert client.get(path).status_code == 401
 
 
-@pytest.mark.parametrize("path", ["/api/articles", "/api/weekly", "/api/videos", "/api/health"])
+@pytest.mark.parametrize("path", ["/api/articles", "/api/weekly", "/api/videos", "/api/ads", "/api/health"])
 def test_public_reads_stay_public(client, path):
     assert client.get(path).status_code == 200
 

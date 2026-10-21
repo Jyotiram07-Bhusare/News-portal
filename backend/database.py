@@ -7,6 +7,7 @@ import json
 import os
 import queue
 import re
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -37,6 +38,16 @@ ARTICLE_COLUMNS = ("id", "title", "category", "categoryLabel", "author", "date",
 WEEKLY_COLUMNS = ("id", "issue_no", "date", "title", "image", "pdf_filename", "views", "description", "created_at")
 VIDEO_TEXT = ("title", "title_en", "description", "description_en", "video_url", "thumbnail")
 VIDEO_NUMBERS = ("duration_sec", "size_bytes")
+AD_TEXT = ("media_type", "title", "title_en", "media_url", "thumbnail", "link_url")
+AD_NUMBERS = ("duration_sec", "size_bytes")
+AD_TYPES = ("image", "video")
+# The three ads the website always showed (frontend/assets/ad-1..3.jpg). A NEW `ads` table starts with them, so the Admin Panel can
+# reorder / replace / delete them like any other ad. (title, English title, picture)
+BUILT_IN_ADS = (
+    ("लोकमंगल पतसंस्था — सोने खरेदी कर्ज", "Lokmangal Patsanstha — gold purchase loan", "assets/ad-1.jpg"),
+    ("लोकमंगल बँक — दसरा दिवाळी, नवी सुरुवात", "Lokmangal Bank — Dasara Diwali, a new beginning", "assets/ad-2.jpg"),
+    ("लोकमंगल फाउंडेशन — अन्नपूर्णा योजना", "Lokmangal Foundation — Annapurna Yojana", "assets/ad-3.jpg"),
+)
 
 # The English version of a news item / weekly issue (typed in the Admin Panel's "English" tab).
 ARTICLE_EN = ("title_en", "author_en", "excerpt_en", "content_en")
@@ -186,6 +197,34 @@ def ensure_videos_table() -> None:
         if cur.fetchone()["n"]:
             _renumber_videos(cur)                                                    # old rows get 1..N, newest first
     _videos_state["ok"] = True
+
+
+_ads_state = {"ok": False}
+_ads_lock = threading.Lock()
+
+
+def ensure_ads_table() -> None:
+    """The `ads` table (Admin Panel > Advertisements) is created here the first time ads are used, and a NEW table is filled with the three
+    ads the website already showed (BUILT_IN_ADS) - once: an owner who deletes them all does not get them back. (init_db.py calls this too.)"""
+    if _ads_state["ok"]:
+        return
+    with _ads_lock:
+        if _ads_state["ok"]:
+            return
+        with connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'ads'", (config.DB_NAME,))
+            is_new = not cur.fetchone()["n"]
+            if is_new:
+                for statement in schema_statements():
+                    if re.match(r"CREATE TABLE IF NOT EXISTS\s+ads\b", statement, re.I):
+                        cur.execute(statement)
+                for place, (title, title_en, url) in enumerate(BUILT_IN_ADS, start=1):
+                    cur.execute("INSERT INTO ads (media_type, title, title_en, media_url, sort_order) VALUES ('image', %s, %s, %s, %s)",
+                                (title, title_en, url, place))
+        _ads_state["ok"] = True
+    if is_new:
+        publish_ads_file()
 
 
 _english_state = {"ok": False, "checked": 0.0}
@@ -467,16 +506,20 @@ def _video_number(value: Any) -> Optional[int]:
     return None if value is None or str(value).strip() == "" else int(value)
 
 
-def _renumber_videos(cur, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
-    """Number the videos 1..N in their current order (numbered ones by their number, the rest newest first). `move_id` is first put at
-    `position` (1 = the very top; a number beyond the end = the last place)."""
-    cur.execute("SELECT id FROM videos ORDER BY (sort_order IS NULL), sort_order, id DESC")
+def _renumber(cur, table: str, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
+    """Number the rows of `table` (videos / ads) 1..N in their current order (numbered ones by their number, the rest newest first).
+    `move_id` is first put at `position` (1 = the very top; a number beyond the end = the last place). `table` is always a constant."""
+    cur.execute(f"SELECT id FROM {table} ORDER BY (sort_order IS NULL), sort_order, id DESC")
     ids = [r["id"] for r in cur.fetchall()]
     if move_id is not None and move_id in ids:
         ids.remove(move_id)
         ids.insert(max(0, min(len(ids), (position or 1) - 1)), move_id)
-    for number, video_id in enumerate(ids, start=1):
-        cur.execute("UPDATE videos SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, video_id, number))
+    for number, row_id in enumerate(ids, start=1):
+        cur.execute(f"UPDATE {table} SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, row_id, number))
+
+
+def _renumber_videos(cur, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
+    _renumber(cur, "videos", move_id, position)
 
 
 def get_videos(limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -563,10 +606,16 @@ def publish_videos_file() -> bool:
     if not config.PUBLISH_VIDEOS_FILE:
         return False
     rows = [{k: v[k] for k in VIDEOS_DATA_FIELDS} for v in get_videos() if re.match(r"https?://", v["video_url"] or "")]
-    text = ("// Written by the backend (Admin Panel > Videos) after every change - do not edit by hand.\n"
-            "// The website shows these videos where it has no backend (a static host); with a backend it asks /api/videos instead.\n"
-            "window.VIDEOS_DATA = " + json.dumps(rows, ensure_ascii=False, indent=2) + ";\n")
-    path = config.FRONTEND_DIR / "js" / "videos-data.js"
+    return _write_js_data(
+        "videos-data.js", "window.VIDEOS_DATA", rows,
+        "// Written by the backend (Admin Panel > Videos) after every change - do not edit by hand.\n"
+        "// The website shows these videos where it has no backend (a static host); with a backend it asks /api/videos instead.\n")
+
+
+def _write_js_data(filename: str, variable: str, rows: List[Dict[str, Any]], header: str) -> bool:
+    """Write frontend/js/<filename> = `variable = rows;` (only when the text changed). True when it was rewritten."""
+    text = header + variable + " = " + json.dumps(rows, ensure_ascii=False, indent=2) + ";\n"
+    path = config.FRONTEND_DIR / "js" / filename
     try:
         if path.is_file() and path.read_text(encoding="utf-8") == text:
             return False
@@ -578,14 +627,111 @@ def publish_videos_file() -> bool:
         return False
 
 
-def video_file_in_use(url: str, except_id: Optional[int] = None) -> bool:
-    """True when another video still points to this video file / thumbnail (then the file must stay)."""
+def upload_in_use(url: str, except_video: Optional[int] = None, except_ad: Optional[int] = None) -> bool:
+    """True when a video or an ad (other than the one being changed) still points to this file / picture (then the file must stay)."""
     ensure_videos_table()
+    ensure_ads_table()
     with connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS n FROM videos WHERE (video_url = %s OR thumbnail = %s) AND id != %s",
-                    (url, url, -1 if except_id is None else except_id))
+                    (url, url, -1 if except_video is None else except_video))
+        if cur.fetchone()["n"]:
+            return True
+        cur.execute("SELECT COUNT(*) AS n FROM ads WHERE (media_url = %s OR thumbnail = %s) AND id != %s",
+                    (url, url, -1 if except_ad is None else except_ad))
         return cur.fetchone()["n"] > 0
+
+
+# -------------------------------------------------------------
+# Ads (Admin Panel > Advertisements -> the website's "जाहिरात" slider: a photo or a video, one after the other)
+# -------------------------------------------------------------
+def get_ads(limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    ensure_ads_table()
+    sql = "SELECT * FROM ads ORDER BY (sort_order IS NULL), sort_order, id DESC"
+    params: List[Any] = []
+    if limit and limit > 0:
+        sql += " LIMIT %s"
+        params.append(limit)
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        return [_row(r) for r in cur.fetchall()]
+
+
+def get_ad(ad_id: int) -> Optional[Dict[str, Any]]:
+    ensure_ads_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM ads WHERE id = %s", (ad_id,))
+        return _row(cur.fetchone())
+
+
+def create_ad(data: Dict[str, Any]) -> int:
+    ensure_ads_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO ads (media_type, title, title_en, media_url, thumbnail, link_url, duration_sec, size_bytes)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (*(_text(data, c) for c in AD_TEXT), *(_video_number(data.get(c)) for c in AD_NUMBERS)),
+        )
+        new_id = cur.lastrowid
+        _renumber(cur, "ads", new_id, _video_number(data.get("sort_order")) or 1)       # a new ad goes first unless a place is given
+        return new_id
+
+
+def update_ad(ad_id: int, data: Dict[str, Any]) -> bool:
+    """Change the fields that came with the request (a file is replaced by sending a new media_url)."""
+    ensure_ads_table()
+    fields: List[str] = []
+    values: List[Any] = []
+    for key in (*AD_TEXT, *AD_NUMBERS):
+        if key in data:
+            fields.append(f"`{key}` = %s")
+            values.append(_video_number(data[key]) if key in AD_NUMBERS else _text(data, key))
+    position = _video_number(data.get("sort_order"))
+    if not fields and position is None:
+        return False
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM ads WHERE id = %s", (ad_id,))
+        if cur.fetchone() is None:
+            return False
+        if fields:
+            cur.execute(f"UPDATE ads SET {', '.join(fields)} WHERE id = %s", values + [ad_id])
+        if position is not None:
+            _renumber(cur, "ads", ad_id, position)
+        return True
+
+
+def delete_ad(ad_id: int) -> Optional[Dict[str, Any]]:
+    """Remove the row; returns it (the caller deletes the files it pointed to), or None when there is no such ad."""
+    ensure_ads_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM ads WHERE id = %s", (ad_id,))
+        row = _row(cur.fetchone())
+        if row is None:
+            return None
+        cur.execute("DELETE FROM ads WHERE id = %s", (ad_id,))
+        _renumber(cur, "ads")
+        return row
+
+
+ADS_DATA_FIELDS = ("id", "media_type", "title", "title_en", "media_url", "thumbnail", "link_url", "duration_sec", "sort_order", "created_at")
+
+
+def publish_ads_file() -> bool:
+    """Keep frontend/js/ads-data.js equal to the ads table (the website shows the ads from it where it has no backend - a static host).
+    A video that was uploaded here is a file of this server, not of the static host: only photos and video LINKS go in."""
+    if not config.PUBLISH_VIDEOS_FILE:                  # (only a development PC keeps the frontend folder in step)
+        return False
+    rows = [{k: a[k] for k in ADS_DATA_FIELDS} for a in get_ads()
+            if a["media_type"] == "image" or re.match(r"https?://", a["media_url"] or "")]
+    return _write_js_data(
+        "ads-data.js", "window.ADS_DATA", rows,
+        "// Written by the backend (Admin Panel > Advertisements) after every change - do not edit by hand.\n"
+        "// The website shows these ads where it has no backend (a static host); with a backend it asks /api/ads instead.\n")
 
 
 # -------------------------------------------------------------
