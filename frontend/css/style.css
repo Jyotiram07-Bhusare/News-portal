@@ -2061,6 +2061,96 @@ html.is-dark .video-more-wrap .btn-load-more:hover {
   margin-top: 40px;
 }
 
+/* Office contact: address | phone | e-mail, above the copyright line */
+.footer-contact {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-contact-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.footer-contact-list {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1.2fr;
+  gap: 14px 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.footer-contact-item > i {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--orange, #EE7B30);
+  font-size: 14px;
+}
+
+.footer-contact-text {
+  min-width: 0;
+}
+
+.footer-contact-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: rgba(236, 228, 220, 0.7);
+}
+
+.footer-contact-value {
+  display: block;
+  font-size: 13.5px;
+  font-style: normal;
+  line-height: 1.55;
+  color: var(--border-cream, #ECE4DC);
+  overflow-wrap: anywhere;
+}
+
+a.footer-contact-value:hover {
+  color: var(--orange, #EE7B30);
+}
+
+@media (max-width: 900px) {
+  .footer-contact-list {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .footer-contact-item:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .footer-contact-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* the phone / e-mail line is a comfortable tap target */
+  a.footer-contact-value {
+    padding: 6px 0;
+    margin: -4px 0;                 /* (the tap area grows, the look stays the same as the address line) */
+  }
+}
+
 .footer-inner-flex {
   display: flex;
   align-items: center;
