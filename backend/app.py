@@ -86,8 +86,10 @@ def update_article(article_id):
     data = body()
     if not data:
         return fail("No update data provided", 400)
+    before = database.get_article(article_id)
     if not database.update_article(article_id, data):
         return fail("Failed to update article or article not found", 404)
+    database.settle_if_unplaced(article_id, before)       # taken out of Popular / Random and in no section now: it goes to place 8 of the latest news
     database.publish_articles_file()
     return ok(message="बातमी अद्यतनित करण्यात आली!", article=database.get_article(article_id),
               **_english_warning(database.english_ignored(data)))
@@ -99,9 +101,12 @@ def toggle_article_placement(article_id):
     field = data.get("field")
     if not field:
         return fail("Placement field is required (is_lead, is_popular, is_random)", 400)
+    before = database.get_article(article_id)
     updated = database.toggle_placement(article_id, field, data.get("value"))
     if not updated:
         return fail("Article not found or invalid placement field", 404)
+    if database.settle_if_unplaced(article_id, before):    # taken out of Popular / Random and in no section now: it goes to place 8 of the latest news
+        updated = database.get_article(article_id)
     database.publish_articles_file()
     return ok(message="सेक्शन स्थान अद्यतनित केले!", article=updated)
 
@@ -351,6 +356,46 @@ def delete_ad(ad_id):
     removed = [_remove_upload(row[k], None, ad_id) for k in ("media_url", "thumbnail")]
     database.publish_ads_file()
     return ok(message="जाहिरात यशस्वीरीत्या हटवली!", files_removed=sum(removed))
+
+
+# -------------------------------------------------------------
+# REST API: Site settings (the footer's office address, phone and e-mail)
+# -------------------------------------------------------------
+def _settings_problem(data):
+    """Why these footer details cannot be saved (an English sentence for the Admin Panel), or None. Texts are trimmed in place."""
+    for key in database.SETTINGS_FIELDS:
+        if key in data:
+            data[key] = str(data[key] if data[key] is not None else "").strip()
+    for key in ("office_address", "office_address_en"):
+        if len(data.get(key, "")) > 400:
+            return "The address is too long (400 characters at most)"
+    phone = data.get("office_phone", "")
+    if phone:
+        digits = re.sub(r"\D", "", phone)
+        if not re.fullmatch(r"[+()\d\s-]{1,40}", phone) or not 6 <= len(digits) <= 15:
+            return "The phone number may only have digits, spaces, + - ( ) and 6 to 15 digits"
+    email = data.get("office_email", "")
+    if email and (len(email) > 160 or not re.fullmatch(r"[^@\s<>\"']+@[^@\s<>\"']+\.[^@\s<>\"']+", email)):
+        return "This is not a valid e-mail address"
+    return None
+
+
+@api.get("/settings")
+def get_settings():
+    return ok(settings=database.get_settings())
+
+
+@api.route("/settings", methods=["PUT", "POST"])
+def update_settings():
+    data = body()
+    if not any(key in data for key in database.SETTINGS_FIELDS):
+        return fail("No update data provided", 400)
+    problem = _settings_problem(data)
+    if problem:
+        return fail(problem, 400)
+    settings = database.update_settings(data)
+    database.publish_settings_file()
+    return ok(message="फूटर माहिती जतन झाली!", settings=settings)
 
 
 # -------------------------------------------------------------

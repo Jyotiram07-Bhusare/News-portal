@@ -499,26 +499,29 @@ html.is-dark .brand-logo .brand-logo-img {
   padding: 18px;
 }
 
-/* Widget Title (Underline style from screenshot) */
+/* Widget Title: a peach band (#FDE9CE) with the title in the middle and a short orange line under it */
 .widget-title-wrap {
   position: relative;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 8px;
+  padding: 10px 12px 12px;
   margin-bottom: 16px;
+  text-align: center;
+  background-color: #FDE9CE;
+  border-radius: var(--border-radius);
 }
 
 .widget-title-wrap::after {
   content: "";
   position: absolute;
-  bottom: -2px;
-  left: 0;
+  bottom: 0;
+  left: 50%;
   width: 44px;
   height: 2px;
+  transform: translateX(-50%);
   background-color: var(--orange, #EE7B30);
 }
 
 html.is-dark .widget-title-wrap {
-  border-bottom-color: #38322D;
+  background-color: rgba(238, 123, 48, 0.16);
 }
 
 .widget-title-text {
@@ -1302,6 +1305,66 @@ html.is-dark .x-share-btn.share-toggle-more {
   border-radius: 0 var(--border-radius) var(--border-radius) 0;
 }
 
+/* Long stories (the Blogs): headings, lists and a table inside the article text */
+.single-article-content h2 {
+  margin: 28px 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--title-color);
+}
+
+.single-article-content h3 {
+  margin: 20px 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--title-color);
+}
+
+.single-article-content ul,
+.single-article-content ol {
+  margin: 0 0 16px;
+  padding-left: 22px;
+}
+
+.single-article-content ul {
+  list-style: disc;
+}
+
+.single-article-content ol {
+  list-style: decimal;
+}
+
+.single-article-content li {
+  margin-bottom: 6px;
+}
+
+.single-article-content .article-table-wrap {
+  margin: 0 0 18px;
+  overflow-x: auto;
+}
+
+.single-article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.single-article-content th,
+.single-article-content td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.single-article-content th {
+  background: rgba(127, 42, 29, 0.08);
+  color: var(--title-color);
+  font-weight: 700;
+}
+
 .single-share-bar {
   display: flex;
   align-items: center;
@@ -1962,6 +2025,15 @@ html.is-dark .social-icon-box.tw { box-shadow: inset 0 0 0 1px rgba(255, 255, 25
   padding: 0;
 }
 
+/* the same pill under the Random grid (spans both columns), the Popular list and the Blogs list */
+.random-posts-grid .load-more-wrap.video-more-wrap {
+  grid-column: 1 / -1;
+}
+
+.popular-posts-wrap .load-more-wrap.video-more-wrap {
+  margin-top: 12px;
+}
+
 .video-more-wrap .btn-load-more {
   gap: 6px;
   padding: 5px 15px;
@@ -2115,6 +2187,12 @@ html.is-dark .video-more-wrap .btn-load-more:hover {
 }
 
 /* Office contact: address, phone, e-mail */
+/* a detail the owner left empty in the Admin Panel (Footer) is not shown; neither is the block when all three are empty */
+.footer-contact[hidden],
+.footer-contact-item[hidden] {
+  display: none;
+}
+
 .footer-contact-list {
   display: flex;
   flex-direction: column;

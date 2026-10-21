@@ -721,6 +721,7 @@ window.onLanguageChange = function () {
   renderLatestReviews();
   renderFeaturedVideos();
   updateAdLanguage();
+  renderFooterContact();
   if (drawerPopularRendered && typeof renderDrawerPopularItems === "function") renderDrawerPopularItems();
   if (typeof renderRoute === "function") renderRoute({ scroll: false });
 };
@@ -728,6 +729,7 @@ window.onLanguageChange = function () {
 // Initialize on Load
 document.addEventListener("DOMContentLoaded", () => {
   loadStaticArticles();
+  renderFooterContact();
   applyDataLanguage();
   initThemeToggle();
   initNavigation();
@@ -1230,25 +1232,44 @@ function getMarathiCategory(cat) {            // Marathi only: js/i18n.js shows 
 }
 
 // --- Render Left Sidebar (Popular Posts matching Xapify) ---
+// "अधिक वाचा" under the Popular / Random widgets and the Blogs list: the first POPULAR_SHOWN / RANDOM_SHOWN / BLOGS_SHOWN stories are shown,
+// the rest (a newly added story pushes the oldest one down, it never disappears) opens with the button and closes again with "कमी दाखवा".
+const POPULAR_SHOWN = 4, RANDOM_SHOWN = 4, BLOGS_SHOWN = 5;
+let popularExpanded = false, randomExpanded = false, blogsExpanded = false;
+
+function moreButtonHTML(kind, total, limit, expanded) {
+  if (total <= limit) return "";
+  return `
+    <div class="load-more-wrap video-more-wrap">
+      <button type="button" class="btn-load-more" aria-expanded="${expanded}" onclick="toggleMoreStories('${kind}')">
+        <i class="fa-solid fa-angles-${expanded ? "up" : "down"}"></i>
+        <span>${expanded ? "कमी दाखवा" : "अधिक वाचा"}</span>
+      </button>
+    </div>`;
+}
+
+window.toggleMoreStories = function(kind) {
+  if (kind === "popular") { popularExpanded = !popularExpanded; renderLeftSidebar(); }
+  else if (kind === "random") { randomExpanded = !randomExpanded; renderRightSidebar(); }
+  else if (kind === "blogs") { blogsExpanded = !blogsExpanded; renderSecondaryPosts(); }
+};
+
 function renderLeftSidebar() {
   const container = document.getElementById("popular-posts-container");
   if (!container) return;
 
   // Pick articles explicitly marked as popular in Admin Panel - the most recently updated / marked first (then the highest id), so a story
-  // marked or edited now shows at once and the oldest one makes room (the widget has three places)
+  // marked or edited now shows at once and goes to the top; the widget shows POPULAR_SHOWN, the rest waits behind "अधिक वाचा"
   let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
   
-  // If fewer than 3, top up with other non-weekly articles
-  if (popularList.length < 3) {
-    const remaining = articlesData.filter(a => a.category !== "weekly" && !popularList.some(p => p.id === a.id));
-    popularList = popularList.concat(remaining).slice(0, 3);
+  // Only what is marked Popular in the Admin Panel is listed: nothing is added to fill the places (a story taken out of Popular must be gone)
+  const total = popularList.length;
+  const shown = popularExpanded ? popularList : popularList.slice(0, POPULAR_SHOWN);
+  if (!shown.length) {
+    container.innerHTML = `<p class="empty-note">अजून कोणतीही बातमी लोकप्रिय केलेली नाही.</p>`;
+    return;
   }
-
-  const item0 = popularList[0] || articlesData[0];
-  const item1 = popularList[1] || articlesData[1];
-  const item2 = popularList[2] || articlesData[2];
-
-  if (!item0) return;
+  const item0 = shown[0];
 
   container.innerHTML = `
     <!-- Item 0 Large Card: photo, then the text below it -->
@@ -1260,29 +1281,18 @@ function renderLeftSidebar() {
       byline: `<span class="by-word">by </span>${item0.author} - ${item0.date}`,
     })}
 
-    <!-- Item 1 List Card -->
-    ${item1 ? `
-    <div class="popular-sub-item" onclick="openArticlePage(${item1.id})">
+    <!-- The other list cards -->
+    ${shown.slice(1).map((item) => `
+    <div class="popular-sub-item" onclick="openArticlePage(${item.id})">
       <div class="popular-sub-thumb">
-        ${thumbImg(item1.image, item1.title, 240)}
+        ${thumbImg(item.image, item.title, 240)}
       </div>
       <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item1.title}</h5>
-        <span class="popular-sub-date">${item1.date}</span>
+        <h5 class="popular-sub-title">${item.title}</h5>
+        <span class="popular-sub-date">${item.date}</span>
       </div>
-    </div>` : ''}
-
-    <!-- Item 2 List Card -->
-    ${item2 ? `
-    <div class="popular-sub-item" onclick="openArticlePage(${item2.id})">
-      <div class="popular-sub-thumb">
-        ${thumbImg(item2.image, item2.title, 240)}
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item2.title}</h5>
-        <span class="popular-sub-date">${item2.date}</span>
-      </div>
-    </div>` : ''}
+    </div>`).join("")}
+    ${moreButtonHTML("popular", total, POPULAR_SHOWN, popularExpanded)}
   `;
 }
 
@@ -1291,16 +1301,17 @@ function renderRightSidebar() {
   const container = document.getElementById("random-posts-grid");
   if (!container) return;
 
-  // Pick articles explicitly marked as random in Admin Panel - the most recently updated / marked first, four places (see Popular above)
+  // Pick articles explicitly marked as random in Admin Panel - the most recently updated / marked first; RANDOM_SHOWN are shown, the rest waits behind "अधिक वाचा"
   let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
 
-  // If fewer than 4, fill remaining slots with other non-weekly articles
-  if (randomList.length < 4) {
-    const remaining = articlesData.filter(a => a.category !== "weekly" && !randomList.some(r => r.id === a.id));
-    randomList = randomList.concat(remaining).slice(0, 4);
+  // Only what is marked Random in the Admin Panel is listed: nothing is added to fill the places
+  const total = randomList.length;
+  if (!total) {
+    container.innerHTML = `<p class="empty-note" style="grid-column: 1 / -1">अजून कोणतीही बातमी यादृच्छिक केलेली नाही.</p>`;
+    return;
   }
 
-  container.innerHTML = randomList.slice(0, 4).map(item => `
+  container.innerHTML = (randomExpanded ? randomList : randomList.slice(0, RANDOM_SHOWN)).map(item => `
     <div class="random-grid-item" onclick="openArticlePage(${item.id})">
       <div class="random-grid-thumb">
         ${thumbImg(item.image, item.title, 400)}
@@ -1308,7 +1319,7 @@ function renderRightSidebar() {
       <h5 class="random-grid-title">${item.title}</h5>
       <span class="random-grid-date">${item.date}</span>
     </div>
-  `).join("");
+  `).join("") + moreButtonHTML("random", total, RANDOM_SHOWN, randomExpanded);
 }
 
 // --- Render Latest Reviews (Matching Popular Posts Exactly: 4 items) ---
@@ -1638,15 +1649,14 @@ function renderDrawerPopularItems() {
   if (!container) return;
 
   let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);   // (same order as the Popular widget)
-  if (popularList.length < 4) {
-    const remaining = articlesData.filter(a => a.category !== "weekly" && !popularList.some(p => p.id === a.id));
-    popularList = popularList.concat(remaining).slice(0, 5);
-  }
-
-  const item0 = popularList[0] || articlesData[0];
+  // (only what is marked Popular - nothing is added to fill the list)
+  const item0 = popularList[0];
   const otherItems = popularList.slice(1, 5);
 
-  if (!item0) return;
+  if (!item0) {
+    container.innerHTML = `<p class="empty-note">अजून कोणतीही बातमी लोकप्रिय केलेली नाही.</p>`;
+    return;
+  }
 
   container.innerHTML = `
     <!-- Item 0 Large Card: photo, then the text below it -->
@@ -2037,7 +2047,7 @@ function renderCategorySection(container, cat) {
     ${leadStoryHTML(article)}
 
     <div class="more-posts-header">
-      <h2 class="more-posts-title"><i class="fa-solid fa-newspaper" style="color:var(--main-color); margin-right:6px"></i> इतर ताज्या बातम्या</h2>
+      <h2 class="more-posts-title"><i class="fa-solid ${cat === "blogs" ? "fa-pen-nib" : "fa-newspaper"}" style="color:var(--main-color); margin-right:6px"></i> ${cat === "blogs" ? "इतर ब्लॉग्स" : "इतर ताज्या बातम्या"}</h2>
     </div>
     <div id="secondary-posts-feed">
       <!-- Populated below -->
@@ -2342,8 +2352,11 @@ function renderSecondaryPosts() {
 
   // other categories (Rajkiy, Samajik, Blogs, Review): the rest of the section
   const list = articlesData.filter((a) => a.category === currentCategory && a.id !== mainStoryId);
+  // Blogs: the lead story + the next ones make BLOGS_SHOWN; the other blogs open with "अधिक वाचा"
+  const isBlogs = currentCategory === "blogs";
+  const rows = isBlogs && !blogsExpanded ? list.slice(0, BLOGS_SHOWN - 1) : list;
   container.innerHTML = list.length
-    ? list.map(postRowHTML).join("")
+    ? rows.map(postRowHTML).join("") + (isBlogs ? moreButtonHTML("blogs", list.length, BLOGS_SHOWN - 1, blogsExpanded) : "")
     : `<p class="empty-note">या विभागात इतर बातम्या लवकरच जोडल्या जातील.</p>`;
 }
 
@@ -3364,6 +3377,38 @@ async function apiJson(path) {
   return null;
 }
 
+// --- Footer "कार्यालय संपर्क": office address, phone, e-mail (Admin Panel > Footer) --------------------------------------------------
+// The details come from js/settings-data.js (kept by the backend, for a static host) and then GET /api/settings. A detail that was left
+// empty is not shown, and neither is the block when all three are empty. Text is put in with textContent (never as HTML).
+const defaultSiteSettings = {
+  office_address: "लोकमंगल भवन, मुख्य रस्ता, सोलापूर, महाराष्ट्र – ४१३ ००१",
+  office_address_en: "Lokmangal Bhavan, Main Road, Solapur, Maharashtra – 413 001",
+  office_phone: "+91 98765 43210",
+  office_email: "info@lokmangal.example",
+};
+let siteSettings = window.SITE_SETTINGS && typeof window.SITE_SETTINGS === "object" ? { ...defaultSiteSettings, ...window.SITE_SETTINGS } : defaultSiteSettings;
+
+function renderFooterContact() {
+  const s = siteSettings;
+  const text = (v) => String(v == null ? "" : v).trim();
+  const address = getLang() === "en" && text(s.office_address_en) ? text(s.office_address_en) : text(s.office_address);
+  const phone = /^[+()\d\s-]{1,40}$/.test(text(s.office_phone)) ? text(s.office_phone) : "";
+  const email = /^[^@\s<>"']+@[^@\s<>"']+\.[^@\s<>"']+$/.test(text(s.office_email)) ? text(s.office_email) : "";
+  const show = (row, id, value, href) => {
+    const rowEl = document.getElementById(row), el = document.getElementById(id);
+    if (!rowEl || !el) return;
+    rowEl.hidden = !value;
+    if (!value) return;
+    el.textContent = value;
+    if (href) el.setAttribute("href", href);
+  };
+  show("footer-row-address", "footer-address", address);
+  show("footer-row-phone", "footer-phone", phone, "tel:" + (phone.startsWith("+") ? "+" : "") + phone.replace(/\D/g, ""));
+  show("footer-row-email", "footer-email", email, "mailto:" + email);
+  const box = document.getElementById("footer-contact");
+  if (box) box.hidden = !(address || phone || email);
+}
+
 // Merges the news rows of the database - GET /api/articles, or js/articles-data.js on a static host - into articlesData.
 function mergeArticleRows(rows) {
   // The four built-in reviews are not in the database; remember them before the database data is merged in.
@@ -3397,7 +3442,7 @@ function loadStaticArticles() {
 
 async function syncPortalWithApi() {
   try {
-    const [artJson, weekJson, vidJson, adJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos'), apiJson('/api/ads')]);
+    const [artJson, weekJson, vidJson, adJson, setJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos'), apiJson('/api/ads'), apiJson('/api/settings')]);
     articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
     // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
@@ -3432,6 +3477,10 @@ async function syncPortalWithApi() {
       // the owner's uploads, newest first; none uploaded (or all deleted) = the sample videos
       videoPostsData = vidJson.videos.length ? vidJson.videos.map(videoFromRow) : builtInVideos;
       renderFeaturedVideos();
+    }
+    if (setJson && setJson.success && setJson.settings && typeof setJson.settings === 'object') {
+      siteSettings = { ...defaultSiteSettings, ...setJson.settings };
+      renderFooterContact();
     }
     if (adJson && adJson.success && Array.isArray(adJson.ads)) {
       adsData = adJson.ads;                // (an EMPTY list counts too: every ad deleted in the Admin Panel leaves the website)

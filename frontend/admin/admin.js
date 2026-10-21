@@ -28,7 +28,10 @@ let appState = {
   ads: [],                       // the Advertisements section (admin-ads.js)
   adsLoaded: false,              // true once the list really came from the backend
   adsFailed: false,
-  editingAdId: null              // id while the ad form edits an existing ad (null = a new ad)
+  editingAdId: null,             // id while the ad form edits an existing ad (null = a new ad)
+  settings: {},                  // the Footer section (admin-settings.js): office address, phone, e-mail
+  settingsLoaded: false,         // true once the details really came from the backend
+  settingsFailed: false
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
@@ -151,6 +154,7 @@ function initNavigation() {
     else if (hash === 'weekly') switchTab('tab-weekly');
     else if (hash === 'videos') switchTab('tab-videos');
     else if (hash === 'ads') switchTab('tab-ads');
+    else if (hash === 'footer') switchTab('tab-footer');
     else switchTab('tab-dashboard');
   });
 
@@ -160,6 +164,7 @@ function initNavigation() {
     else if (h === 'weekly') switchTab('tab-weekly');
     else if (h === 'videos') switchTab('tab-videos');
     else if (h === 'ads') switchTab('tab-ads');
+    else if (h === 'footer') switchTab('tab-footer');
   }
 }
 
@@ -242,7 +247,8 @@ function switchTab(tabId) {
     'tab-articles': 'बातम्या व्यवस्थापन (News Manager)',
     'tab-weekly': 'साप्ताहिक ई-पेपर (Weekly PDF)',
     'tab-videos': 'व्हिडिओ अपलोड (Videos)',
-    'tab-ads': 'जाहिरात (Advertisements)'
+    'tab-ads': 'जाहिरात (Advertisements)',
+    'tab-footer': 'फूटर माहिती (Footer)'
   };
   if (breadcrumb) breadcrumb.textContent = names[tabId] || 'डॅशबोर्ड';
 
@@ -319,7 +325,8 @@ async function loadAllData() {
     fetchArticles(),
     fetchWeekly(),
     fetchVideos(),
-    fetchAds()
+    fetchAds(),
+    fetchSettings()
   ]);
   // the backend answers but a list did not arrive (a dropped connection): say so, never show a silent empty list
   showBackendBanner(state === 'online' && !(appState.articlesLoaded && appState.weeklyLoaded) ? 'partial' : state);
@@ -349,7 +356,7 @@ function backendProblem(state) {
   if (window.location.protocol === 'file:') {
     return {
       title: msg('हे पान फाईल म्हणून उघडले आहे', 'This page was opened as a file'),
-      text: msg('Admin Panel ला बॅकएंड लागतो. backend फोल्डरमध्ये "python app.py" चालवा आणि हा पत्ता उघडा:',
+      text: msg('प्रशासकीय कक्षाला बॅकएंड लागतो. backend फोल्डरमध्ये "python app.py" चालवा आणि हा पत्ता उघडा:',
                 'The Admin Panel needs the backend. Run "python app.py" in the backend folder and open this address:'),
       link: 'http://localhost:5000/admin/'
     };
@@ -357,7 +364,7 @@ function backendProblem(state) {
   if (local) {
     return {
       title: msg('बॅकएंड (Python + MySQL) चालू नाही', 'The backend (Python + MySQL) is not running'),
-      text: msg('Admin Panel ला सर्व माहिती बॅकएंडकडूनच मिळते, म्हणून सध्या आकडे व याद्या रिकाम्या दिसतात — बातम्या / अंक हरवलेले नाहीत. backend फोल्डरमध्ये "python app.py" चालवा आणि "पुन्हा तपासा" दाबा.',
+      text: msg('प्रशासकीय कक्षाला सर्व माहिती बॅकएंडकडूनच मिळते, म्हणून सध्या आकडे व याद्या रिकाम्या दिसतात — बातम्या / अंक हरवलेले नाहीत. backend फोल्डरमध्ये "python app.py" चालवा आणि "पुन्हा तपासा" दाबा.',
                 'The Admin Panel gets all its data from the backend, so the numbers and lists look empty right now — no news / issues are lost. Run "python app.py" in the backend folder and press “Check again”.')
     };
   }
@@ -370,7 +377,7 @@ function backendProblem(state) {
   }
   return {
     title: msg('या पत्त्यावर बॅकएंड नाही', 'There is no backend at this address'),
-    text: msg(`"${window.location.host}" वर फक्त वेबसाईट (static फाईल्स) ठेवली आहे; Python + MySQL बॅकएंड तिथे चालत नाही. म्हणून Admin Panel काहीही वाचू किंवा जतन करू शकत नाही आणि आकडे रिकामे दिसतात — बातम्या व अंक हरवलेले नाहीत, साईटवर ते जसेच्या तसे आहेत. अंक / बातम्या व्यवस्थापित करण्यासाठी बॅकएंड असलेला Admin उघडा. तुमच्या PC वर:`,
+    text: msg(`"${window.location.host}" वर फक्त वेबसाईट (static फाईल्स) ठेवली आहे; Python + MySQL बॅकएंड तिथे चालत नाही. म्हणून प्रशासकीय कक्ष काहीही वाचू किंवा जतन करू शकत नाही आणि आकडे रिकामे दिसतात — बातम्या व अंक हरवलेले नाहीत, साईटवर ते जसेच्या तसे आहेत. अंक / बातम्या व्यवस्थापित करण्यासाठी बॅकएंड असलेला Admin उघडा. तुमच्या PC वर:`,
               `Only the website (static files) is hosted at "${window.location.host}"; the Python + MySQL backend does not run there. So the Admin Panel can neither read nor save anything and the numbers look empty — no news or issues are lost, they are on the site exactly as before. To manage issues / news open the Admin that has a backend. On your PC:`),
     link: 'http://localhost:5000/admin/',
     tail: msg('बॅकएंड इंटरनेटवर ठेवल्यावर frontend/js/config.js मध्ये त्याचा पत्ता द्या (README: "इंटरनेटवर ठेवताना").',
@@ -723,8 +730,8 @@ function openNewArticleModal() {
 
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
   document.getElementById('form-article-views').value = '1.8K';
-  document.getElementById('form-article-image').value = 'assets/images/bapu_portrait_lead.jpg';
-  updateArticleImgPreview('assets/images/bapu_portrait_lead.jpg');
+  document.getElementById('form-article-image').value = '';                 // (no photo is suggested: the editor chooses one)
+  updateArticleImgPreview('');
   document.getElementById('form-article-excerpt').value = '';
   document.getElementById('form-article-content').value = '';
   appState.storyOnOpen = null;
@@ -782,8 +789,13 @@ function closeArticleModal() {
 
 function updateArticleImgPreview(url) {
   const img = document.getElementById('article-img-preview');
+  const wrap = document.getElementById('article-img-preview-wrap');
+  const has = !!String(url || '').trim();
+  if (wrap) wrap.classList.toggle('is-empty', !has);           // no photo yet: an empty box with a picture icon
   if (img) {
-    img.src = formatAssetUrl(url);
+    img.hidden = !has;
+    if (has) img.src = formatAssetUrl(url);
+    else img.removeAttribute('src');
   }
 }
 
@@ -812,20 +824,6 @@ async function handleArticleImageUpload(input) {
   } catch (err) {
     console.error('Error uploading image:', err);
     showToast('सर्व्हर त्रुटी: फोटो अपलोड होऊ शकला नाही.', 'error');
-  }
-}
-
-// Auto set category label
-function autoSetCategoryLabel() {
-  const cat = document.getElementById('form-article-category').value;
-  const imgInput = document.getElementById('form-article-image');
-  if (!imgInput.value || imgInput.value.includes('unsplash')) {
-    if (cat === 'rajkiy') {
-      imgInput.value = 'assets/images/bapu_portrait_lead.jpg';
-    } else if (cat === 'samajik') {
-      imgInput.value = 'assets/images/lokmangal_vivah_01.jpg';
-    }
-    updateArticleImgPreview(imgInput.value);
   }
 }
 
@@ -880,7 +878,12 @@ async function handleArticleFormSubmit(e) {
   const author = document.getElementById('form-article-author').value.trim();
   const date = document.getElementById('form-article-date').value.trim();
   const views = document.getElementById('form-article-views').value.trim() || '1.5K';
-  const image = document.getElementById('form-article-image').value.trim() || 'assets/images/lokmangal_what_we_do.jpg';
+  const image = document.getElementById('form-article-image').value.trim();
+  if (!image) {
+    showToast('आधी बातमीचा फोटो निवडा किंवा त्याचा URL द्या.', 'error');
+    document.getElementById('form-article-image').focus();
+    return;
+  }
   const excerpt = document.getElementById('form-article-excerpt').value.trim();
   const content = storyHtml('form-article-content', 'content');
   const title_en = document.getElementById('form-article-title-en').value.trim();
@@ -1013,7 +1016,7 @@ function previewArticleBeforeSubmit() {
   const cat = document.getElementById('form-article-category').value;
   const author = document.getElementById('form-article-author').value.trim() || 'प्रतिनिधी';
   const date = document.getElementById('form-article-date').value.trim() || 'आज';
-  const image = document.getElementById('form-article-image').value.trim() || 'assets/images/bapu_portrait_lead.jpg';
+  const image = document.getElementById('form-article-image').value.trim();
   const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim()) || '<p>बातमी मजकूर...</p>';
 
   document.getElementById('prev-badge').textContent = cat;
@@ -1023,7 +1026,9 @@ function previewArticleBeforeSubmit() {
   document.getElementById('prev-views').textContent = '१.२K वाचक';
 
   const img = document.getElementById('prev-img');
-  img.src = formatAssetUrl(image);
+  img.hidden = !image;
+  if (image) img.src = formatAssetUrl(image);
+  else img.removeAttribute('src');
 
   document.getElementById('prev-content').innerHTML = content;
   document.getElementById('preview-modal').classList.add('open');
@@ -1397,7 +1402,7 @@ async function handleWeeklyFormSubmit(e) {
 async function confirmDeleteWeekly(issueNo) {
   const known = (appState.weekly || []).find((x) => Number(x.issue_no) === Number(issueNo));
   const what = known && known.date ? `अंक ${issueNo} (${known.date})` : `अंक ${issueNo}`;
-  const whatEn = known && known.date ? `issue ${issueNo} (${known.date})` : `issue ${issueNo}`;
+  const whatEn = known && known.date ? `issue ${issueNo} (${typeof window.trUI === 'function' ? window.trUI(known.date) : known.date})` : `issue ${issueNo}`;
   if (!confirm(msg(`तुम्हाला खात्री आहे की ${what} हटवायचा आहे?\n\nहा अंक वेबसाईटवरूनही निघून जाईल. (त्याची PDF फाईल व मुखपृष्ठ फोटो assets फोल्डरमध्ये तसेच राहतात.)`,
                    `Are you sure you want to delete ${whatEn}?\n\nThe issue will also disappear from the website. (Its PDF file and cover photo stay in the assets folder.)`))) return;
 

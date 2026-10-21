@@ -71,6 +71,10 @@
           <span>जाहिरात (Advertisements)</span>
           <span class="nav-badge" id="sidebar-ads-count">…</span>
         </a>
+        <a href="#footer" class="nav-item" data-tab="tab-footer">
+          <i class="fa-solid fa-address-card"></i>
+          <span>फूटर माहिती (Footer)</span>
+        </a>
 
         <div class="nav-section-title">थेट पोर्टल</div>
         <a href="/" target="_blank" class="nav-item nav-item-external">
@@ -139,7 +143,6 @@
           <div class="dashboard-header">
             <div>
               <h1 class="page-title">लोकमंगल न्यूज पोर्टल — डॅशबोर्ड</h1>
-              <p class="page-subtitle">ताज्या बातम्या, साप्ताहिक ई-पेपर व आकडेवारीचे थेट नियंत्रण</p>
             </div>
             <button class="btn btn-refresh" onclick="refreshDashboardData()">
               <i class="fa-solid fa-rotate"></i> रिफ्रेश करा
@@ -155,7 +158,6 @@
               <div class="stat-details">
                 <span class="stat-label">एकूण बातम्या (Articles)</span>
                 <h2 class="stat-value" id="stat-total-articles">…</h2>
-                <span class="stat-hint"><i class="fa-solid fa-check"></i> सर्व श्रेणींमध्ये प्रकाशित</span>
               </div>
             </div>
 
@@ -166,7 +168,6 @@
               <div class="stat-details">
                 <span class="stat-label">साप्ताहिक PDF अंक (Weekly)</span>
                 <h2 class="stat-value" id="stat-total-weekly">…</h2>
-                <span class="stat-hint"><i class="fa-solid fa-download"></i> ई-पेपर संग्रह उपलब्ध</span>
               </div>
             </div>
 
@@ -177,7 +178,6 @@
               <div class="stat-details">
                 <span class="stat-label">राजकीय बातम्या (Rajkiy)</span>
                 <h2 class="stat-value" id="stat-total-rajkiy">…</h2>
-                <span class="stat-hint">आमदार सुभाष बापू देशमुख</span>
               </div>
             </div>
 
@@ -188,7 +188,6 @@
               <div class="stat-details">
                 <span class="stat-label">सामाजिक बातम्या (Samajik)</span>
                 <h2 class="stat-value" id="stat-total-samajik">…</h2>
-                <span class="stat-hint">लोकमंगल फाऊंडेशन प्रकल्प</span>
               </div>
             </div>
           </div>
@@ -202,12 +201,10 @@
             <div class="placement-stat-card">
               <div class="stat-badge red"><i class="fa-solid fa-fire"></i> लोकप्रिय बातम्या (Popular Posts)</div>
               <div class="placement-count"><strong id="stat-total-popular">…</strong> बातम्या निवडल्या आहेत</div>
-              <small class="form-hint">वेबसाईटवर ताज्या ३ दिसतात — नवीन निवडलेली वर येते, सर्वात जुनी जागा सोडते.</small>
             </div>
             <div class="placement-stat-card">
               <div class="stat-badge green"><i class="fa-solid fa-shuffle"></i> यादृच्छिक बातम्या (Random Posts)</div>
               <div class="placement-count"><strong id="stat-total-random">…</strong> बातम्या निवडल्या आहेत</div>
-              <small class="form-hint">वेबसाईटवर ताज्या ४ दिसतात — नवीन निवडलेली वर येते, सर्वात जुनी जागा सोडते.</small>
             </div>
           </div>
 
@@ -301,7 +298,6 @@
           <div class="tab-toolbar">
             <div class="toolbar-left">
               <h2 class="tab-title">साप्ताहिक ई-पेपर व PDF व्यवस्थापन</h2>
-              <p class="tab-desc">लोकमंगल साप्ताहिक अंकांचे मुखपृष्ठ, तारीख, तपशील आणि थेट PDF फाईल्स अपलोड करा.</p>
             </div>
             <div class="toolbar-right">
               <button class="btn btn-primary" onclick="openNewWeeklyModal()">
@@ -316,7 +312,7 @@
                 <thead>
                   <tr>
                     <th style="width: 70px;">अंक क्र.</th>
-                    <th style="width: 90px;">कव्हर</th>
+                    <th style="width: 90px;">मुखपृष्ठ</th>
                     <th>अंकाचे नाव व शीर्षक</th>
                     <th style="width: 130px;">प्रकाशन तारीख</th>
                     <th style="width: 140px;">PDF फाईल</th>
@@ -339,7 +335,6 @@
           <div class="tab-toolbar">
             <div class="toolbar-left">
               <h2 class="tab-title">व्हिडिओ अपलोड व व्यवस्थापन</h2>
-              <p class="tab-desc">येथे अपलोड केलेला व्हिडिओ आणि त्याचे शीर्षक वेबसाईटवरील "निवडक व्हिडिओ" मध्ये दिसते आणि तिथेच प्ले होते.</p>
             </div>
             <div class="toolbar-right">
               <button class="btn btn-primary" onclick="openNewVideoModal()">
@@ -376,7 +371,6 @@
           <div class="tab-toolbar">
             <div class="toolbar-left">
               <h2 class="tab-title">जाहिरात अपलोड व व्यवस्थापन</h2>
-              <p class="tab-desc">येथे अपलोड केलेला फोटो किंवा व्हिडिओ वेबसाईटवरील "जाहिरात" विभागात एकामागून एक दिसतो. व्हिडिओ आपोआप (आवाजाशिवाय) चालतो.</p>
             </div>
             <div class="toolbar-right">
               <button class="btn btn-primary" onclick="openNewAdModal()">
@@ -403,6 +397,47 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 6: FOOTER (the website footer's "कार्यालय संपर्क": address, phone, e-mail) -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-footer">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">फूटर माहिती व्यवस्थापन</h2>
+            </div>
+          </div>
+
+          <div class="table-card settings-card" id="footer-settings-card">
+            <form id="footer-form" onsubmit="handleSettingsSubmit(event)">
+              <div class="lang-tabs" role="tablist" aria-label="भाषा / Language">
+                <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('footer-settings-card', 'mr')">मराठी <i class="lang-dot on"></i></button>
+                <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('footer-settings-card', 'en')">English <i class="lang-dot"></i></button>
+              </div>
+              <div class="form-group" data-lang-field="mr">
+                <label for="form-settings-address">कार्यालयाचा पत्ता</label>
+                <textarea id="form-settings-address" rows="3" maxlength="400" class="form-control" placeholder="उदा. लोकमंगल भवन, मुख्य रस्ता, सोलापूर – ४१३ ००१" data-no-i18n></textarea>
+              </div>
+              <div class="form-group" data-lang-field="en" hidden>
+                <label for="form-settings-address-en">Office address (English)</label>
+                <textarea id="form-settings-address-en" rows="3" maxlength="400" class="form-control" placeholder="e.g. Lokmangal Bhavan, Main Road, Solapur – 413 001" data-no-i18n></textarea>
+              </div>
+              <div class="form-group">
+                <label for="form-settings-phone">फोन नंबर</label>
+                <input type="tel" id="form-settings-phone" maxlength="40" autocomplete="off" class="form-control" placeholder="+91 98765 43210" data-no-i18n>
+              </div>
+              <div class="form-group">
+                <label for="form-settings-email">ईमेल</label>
+                <input type="email" id="form-settings-email" maxlength="160" autocomplete="off" class="form-control" placeholder="info@example.com" data-no-i18n>
+              </div>
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary" id="btn-save-settings">
+                  <i class="fa-solid fa-check"></i> फूटर माहिती जतन करा
+                </button>
+              </div>
+            </form>
           </div>
         </section>
       </div>
@@ -436,7 +471,7 @@
             </div>
             <div class="form-group flex-1">
               <label for="form-article-category">बातमीची श्रेणी (Category) <span class="req">*</span></label>
-              <select id="form-article-category" required class="form-control" onchange="autoSetCategoryLabel()">
+              <select id="form-article-category" required class="form-control">
                 <option value="rajkiy">राजकीय</option>
                 <option value="samajik">सामाजिक</option>
                 <option value="blogs">ब्लॉग्स</option>
@@ -453,7 +488,7 @@
                 <div class="placement-card-content">
                   <div class="placement-card-head">
                     <span class="badge-icon gold"><i class="fa-solid fa-star"></i></span>
-                    <strong>मुख्य प्रमुख बातमी (Lead Story)</strong>
+                    <strong>प्रमुख बातमी (Lead Story)</strong>
                   </div>
                 </div>
               </label>
@@ -513,8 +548,9 @@
           <div class="form-group">
             <label>बातमीचा फोटो (Image) <span class="req">*</span></label>
             <div class="image-uploader-box">
-              <div class="uploader-preview-wrap" id="article-img-preview-wrap">
-                <img src="../assets/images/bapu_portrait_lead.jpg" id="article-img-preview" alt="Preview">
+              <div class="uploader-preview-wrap is-empty" id="article-img-preview-wrap">
+                <img id="article-img-preview" alt="Preview" hidden>
+                <i class="fa-regular fa-image uploader-empty-icon" aria-hidden="true"></i>
               </div>
               <div class="uploader-inputs-wrap">
                 <div class="file-drop-area" onclick="document.getElementById('article-file-input').click()">
@@ -587,7 +623,6 @@
             <div class="form-group flex-2">
               <label for="form-weekly-date">प्रकाशन तारीख <span class="req">*</span></label>
               <input type="text" id="form-weekly-date" required class="form-control" placeholder="उदा. २ सप्टेंबर २०२६">
-              <small class="form-hint">अंकांचा क्रम या तारखेवरून ठरतो (सर्वात नवीन वर). "२ सप्टेंबर २०२६", "2 September 2026", "02-09-2026" किंवा "2026-09-02" असे लिहा — इतर पद्धतीची तारीख वाचता आली नाही तर तो अंक सर्वात वर येतो.</small>
             </div>
           </div>
 
@@ -606,7 +641,6 @@
             <div class="file-drop-area pdf-drop-area" onclick="document.getElementById('weekly-pdf-file-input').click()">
               <i class="fa-solid fa-file-pdf drop-icon"></i>
               <span id="weekly-pdf-filename-display">PDF फाईल निवडा किंवा ड्रॅग करा (Upload PDF)</span>
-              <small>कमाल मर्यादा ५० MB • आपोआप assets/pdf/ मध्ये जतन होईल</small>
             </div>
             <input type="file" id="weekly-pdf-file-input" accept="application/pdf" style="display:none;" onchange="handleWeeklyPdfUpload(this)">
             <input type="hidden" id="form-weekly-pdffilename">
@@ -623,7 +657,6 @@
                   <i class="fa-solid fa-upload"></i> फोटो निवडा
                 </button>
               </div>
-              <small class="form-hint">PDF निवडल्यावर मुखपृष्ठ (PDF चे पहिले पान) आणि तारीख (फाईलच्या नावावरून, उदा. "Lokmangal Saptahik 26 August 2026.pdf") आपोआप भरली जाते; हवे तर बदला.</small>
               <img id="weekly-cover-preview" class="weekly-cover-preview" alt="मुखपृष्ठ" hidden>
             </div>
           </div>
@@ -752,7 +785,6 @@
             <div class="file-drop-area video-drop-area" id="ad-image-drop" tabindex="0" role="button" onclick="document.getElementById('ad-image-input').click()">
               <i class="fa-regular fa-image drop-icon"></i>
               <span id="ad-image-name">फोटो निवडा किंवा ड्रॅग करा</span>
-              <small>JPG, PNG, WebP किंवा GIF • मोठा फोटो आपोआप लहान केला जातो</small>
             </div>
             <input type="file" id="ad-image-input" accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif" style="display:none;" onchange="handleAdImageChosen(this)">
             <div class="video-form-preview-wrap" id="ad-image-preview-wrap" hidden>
@@ -860,5 +892,6 @@
   <script src="/admin/admin.js"></script>
   <script src="/admin/admin-videos.js"></script>
   <script src="/admin/admin-ads.js"></script>
+  <script src="/admin/admin-settings.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 """Create the MySQL database and its tables. Safe to run again - nothing is dropped or overwritten.
 
-    python init_db.py            create the database + tables (articles, weekly_editions, videos, ads; an older database also gets the English columns
+    python init_db.py            create the database + tables (articles, weekly_editions, videos, ads, site_settings; an older database also gets the English columns
                                  and updated_at, and the sample news / issues that exist get their English text - only where it is still empty)
     python init_db.py --seed     ... and load the sample content (seed/*.json) when the tables are empty
 """
@@ -31,10 +31,11 @@ def create_tables():
     with database.connection() as conn:
         cur = conn.cursor()
         for statement in database.schema_statements():
-            if re.match(r"CREATE TABLE IF NOT EXISTS\s+ads\b", statement, re.I):
-                continue                              # the ads table is made (and filled with the three first ads) by ensure_ads_table() below
+            if re.match(r"CREATE TABLE IF NOT EXISTS\s+(ads|site_settings)\b", statement, re.I):
+                continue                              # these two are made (and filled with their first rows) by ensure_ads_table() / ensure_settings_table() below
             cur.execute(statement)
     database.ensure_ads_table()
+    database.ensure_settings_table()
 
 
 def add_missing_columns():

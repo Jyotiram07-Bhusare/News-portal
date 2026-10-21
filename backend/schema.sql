@@ -79,3 +79,16 @@ CREATE TABLE IF NOT EXISTS ads (
   created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The website's footer details (Admin Panel > Footer): ONE row (id = 1) - the office address (Marathi + English), phone and e-mail.
+-- Created (and filled with the details the footer started with) by the backend itself the first time it is needed - init_db.py does not run
+-- this statement directly, it calls database.ensure_settings_table().
+CREATE TABLE IF NOT EXISTS site_settings (
+  id                INT UNSIGNED  NOT NULL,
+  office_address    VARCHAR(500)  NOT NULL DEFAULT '',
+  office_address_en VARCHAR(500)  NOT NULL DEFAULT '',
+  office_phone      VARCHAR(40)   NOT NULL DEFAULT '',
+  office_email      VARCHAR(160)  NOT NULL DEFAULT '',
+  updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

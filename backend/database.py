@@ -10,7 +10,7 @@ import re
 import threading
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
 import pymysql
@@ -43,6 +43,14 @@ AD_NUMBERS = ("duration_sec", "size_bytes")
 AD_TYPES = ("image", "video")
 # The three ads the website always showed (frontend/assets/ad-1..3.jpg). A NEW `ads` table starts with them, so the Admin Panel can
 # reorder / replace / delete them like any other ad. (title, English title, picture)
+# The website's footer details (Admin Panel > Footer). These are the placeholder details the footer started with.
+SETTINGS_FIELDS = ("office_address", "office_address_en", "office_phone", "office_email")
+BUILT_IN_SETTINGS = {
+    "office_address": "लोकमंगल भवन, मुख्य रस्ता, सोलापूर, महाराष्ट्र – ४१३ ००१",
+    "office_address_en": "Lokmangal Bhavan, Main Road, Solapur, Maharashtra – 413 001",
+    "office_phone": "+91 98765 43210",
+    "office_email": "info@lokmangal.example",
+}
 BUILT_IN_ADS = (
     ("लोकमंगल पतसंस्था — सोने खरेदी कर्ज", "Lokmangal Patsanstha — gold purchase loan", "assets/ad-1.jpg"),
     ("लोकमंगल बँक — दसरा दिवाळी, नवी सुरुवात", "Lokmangal Bank — Dasara Diwali, a new beginning", "assets/ad-2.jpg"),
@@ -185,6 +193,33 @@ def ensure_videos_table() -> None:
         if cur.fetchone()["n"]:
             _renumber_videos(cur)                                                    # old rows get 1..N, newest first
     _videos_state["ok"] = True
+
+
+_settings_state = {"ok": False}
+_settings_lock = threading.Lock()
+
+
+def ensure_settings_table() -> None:
+    """The `site_settings` table (Admin Panel > Footer) is created here the first time it is needed, with its ONE row (id = 1) holding the
+    details the footer started with (BUILT_IN_SETTINGS). Only a NEW table is filled: a detail the owner clears stays cleared. (init_db.py calls this too.)"""
+    if _settings_state["ok"]:
+        return
+    with _settings_lock:
+        if _settings_state["ok"]:
+            return
+        with connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS n FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'site_settings'", (config.DB_NAME,))
+            is_new = not cur.fetchone()["n"]
+            if is_new:
+                for statement in schema_statements():
+                    if re.match(r"CREATE TABLE IF NOT EXISTS\s+site_settings\b", statement, re.I):
+                        cur.execute(statement)
+                cur.execute("INSERT INTO site_settings (id, office_address, office_address_en, office_phone, office_email) VALUES (1, %s, %s, %s, %s)",
+                            tuple(BUILT_IN_SETTINGS[f] for f in SETTINGS_FIELDS))
+        _settings_state["ok"] = True
+    if is_new:
+        publish_settings_file()
 
 
 _ads_state = {"ok": False}
@@ -436,6 +471,54 @@ def toggle_placement(article_id: int, field: str, value: Any = None) -> Optional
         return _row(article)
 
 
+# What the Home page's "ताज्या बातम्या" list shows (NEWS_CATEGORIES in js/app.js) and how many it shows on its first page (the big story + 7 rows).
+LATEST_CATEGORIES = ("samajik", "rajkiy")
+LATEST_SLOT = 8
+
+
+def settle_if_unplaced(article_id: int, before: Optional[Dict[str, Any]]) -> bool:
+    """A news taken out of Popular / Random (`before` = how it was just before) that is now in NO placement (not Lead, Popular or Random) is not
+    left in no section: it is ticked under "ताज्या बातम्या" and goes to the LATEST_SLOT-th place of that list (the last row of its first page),
+    whatever its stamp was. Returns True when it was moved. Only the stamps `updated_at` decide the order of the website's lists, so the news gets
+    the stamp that has exactly LATEST_SLOT - 1 news above it; when two stamps are too close to fit it in, the news below are moved down 2 seconds
+    together (their order among themselves does not change)."""
+    if not before or not (before.get("is_popular") or before.get("is_random")) or not has_updated():
+        return False
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, category, is_lead, is_popular, is_random FROM articles WHERE id = %s", (article_id,))
+        me = cur.fetchone()
+        if not me or me["category"] not in LATEST_CATEGORIES or me["is_lead"] or me["is_popular"] or me["is_random"]:
+            return False
+        marks = ", ".join(["%s"] * len(LATEST_CATEGORIES))
+        latest_column = ", is_latest" if has_latest() else ", 1 AS is_latest"
+        cur.execute(f"SELECT id, category, is_lead{latest_column}, updated_at FROM articles WHERE id != %s AND category IN ({marks}) "
+                    "ORDER BY updated_at DESC, id DESC", (article_id, *LATEST_CATEGORIES))
+        rows = cur.fetchall()
+        # the big Home story is not in the list: the Lead Story, or without one the newest Rajkiy
+        lead = next((r["id"] for r in rows if r["is_lead"]), None) or next((r["id"] for r in rows if r["category"] == "rajkiy"), None)
+        listed = [r for r in rows if r["id"] != lead and r["is_latest"]]
+        if has_latest():
+            cur.execute("UPDATE articles SET is_latest = 1 WHERE id = %s", (article_id,))
+        step = timedelta(seconds=1)
+        if len(listed) < LATEST_SLOT - 1:                              # fewer than 7 others: it simply goes last
+            if listed:
+                stamp = listed[-1]["updated_at"] - step
+            else:
+                cur.execute("SELECT UTC_TIMESTAMP() AS now")
+                stamp = cur.fetchone()["now"]
+        else:
+            above, below = listed[LATEST_SLOT - 2], listed[LATEST_SLOT - 1]       # the 7th and the 8th now
+            if above["updated_at"] - below["updated_at"] >= 2 * step:
+                stamp = below["updated_at"] + step                    # room between them
+            else:
+                ids = [r["id"] for r in listed[LATEST_SLOT - 1:]]
+                cur.execute(f"UPDATE articles SET updated_at = updated_at - INTERVAL 2 SECOND WHERE id IN ({', '.join(['%s'] * len(ids))})", ids)
+                stamp = below["updated_at"] - step
+        cur.execute("UPDATE articles SET updated_at = %s WHERE id = %s", (stamp, article_id))
+        return True
+
+
 def delete_article(article_id: int) -> bool:
     with connection() as conn:
         cur = conn.cursor()
@@ -608,8 +691,8 @@ def publish_videos_file() -> bool:
         "// The website shows these videos where it has no backend (a static host); with a backend it asks /api/videos instead.\n")
 
 
-def _write_js_data(filename: str, variable: str, rows: List[Dict[str, Any]], header: str) -> bool:
-    """Write frontend/js/<filename> = `variable = rows;` (only when the text changed). True when it was rewritten."""
+def _write_js_data(filename: str, variable: str, rows: Any, header: str) -> bool:
+    """Write frontend/js/<filename> = `variable = rows;` (rows: a list, or one dict; only when the text changed). True when it was rewritten."""
     text = header + variable + " = " + json.dumps(rows, ensure_ascii=False, indent=2) + ";\n"
     path = config.FRONTEND_DIR / "js" / filename
     try:
@@ -726,6 +809,40 @@ def publish_ads_file() -> bool:
         "ads-data.js", "window.ADS_DATA", rows,
         "// Written by the backend (Admin Panel > Advertisements) after every change - do not edit by hand.\n"
         "// The website shows these ads where it has no backend (a static host); with a backend it asks /api/ads instead.\n")
+
+
+# -------------------------------------------------------------
+# Site settings (Admin Panel > Footer -> the website's footer "कार्यालय संपर्क": address, phone, e-mail)
+# -------------------------------------------------------------
+def get_settings() -> Dict[str, Any]:
+    ensure_settings_table()
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT {', '.join(SETTINGS_FIELDS)}, updated_at FROM site_settings WHERE id = 1")
+        row = _row(cur.fetchone())
+    return row or {**{f: "" for f in SETTINGS_FIELDS}, "updated_at": None}
+
+
+def update_settings(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Change the fields that came with the request (an empty text clears that detail: the website then does not show it)."""
+    ensure_settings_table()
+    fields = [f for f in SETTINGS_FIELDS if f in data]
+    if fields:
+        with connection() as conn:
+            cur = conn.cursor()
+            cur.execute("INSERT IGNORE INTO site_settings (id) VALUES (1)")               # (the row was deleted by hand: it is made again)
+            cur.execute(f"UPDATE site_settings SET {', '.join(f'`{f}` = %s' for f in fields)} WHERE id = 1", [_text(data, f) for f in fields])
+    return get_settings()
+
+
+def publish_settings_file() -> bool:
+    """Keep frontend/js/settings-data.js equal to the site_settings row (the website shows the footer details from it where it has no backend -
+    a static host; with a backend it asks /api/settings instead). Written only when something changed."""
+    current = get_settings()
+    return _write_js_data(
+        "settings-data.js", "window.SITE_SETTINGS", {f: current[f] for f in SETTINGS_FIELDS},
+        "// Written by the backend (Admin Panel > Footer) after every change - do not edit by hand.\n"
+        "// The website shows these footer details where it has no backend (a static host); with a backend it asks /api/settings instead.\n")
 
 
 # -------------------------------------------------------------

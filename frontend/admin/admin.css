@@ -2333,3 +2333,57 @@ body.dark-theme .video-form-warn {
   object-fit: contain;
   background: #f1f5f9;
 }
+
+/* ===== Footer details (admin-settings.js) ===== */
+.settings-card {
+  max-width: 760px;
+  padding: 24px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+@media (max-width: 860px) {
+  .settings-card {
+    padding: 16px;
+  }
+
+  .settings-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* No sub-texts in the Admin Panel. These three are still filled by the scripts (the limits are checked and reported when a file is chosen), so
+   the elements stay and are only not shown. */
+#form-weekly-no-hint,
+#video-limit-note,
+#ad-video-limit {
+  display: none;
+}
+
+/* the news photo box before a photo is chosen: an empty box with a picture icon (no stand-in picture) */
+.uploader-preview-wrap .uploader-empty-icon {
+  display: none;
+  font-size: 2rem;
+  color: #94a3b8;
+}
+
+.uploader-preview-wrap.is-empty {
+  background: #eef2f7;
+}
+
+.uploader-preview-wrap.is-empty .uploader-empty-icon {
+  display: block;
+}
+
+.uploader-preview-wrap img[hidden] {
+  display: none;
+}
+
+body.dark-theme .uploader-preview-wrap.is-empty {
+  background: rgba(148, 163, 184, 0.12);
+}

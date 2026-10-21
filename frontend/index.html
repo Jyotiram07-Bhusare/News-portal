@@ -426,29 +426,29 @@
         </div>
       </nav>
 
-      <!-- Office contact (dummy details - replace with the real address, phone and e-mail) -->
-      <div class="footer-contact">
+      <!-- Office contact: the details come from the Admin Panel (Footer) - js/settings-data.js / GET /api/settings, drawn by renderFooterContact in js/app.js; the text below is only what shows until they are known -->
+      <div class="footer-contact" id="footer-contact">
         <h3 class="footer-col-title">कार्यालय संपर्क</h3>
         <ul class="footer-contact-list">
-          <li class="footer-contact-item">
+          <li class="footer-contact-item" id="footer-row-address">
             <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
             <div class="footer-contact-text">
               <span class="footer-contact-label">पत्ता</span>
-              <address class="footer-contact-value">लोकमंगल भवन, मुख्य रस्ता, सोलापूर, महाराष्ट्र – ४१३ ००१</address>
+              <address class="footer-contact-value" id="footer-address" data-no-i18n>लोकमंगल भवन, मुख्य रस्ता, सोलापूर, महाराष्ट्र – ४१३ ००१</address>
             </div>
           </li>
-          <li class="footer-contact-item">
+          <li class="footer-contact-item" id="footer-row-phone">
             <i class="fa-solid fa-phone" aria-hidden="true"></i>
             <div class="footer-contact-text">
               <span class="footer-contact-label">फोन</span>
-              <a class="footer-contact-value" href="tel:+919876543210" data-no-i18n>+91 98765 43210</a>
+              <a class="footer-contact-value" id="footer-phone" href="tel:+919876543210" data-no-i18n>+91 98765 43210</a>
             </div>
           </li>
-          <li class="footer-contact-item">
+          <li class="footer-contact-item" id="footer-row-email">
             <i class="fa-solid fa-envelope" aria-hidden="true"></i>
             <div class="footer-contact-text">
               <span class="footer-contact-label">ईमेल</span>
-              <a class="footer-contact-value" href="mailto:info@lokmangal.example" data-no-i18n>info@lokmangal.example</a>
+              <a class="footer-contact-value" id="footer-email" href="mailto:info@lokmangal.example" data-no-i18n>info@lokmangal.example</a>
             </div>
           </li>
         </ul>
@@ -613,6 +613,7 @@
   <script src="js/videos-data.js"></script>
   <script src="js/ads-data.js"></script>
   <script src="js/articles-data.js"></script>
+  <script src="js/settings-data.js"></script>
   <script src="js/app.js"></script>
 </body>
 
