@@ -727,6 +727,7 @@ window.onLanguageChange = function () {
 
 // Initialize on Load
 document.addEventListener("DOMContentLoaded", () => {
+  loadStaticArticles();
   applyDataLanguage();
   initThemeToggle();
   initNavigation();
@@ -3363,33 +3364,44 @@ async function apiJson(path) {
   return null;
 }
 
+// Merges the news rows of the database - GET /api/articles, or js/articles-data.js on a static host - into articlesData.
+function mergeArticleRows(rows) {
+  // The four built-in reviews are not in the database; remember them before the database data is merged in.
+  const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
+  const dbIds = new Set(rows.map((a) => a.id));
+  // Oldest first: every NEW article is put at the front of the list, so the newest one ends up on top.
+  rows.slice().sort((a, b) => a.id - b.id).forEach((row) => {
+    const dbArt = { ...row, category: row.category === 'reviews' ? 'review' : row.category };   // older admin spelling
+    const idx = articlesData.findIndex(a => a.id === dbArt.id);
+    if (idx !== -1) {
+      articlesData[idx] = { ...articlesData[idx], ...dbArt };
+    } else {
+      articlesData.unshift(dbArt);
+    }
+  });
+  // The database is the truth for what it holds: a built-in article that was DELETED in the Admin Panel
+  // leaves the website too. (The built-in reviews are not in the database, so they stay.)
+  articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id) || builtInReviewIds.has(a.id));
+}
+
+// A static host (Vercel) has no backend: the news the owner changed in the Admin Panel (edited, Popular / Lead / Random / Latest, new,
+// deleted) come from js/articles-data.js, which the backend keeps equal to the database. Merged before the page is drawn for the first
+// time; with a backend GET /api/articles replaces it (syncPortalWithApi).
+function loadStaticArticles() {
+  if (!Array.isArray(window.ARTICLES_DATA)) return;
+  articlesData.forEach((a) => restoreRawFields(a, true));
+  mergeArticleRows(window.ARTICLES_DATA);
+  articlesData.sort(newerFirst);
+  fillBuiltInEnglish();
+}
+
 async function syncPortalWithApi() {
   try {
-    // The four built-in reviews are not in the database; remember them before the database data is merged in.
-    const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
     const [artJson, weekJson, vidJson, adJson] = await Promise.all([apiJson('/api/articles'), apiJson('/api/weekly'), apiJson('/api/videos'), apiJson('/api/ads')]);
     articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
-    if (artJson) {
-      // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
-      if (artJson.success && Array.isArray(artJson.articles)) {
-        const dbIds = new Set(artJson.articles.map((a) => a.id));
-        // Oldest first: every NEW article is put at the front of the list, so the newest one ends up on top.
-        artJson.articles.slice().sort((a, b) => a.id - b.id).forEach((row) => {
-          const dbArt = { ...row, category: row.category === 'reviews' ? 'review' : row.category };   // older admin spelling
-          const idx = articlesData.findIndex(a => a.id === dbArt.id);
-          if (idx !== -1) {
-            articlesData[idx] = { ...articlesData[idx], ...dbArt };
-          } else {
-            articlesData.unshift(dbArt);
-            hasUpdates = true;
-          }
-        });
-        // The database is the truth for what it holds: a built-in article that was DELETED in the Admin Panel
-        // leaves the website too. (The built-in reviews are not in the database, so they stay.)
-        articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id) || builtInReviewIds.has(a.id));
-      }
-    }
+    // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
+    if (artJson && artJson.success && Array.isArray(artJson.articles)) mergeArticleRows(artJson.articles);
     if (weekJson) {
       // (an EMPTY list counts too: when the last issue is deleted in the Admin Panel the 68 built-in issues must not come back)
       if (weekJson.success && Array.isArray(weekJson.issues)) {

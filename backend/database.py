@@ -328,6 +328,16 @@ def get_articles(category: Optional[str] = None, search: Optional[str] = None,
         return [_row(r) for r in cur.fetchall()]
 
 
+def publish_articles_file() -> bool:
+    """Keep frontend/js/articles-data.js equal to the articles table. A static host (Vercel) has no backend, so the website gets the news
+    the owner changed in the Admin Panel (edited, Popular / Lead / Random / Latest, new, deleted) from this file there; with a backend the
+    website asks /api/articles instead. Written only when something changed. Returns True when it was rewritten."""
+    return _write_js_data(
+        "articles-data.js", "window.ARTICLES_DATA", get_articles(),
+        "// Written by the backend (Admin Panel > News) after every change - do not edit by hand.\n"
+        "// The website shows these news where it has no backend (a static host); with a backend it asks /api/articles instead.\n")
+
+
 def get_article(article_id: int) -> Optional[Dict[str, Any]]:
     with connection() as conn:
         cur = conn.cursor()

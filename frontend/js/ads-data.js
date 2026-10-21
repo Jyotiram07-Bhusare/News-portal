@@ -11,7 +11,7 @@ window.ADS_DATA = [
     "link_url": "",
     "duration_sec": null,
     "sort_order": 1,
-    "created_at": "2026-10-21 05:42:53"
+    "created_at": "2026-10-21 05:29:52"
   },
   {
     "id": 2,
@@ -23,7 +23,7 @@ window.ADS_DATA = [
     "link_url": "",
     "duration_sec": null,
     "sort_order": 2,
-    "created_at": "2026-10-21 05:42:53"
+    "created_at": "2026-10-21 05:29:52"
   },
   {
     "id": 3,
@@ -35,6 +35,6 @@ window.ADS_DATA = [
     "link_url": "",
     "duration_sec": null,
     "sort_order": 3,
-    "created_at": "2026-10-21 05:42:53"
+    "created_at": "2026-10-21 05:29:52"
   }
 ];

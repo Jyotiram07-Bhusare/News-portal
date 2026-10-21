@@ -76,6 +76,7 @@ def create_article():
         return fail("Headline/Title is required", 400)
     ignored = database.english_ignored(data)
     new_id = database.create_article(data)
+    database.publish_articles_file()
     return jsonify({"success": True, "message": "बातमी यशस्वीरीत्या प्रकाशित झाली!",
                     "article": database.get_article(new_id), **_english_warning(ignored)}), 201
 
@@ -87,6 +88,7 @@ def update_article(article_id):
         return fail("No update data provided", 400)
     if not database.update_article(article_id, data):
         return fail("Failed to update article or article not found", 404)
+    database.publish_articles_file()
     return ok(message="बातमी अद्यतनित करण्यात आली!", article=database.get_article(article_id),
               **_english_warning(database.english_ignored(data)))
 
@@ -100,6 +102,7 @@ def toggle_article_placement(article_id):
     updated = database.toggle_placement(article_id, field, data.get("value"))
     if not updated:
         return fail("Article not found or invalid placement field", 404)
+    database.publish_articles_file()
     return ok(message="सेक्शन स्थान अद्यतनित केले!", article=updated)
 
 
@@ -107,6 +110,7 @@ def toggle_article_placement(article_id):
 def delete_article(article_id):
     if not database.delete_article(article_id):
         return fail("Article not found", 404)
+    database.publish_articles_file()
     return ok(message="बातमी यशस्वीरीत्या हटवली!")
 
 
