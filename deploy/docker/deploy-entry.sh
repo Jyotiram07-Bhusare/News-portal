@@ -83,6 +83,9 @@ else
   exit 1
 fi
 
-# tidy up: the last 5 release folders and the last 4 images are kept
-ls -1dt "$BASE"/releases/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
-docker images lokportal-api --format '{{.Tag}}' | grep -E '^[0-9]{8}-[0-9]{6}$' | sort -r | tail -n +5 | xargs -r -I{} docker rmi "lokportal-api:{}" >/dev/null 2>&1 || true
+# tidy up (it never fails the deploy): the last 5 release folders and the last 4 images are kept
+{
+  ls -1dt "$BASE"/releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+  docker images lokportal-api --format '{{.Tag}}' | grep -E '^[0-9]{8}-[0-9]{6}$' | sort -r | tail -n +5 | xargs -r -I{} docker rmi "lokportal-api:{}" >/dev/null 2>&1
+} || true
+exit 0
