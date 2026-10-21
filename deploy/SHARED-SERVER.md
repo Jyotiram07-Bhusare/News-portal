@@ -75,11 +75,24 @@ hash तुमच्या PC वर बनवा (`cd backend && python manage.
    ```
    ते होईपर्यंत deploy job फक्त "skipped" सांगतो; backend साठी हाताने: `tar -czf - -C backend --exclude=tests --exclude=__pycache__ . | ssh <server> 'sudo SSH_ORIGINAL_COMMAND=deploy /opt/lokportal/deploy-entry.sh'`.
 
-## 5. स्वतःचा domain आल्यावर
+## 5. Domain (GoDaddy DNS — Route 53 वापरत नाही)
 
-- **Website:** Amplify → Domain management → `www.<domain>`; मग `CORS_ORIGINS` (backend.env) व CloudFormation चा `SiteOrigins` मध्ये नवा पत्ता जोडा.
-- **API:** CloudFront distribution मध्ये alternate domain `api.<domain>` + ACM certificate (us-east-1, DNS validation) → DNS `api` CNAME → distribution. मग `deploy.yml` मधील `LOKMANGAL_API_BASE` बदला.
-- आत्ताचा `cloudfront.net` पत्ता तसाच चालू राहतो; हवा तर बंद करता येतो.
+`lokmangal.info` चे DNS GoDaddy वरच राहते. खालील CNAME records त्यात जोडलेले आहेत (GoDaddy DNS API token ने; तो token नंतर delete करावा):
+
+| Name | Value | कशासाठी |
+|---|---|---|
+| `www` | Amplify चा `xxxx.cloudfront.net` (`aws amplify get-domain-association`) | वेबसाईट `https://www.lokmangal.info` |
+| `_…` (Amplify चे) | `_….acm-validations.aws` | Amplify चे certificate verify |
+| `api` | API CloudFront (`ApiBaseUrl`) | `https://api.lokmangal.info` |
+| `_….api` | `_….acm-validations.aws` | `api` / `media` चे ACM certificate (us-east-1) verify |
+| `media` | media CloudFront (`MediaBaseUrl`) | `https://media.lokmangal.info` (फोटो / PDF / व्हिडिओ) |
+| `_….media` | `_….acm-validations.aws` | वरीलप्रमाणे |
+
+- **Certificate:** `aws acm request-certificate --region us-east-1 --domain-name api.<domain> --subject-alternative-names media.<domain> --validation-method DNS`; ISSUED झाल्यावर stack मध्ये `CertificateArn`, `ApiAlias`, `MediaAlias` द्या (`update-stack`, बाकी parameters `UsePreviousValue`).
+- **Apex (`lokmangal.info` बिना www):** GoDaddy मध्ये root ला CNAME चालत नाही → GoDaddy → Forwarding → `https://www.lokmangal.info`.
+- **backend.env:** `CORS_ORIGINS=https://www.<domain>,https://<domain>,…` आणि `MEDIA_BASE_URL=https://media.<domain>`; `docker compose … up -d --force-recreate --no-deps api`.
+- **GitHub:** `deploy.yml` मधील `LOKMANGAL_API_BASE=https://api.<domain>`.
+- DNS records बदलायला GoDaddy चा API token लागतो; तो वापरून झाल्यावर developer.godaddy.com वर delete करा.
 
 ## सुरक्षेच्या मर्यादा (प्रामाणिकपणे)
 

@@ -26,6 +26,20 @@ Parameters:
     Description: >-
       Only if GitHub uses "immutable" OIDC subjects for the repository (check: gh api repos/<owner>/<repo>/actions/oidc/customization/sub):
       the sub_claim_prefix it prints, e.g. repo:my-org@123456/my-repo@7890123. Leave empty otherwise.
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: >-
+      Optional: an ISSUED ACM certificate of us-east-1 that covers ApiAlias and MediaAlias. With it the two CloudFront distributions
+      answer on your own host names (api.<domain>, media.<domain>); without it they use their xxxx.cloudfront.net addresses.
+  ApiAlias:
+    Type: String
+    Default: ''
+    Description: The API's own host name, e.g. api.lokmangal.info (needs CertificateArn; then make a DNS CNAME pointing to the ApiBaseUrl host).
+  MediaAlias:
+    Type: String
+    Default: ''
+    Description: The media files' own host name, e.g. media.lokmangal.info (needs CertificateArn; then a DNS CNAME to the MediaBaseUrl host).
   ApiOriginHost:
     Type: String
     Description: >-
@@ -44,6 +58,10 @@ Parameters:
 
 Conditions:
   HasImmutableSubject: !Not [!Equals [!Ref GitHubSubjectPrefix, '']]
+  HasAliases: !And
+    - !Not [!Equals [!Ref CertificateArn, '']]
+    - !Not [!Equals [!Ref ApiAlias, '']]
+    - !Not [!Equals [!Ref MediaAlias, '']]
 
 Resources:
   # ------------------------------------------------------------------ files: S3 + CloudFront
@@ -125,6 +143,13 @@ Resources:
         HttpVersion: http2and3
         IPV6Enabled: true
         PriceClass: PriceClass_200
+        Aliases: !If [HasAliases, [!Ref MediaAlias], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasAliases
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         Origins:
           - Id: media-s3
             DomainName: !GetAtt MediaBucket.RegionalDomainName
@@ -200,6 +225,13 @@ Resources:
         HttpVersion: http2and3
         IPV6Enabled: true
         PriceClass: PriceClass_200
+        Aliases: !If [HasAliases, [!Ref ApiAlias], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasAliases
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         Origins:
           - Id: api-ec2
             DomainName: !Ref ApiOriginHost

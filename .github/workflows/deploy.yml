@@ -23,8 +23,8 @@ env:
   AMPLIFY_APP_ID: d3c5tglr8un3e
   AMPLIFY_BRANCH: main
   SITE_URL: https://main.d3c5tglr8un3e.amplifyapp.com
-  # public values: the website's address of the API (CloudFront) and the server that receives the backend
-  LOKMANGAL_API_BASE: https://d1favpgmr0p5li.cloudfront.net
+  # public values: the website's address of the API (api.lokmangal.info = CloudFront -> the server) and the server that receives the backend
+  LOKMANGAL_API_BASE: https://api.lokmangal.info
   SERVER_HOST: 13.205.79.72
 
 jobs:
