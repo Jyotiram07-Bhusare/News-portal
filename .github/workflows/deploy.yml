@@ -35,7 +35,6 @@ jobs:
     name: Website -> Amplify
     needs: checks
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       id-token: write
       contents: read
@@ -44,6 +43,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      # (the AWS role trusts exactly: this repository, branch main. A job with `environment:` would present a different identity.)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
@@ -81,7 +81,6 @@ jobs:
     name: Backend -> EC2
     needs: checks
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
       - name: Send backend/ to the server

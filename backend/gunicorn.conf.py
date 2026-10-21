@@ -16,3 +16,4 @@ max_requests_jitter = 200      # ... not all at the same moment
 accesslog = "-"                # container log / journald
 errorlog = "-"
 forwarded_allow_ips = os.getenv("FORWARDED_ALLOW_IPS", "127.0.0.1")
+control_socket_disable = True   # (gunicorn 25+: no admin socket - it would need a writable folder and nobody uses it)
