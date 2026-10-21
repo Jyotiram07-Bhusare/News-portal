@@ -329,6 +329,8 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | फोटो / PDF / व्हिडिओ | **S3 + CloudFront** — `STORAGE_BACKEND=s3`; EC2 ला IAM role (access key नाहीत) |
 | सर्व AWS संसाधने | `deploy/aws/lokmangal-stack.yml` (CloudFormation) एकाच वेळी S3, CloudFront, IAM role, security groups, RDS, EC2 बनवतो |
 
+**पत्ते (आत्ताचे live):** वेबसाईट `https://www.lokmangal.info` · **Admin Panel `https://admin.lokmangal.info`** (वेगळा पत्ता = वेगळा browser origin; वेबसाईटवर Admin चा कोड नाहीच, `www…/admin/` फक्त नव्या पत्त्याकडे नेते) · API `https://api.lokmangal.info` · फाईल्स `https://media.lokmangal.info`. वेबसाईट व Admin दोन्ही `main` वर push केल्यावर आपोआप deploy होतात; backend लाही; DB मध्ये *नवे* table / column आपोआप जोडले जातात. तपशील: [deploy/SHARED-SERVER.md](deploy/SHARED-SERVER.md).
+
 **सुरक्षा:** Admin Panel व लिहिणारे सर्व API ला **लॉगिन आहे** (`python manage.py set-admin-password`); बातमीचा मजकूर सर्व्हरवर स्वच्छ केला जातो; फाईल्सचा आशय तपासला जातो. production मध्ये (`APP_ENV=production`) कमकुवत `SECRET_KEY`, `CORS_ORIGINS=*`, `root` user, एन्क्रिप्ट नसलेला DB कनेक्शन असेल तर बॅकएंड सुरू होत नाही.
 
 **अपलोड कुठे जातात:** `STORAGE_BACKEND=local` (विकास) = `IMAGES_DIR` / `PDF_DIR` / `VIDEO_DIR`; `STORAGE_BACKEND=s3` (प्रकाशित) = S3 बकेटचे `images/`, `pdf/`, `videos/` फोल्डर, आणि DB मध्ये CloudFront चा पूर्ण `https://` पत्ता जतन होतो (साईट तोच वापरते). repository मधले ६८ जुने PDF व फोटो Amplify वरूनच चालतात; ते S3 वर हलवणे ऐच्छिक (DEPLOY.md, पायरी ९).

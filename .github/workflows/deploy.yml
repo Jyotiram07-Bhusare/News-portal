@@ -10,6 +10,7 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md']          # a change of the documentation alone does not redeploy anything
   workflow_dispatch:
 
 concurrency:
