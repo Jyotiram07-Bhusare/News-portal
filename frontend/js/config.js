@@ -5,6 +5,7 @@
  * which write js/env-config.js during every build:
  *     LOKMANGAL_API_BASE   https://api.lokmangal.in               the Python backend (EC2)
  *     LOKMANGAL_PDF_BASE   https://media.lokmangal.in/pdf/        where the weekly PDFs are (S3 behind CloudFront)
+ *     LOKMANGAL_SITE_BASE  https://www.lokmangal.in               the public website (the Admin Panel reads the site's pictures from it)
  *
  * API_BASE = where the Python backend (backend/app.py) lives:
  *   ""                         same address as this website (the backend also serves the site: SERVE_FRONTEND=true)
@@ -28,6 +29,10 @@
   // On the live site: the CloudFront address of the bucket's pdf/ folder - the backend stores new PDFs there.
   var PDF_BASE = env.PDF_BASE || "";
 
+  // The address of the PUBLIC website. Only the Admin Panel needs it: on its own subdomain (admin.<domain>) it has none of the website's
+  // pictures / PDFs, so it reads them from here. "" = this very address (a PC: the backend serves the website and the admin together).
+  var SITE_BASE = env.SITE_BASE || "";
+
   // Weekly PDFs on the website.
   //   true  = "PDF online वाचा / download" for every issue whose file is in assets/pdf/ (lokmangal-weekly-<no>.pdf)
   //   false = NO PDF anywhere: no buttons, tags, banner or wording (the weekly issues themselves stay)
@@ -41,6 +46,7 @@
   if (typeof cfg.WEEKLY_PDF !== "boolean") cfg.WEEKLY_PDF = WEEKLY_PDF;
   if (typeof cfg.COMMENTS !== "boolean") cfg.COMMENTS = COMMENTS;
   if (typeof cfg.PDF_BASE !== "string") cfg.PDF_BASE = PDF_BASE;
+  if (typeof cfg.SITE_BASE !== "string") cfg.SITE_BASE = SITE_BASE;
   if (typeof cfg.API_BASE !== "string") {
     var host = location.hostname;
     var local = host === "localhost" || host === "127.0.0.1" || host === "[::1]" ||

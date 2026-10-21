@@ -33,6 +33,9 @@ let appState = {
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
+// Where the PUBLIC website lives (js/config.js). The Admin Panel runs on its own subdomain and has none of the site's pictures / PDFs:
+// relative addresses (assets/images/x.jpg) are read from the website. "" = the same address as this page (local development).
+const SITE_BASE = String((window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.SITE_BASE) || '').replace(/\/+$/, '');
 
 // A message that is not page text (a confirm dialog, the backend banner): the Marathi or the English one, by the language chosen in the
 // sidebar (admin-i18n.js). Page text itself is translated by admin-i18n.js's dictionary.
@@ -72,22 +75,22 @@ const apiFetch = async (path, options) => {
 
 // URL Helpers for consistent assets
 function formatAssetUrl(url) {
-  if (!url) return '/assets/images/lokmangal_what_we_do.jpg';
+  if (!url) return SITE_BASE + '/assets/images/lokmangal_what_we_do.jpg';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/')) return url;
-  if (url.startsWith('../')) return '/' + url.replace(/^\.\.\//, '');
-  return '/' + url;
+  if (url.startsWith('/')) return SITE_BASE + url;
+  if (url.startsWith('../')) return SITE_BASE + '/' + url.replace(/^\.\.\//, '');
+  return SITE_BASE + '/' + url;
 }
 
 // Where the weekly PDFs are read from: the S3 / CloudFront address from js/config.js, or this site's own assets/pdf/ folder
 function formatPdfUrl(filename) {
   if (!filename) return '#';
   if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
-  if (filename.startsWith('/')) return filename;
-  if (filename.startsWith('../')) return '/' + filename.replace(/^\.\.\//, '');
-  if (filename.startsWith('assets/pdf/')) return '/' + filename;
+  if (filename.startsWith('/')) return SITE_BASE + filename;
+  if (filename.startsWith('../')) return SITE_BASE + '/' + filename.replace(/^\.\.\//, '');
+  if (filename.startsWith('assets/pdf/')) return SITE_BASE + '/' + filename;
   const base = String((window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.PDF_BASE) || '').trim();
-  return (/^https:\/\//.test(base) ? base.replace(/\/*$/, '/') : '/assets/pdf/') + filename;
+  return (/^https:\/\//.test(base) ? base.replace(/\/*$/, '/') : SITE_BASE + '/assets/pdf/') + filename;
 }
 
 // The same addresses, ready to be written into a src="..." / href="..." of a template
@@ -98,6 +101,9 @@ const attrPdf = (name) => escapeHtml(formatPdfUrl(name));
 // Initialization on DOMContentLoaded
 // -------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  // "Live site" opens the public website (it is another address than this one when the Admin Panel has its own subdomain)
+  const liveSite = document.querySelector('a.nav-item-external');
+  if (liveSite) { liveSite.href = SITE_BASE ? SITE_BASE + '/' : '/'; liveSite.rel = 'noopener'; }
   initTheme();
   initNavigation();
   initDateDisplay();
@@ -1136,7 +1142,7 @@ function openPreviewArticle(articleId) {
   document.getElementById('prev-views').textContent = `${a.views || '1.5K'} वाचक`;
   
   const img = document.getElementById('prev-img');
-  img.src = (a.image && a.image.startsWith('assets/')) ? `../${a.image}` : a.image;
+  img.src = formatAssetUrl(a.image);
   
   document.getElementById('prev-content').innerHTML = safeHtml(a.content) || `<p>${escapeHtml(a.excerpt)}</p>`;
   document.getElementById('preview-modal').classList.add('open');
