@@ -764,6 +764,11 @@ document.addEventListener("DOMContentLoaded", () => {
 // The clock runs only while the widget is on the screen, the tab is open and the ad that is showing has loaded, so a
 // visitor who scrolls down to it always sees the first ad for its full time (and nothing runs for nobody).
 const AD_SLIDE_MS = 4000;
+
+// A site that has its OWN backend (API_BASE is set: the live site) takes everything from the API. The data files js/articles-data.js, videos-data.js,
+// ads-data.js and settings-data.js are a snapshot the backend keeps for a static host WITHOUT a backend (Vercel); on the live site they must never
+// show - they hold the content of the PC they were written on.
+const staticDataAllowed = !(window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE);
 const AD_VIDEO_MAX_MS = 30000;
 
 // The ads where nothing else is known (no ads-data.js, no backend): the three the website always had. Normally the list is js/ads-data.js
@@ -773,7 +778,7 @@ const builtInAds = [
   { id: 2, media_type: "image", title: "लोकमंगल बँक — दसरा दिवाळी, नवी सुरुवात", title_en: "Lokmangal Bank — Dasara Diwali, a new beginning", media_url: "assets/ad-2.jpg" },
   { id: 3, media_type: "image", title: "लोकमंगल फाउंडेशन — अन्नपूर्णा योजना", title_en: "Lokmangal Foundation — Annapurna Yojana", media_url: "assets/ad-3.jpg" },
 ];
-let adsData = Array.isArray(window.ADS_DATA) ? window.ADS_DATA : builtInAds;
+let adsData = staticDataAllowed && Array.isArray(window.ADS_DATA) ? window.ADS_DATA : builtInAds;
 const adSlider = { box: null, at: 0, timer: null, onScreen: true, sig: "", shown: [] };
 
 // only a file of this site or an http(s) address is ever put into the page
@@ -1435,7 +1440,7 @@ function videoFromRow(row) {
 
 // Where there is no backend (a static host) the videos come from js/videos-data.js, which the backend keeps in step with the Admin Panel;
 // with a backend the website asks /api/videos and that answer replaces this (see syncPortalWithApi).
-videoPostsData = (Array.isArray(window.VIDEOS_DATA) ? window.VIDEOS_DATA : []).map(videoFromRow);
+videoPostsData = (staticDataAllowed && Array.isArray(window.VIDEOS_DATA) ? window.VIDEOS_DATA : []).map(videoFromRow);
 
 // "०६:१५" (Marathi) / "06:15" (English); "" when the length is not known
 function videoLengthText(sec) {
@@ -3354,7 +3359,10 @@ const defaultSiteSettings = {
   office_phone: "+91 98765 43210",
   office_email: "info@lokmangal.example",
 };
-let siteSettings = window.SITE_SETTINGS && typeof window.SITE_SETTINGS === "object" ? { ...defaultSiteSettings, ...window.SITE_SETTINGS } : defaultSiteSettings;
+// (the live site shows no contact details until the API has answered: no placeholder phone / e-mail is ever public there)
+const emptySiteSettings = { office_address: "", office_address_en: "", office_phone: "", office_email: "" };
+let siteSettings = !staticDataAllowed ? emptySiteSettings
+  : window.SITE_SETTINGS && typeof window.SITE_SETTINGS === "object" ? { ...defaultSiteSettings, ...window.SITE_SETTINGS } : defaultSiteSettings;
 
 function renderFooterContact() {
   const s = siteSettings;
@@ -3401,7 +3409,7 @@ function mergeArticleRows(rows) {
 // deleted) come from js/articles-data.js, which the backend keeps equal to the database. Merged before the page is drawn for the first
 // time; with a backend GET /api/articles replaces it (syncPortalWithApi).
 function loadStaticArticles() {
-  if (!Array.isArray(window.ARTICLES_DATA)) return;
+  if (!staticDataAllowed || !Array.isArray(window.ARTICLES_DATA)) return;
   articlesData.forEach((a) => restoreRawFields(a, true));
   mergeArticleRows(window.ARTICLES_DATA);
   articlesData.sort(newerFirst);

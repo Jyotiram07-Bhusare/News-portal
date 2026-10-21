@@ -212,8 +212,10 @@ _settings_lock = threading.Lock()
 
 
 def ensure_settings_table() -> None:
-    """The `site_settings` table (Admin Panel > Footer) is created here the first time it is needed, with its ONE row (id = 1) holding the
-    details the footer started with (BUILT_IN_SETTINGS). Only a NEW table is filled: a detail the owner clears stays cleared. (init_db.py calls this too.)"""
+    """The `site_settings` table (Admin Panel > Footer) is created here the first time it is needed, with its ONE row (id = 1). On a development PC
+    the row holds the placeholder details the footer started with (BUILT_IN_SETTINGS); on the LIVE server (APP_ENV=production) it starts EMPTY, so
+    no placeholder phone / e-mail is ever shown on the public website: the owner types the real ones in the Admin Panel. Only a NEW table is
+    filled: a detail the owner clears stays cleared. (init_db.py calls this too.)"""
     if _settings_state["ok"]:
         return
     with _settings_lock:
@@ -228,7 +230,7 @@ def ensure_settings_table() -> None:
                     if re.match(r"CREATE TABLE IF NOT EXISTS\s+site_settings\b", statement, re.I):
                         cur.execute(statement)
                 cur.execute("INSERT INTO site_settings (id, office_address, office_address_en, office_phone, office_email) VALUES (1, %s, %s, %s, %s)",
-                            tuple(BUILT_IN_SETTINGS[f] for f in SETTINGS_FIELDS))
+                            tuple("" if config.IS_PRODUCTION else BUILT_IN_SETTINGS[f] for f in SETTINGS_FIELDS))
         _settings_state["ok"] = True
     if is_new:
         publish_settings_file()
