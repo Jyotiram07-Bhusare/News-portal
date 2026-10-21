@@ -24,6 +24,16 @@ tar -xzf - -C "$REL" --no-same-owner --no-same-permissions
 echo "==> building lokportal-api:$ID"
 nice -n 10 docker build --quiet -t "lokportal-api:$ID" "$REL" >/dev/null
 
+# Database: new tables / columns that the new code needs are added first (additive only, no row is touched). It runs with a dedicated MySQL user
+# (lokportal_migrate: may create / alter tables of OUR database only - the web application's own user may not). When it fails the deploy stops
+# here and the running version is not touched. Without /opt/lokportal/migrate.env the step is skipped.
+if [ -r "$BASE/migrate.env" ]; then
+  echo "==> database: new tables / columns"
+  docker run --rm --env-file "$BASE/migrate.env" -v "$BASE/backend.env:/app/.env:ro" "lokportal-api:$ID" python init_db.py --schema-only
+else
+  echo "(no $BASE/migrate.env: a new table / column would have to be added by hand - init_db.py --schema-only)"
+fi
+
 if docker image inspect lokportal-api:current >/dev/null 2>&1; then
   docker tag lokportal-api:current lokportal-api:previous
 fi

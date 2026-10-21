@@ -646,6 +646,8 @@ def create_app():
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         if request.path.startswith("/api/"):
             response.headers.setdefault("X-Frame-Options", "DENY")
+        if config.IS_PRODUCTION:              # (the production API is only reachable over https)
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response
 
     for line in problems:                 # (development: only a warning)

@@ -4,7 +4,7 @@
 
 | काय | नाव | टीप |
 |---|---|---|
-| Website | Amplify app `lokmangal-news-portal` | GitHub Actions मधून deploy (zip upload); AWS key कुठेही साठवली जात नाही (OIDC) |
+| Website + Admin | Amplify app `lokmangal-news-portal`, **दोन branches**: `main` = वेबसाईट (`www.lokmangal.info`), `admin` = Admin Panel (`admin.lokmangal.info`) | GitHub Actions मधून deploy (दोन zip); AWS key कुठेही साठवली जात नाही (OIDC). Admin वेगळ्या पत्त्यावर = वेगळा browser origin |
 | फाईल्स | S3 `lokportal-media-<account>-<region>` + CloudFront | private bucket; फक्त CloudFront वाचतो |
 | API चा `https://` पत्ता | CloudFront (`xxxx.cloudfront.net`) | स्वतःचा domain नसतानाही चालतो |
 | Backend | Docker containers `lokportal-api` + `lokportal-proxy` | server वर फक्त port **8445** वापरतो (80/443 वर दुसरे projects आहेत) |
@@ -12,8 +12,10 @@
 | S3 साठी server ची ओळख | IAM user `lokportal-media-uploader` | फक्त त्या एका bucket चे अधिकार |
 
 ```
-वाचक ──► Amplify (वेबसाईट + /admin/) ──► https://xxxx.cloudfront.net (API) ──► EC2:8445 [nginx] ─► [gunicorn+Flask] ─► RDS (नवा DB, TLS)
-वाचक ──► https://yyyy.cloudfront.net (फोटो / PDF / व्हिडिओ) ◄── S3 ◄──────────────────────────────────────────────────┘
+वाचक ──► https://www.lokmangal.info   (Amplify branch main: फक्त वेबसाईट; /admin/ फक्त admin कडे पाठवणारे पान)
+मालक ──► https://admin.lokmangal.info (Amplify branch admin: फक्त Admin Panel; कडक CSP: फक्त api.lokmangal.info शी बोलू शकतो)
+              │  (दोन्ही) https://api.lokmangal.info = CloudFront ──► EC2:8445 [nginx] ─► [gunicorn+Flask] ─► RDS (नवा DB, TLS)
+वाचक ──► https://media.lokmangal.info (फोटो / PDF / व्हिडिओ) ◄── CloudFront ◄── S3 (private)
 ```
 
 ## 1. AWS बाजू (एकदाच)
@@ -22,6 +24,7 @@
 # Amplify app (GitHub शी थेट जोडलेले नाही; deploy GitHub Actions करते)
 aws amplify create-app --name lokmangal-news-portal --platform WEB --custom-rules '[{"source":"/admin","target":"/admin/index.html","status":"200"}]'
 aws amplify create-branch --app-id <appId> --branch-name main --stage PRODUCTION --no-enable-auto-build
+aws amplify create-branch --app-id <appId> --branch-name admin --stage PRODUCTION --no-enable-auto-build      # Admin Panel साठी दुसरी branch
 
 # S3 + CloudFront (media) + API साठी CloudFront + IAM user + GitHub deploy role
 aws cloudformation deploy --stack-name lokportal-shared --template-file deploy/aws/shared-server-stack.yml --capabilities CAPABILITY_NAMED_IAM \
@@ -86,15 +89,46 @@ hash तुमच्या PC वर बनवा (`cd backend && python manage.
 | `api` | API CloudFront (`ApiBaseUrl`) | `https://api.lokmangal.info` |
 | `_….api` | `_….acm-validations.aws` | `api` / `media` चे ACM certificate (us-east-1) verify |
 | `media` | media CloudFront (`MediaBaseUrl`) | `https://media.lokmangal.info` (फोटो / PDF / व्हिडिओ) |
+| `admin` | Amplify चा `xxxx.cloudfront.net` (`www` सारखाच) | `https://admin.lokmangal.info` = Admin Panel (Amplify domain association: `prefix=admin,branchName=admin`) |
 | `_….media` | `_….acm-validations.aws` | वरीलप्रमाणे |
 
 - **Certificate:** `aws acm request-certificate --region us-east-1 --domain-name api.<domain> --subject-alternative-names media.<domain> --validation-method DNS`; ISSUED झाल्यावर stack मध्ये `CertificateArn`, `ApiAlias`, `MediaAlias` द्या (`update-stack`, बाकी parameters `UsePreviousValue`).
 - **Apex (`lokmangal.info` बिना www):** GoDaddy मध्ये root ला CNAME चालत नाही → GoDaddy → Forwarding → `https://www.lokmangal.info`.
-- **backend.env:** `CORS_ORIGINS=https://www.<domain>,https://<domain>,…` आणि `MEDIA_BASE_URL=https://media.<domain>`; `docker compose … up -d --force-recreate --no-deps api`.
+- **backend.env:** `CORS_ORIGINS=https://www.<domain>,https://admin.<domain>,…` (Admin चा origin अत्यावश्यक; apex फक्त forward करतो म्हणून नको) आणि `MEDIA_BASE_URL=https://media.<domain>`; `docker compose … up -d --force-recreate --no-deps api`.
 - **GitHub:** `deploy.yml` मधील `LOKMANGAL_API_BASE=https://api.<domain>`.
 - DNS records बदलायला GoDaddy चा API token लागतो; तो वापरून झाल्यावर developer.godaddy.com वर delete करा.
 
+## 6. Developer ने काहीही push केले तर काय होते
+
+`main` वर push → CI (tests) → पास झाले तरच deploy. **कोणीही काहीही हाताने चालवायचे नाही.**
+
+| Developer ने काय बदलले | काय होते | किती वेळात live |
+|---|---|---|
+| फोटो / लोगो / जाहिरात इमेज (`frontend/assets/…`) | वेबसाईटच्या zip मध्ये जातात; Amplify वर नवी फाईल | ~3–4 मिनिटे deploy; **नवी फाईल लगेच दिसते.** *त्याच नावाने बदललेला* फोटो visitors च्या browser cache मुळे **1 तासापर्यंत** जुना दिसू शकतो (`customHttp.yml`). लगेच हवे असेल तर नवे फाईल-नाव वापरा |
+| HTML / CSS / JS (वेबसाईट) | वरीलप्रमाणे; JS/CSS 5 मिनिटे cache | ~3–4 मिनिटे |
+| Admin Panel चे JS/HTML (`frontend/admin/`) | फक्त `admin` branch वर (`admin.lokmangal.info`) | ~3–4 मिनिटे |
+| Backend कोड (`backend/`) | नवा Docker image → DB मध्ये **नवे table / column** (पुढे पहा) → container बदल → health check; अयशस्वी झाले तर जुना परत | ~2–3 मिनिटे |
+| **DB मध्ये नवे table / column** (`schema.sql`, `database.py` चे `*_COLUMNS`) | प्रत्येक backend deploy मध्ये `init_db.py --schema-only` आपोआप चालते (वेगळ्या `lokportal_migrate` user ने, फक्त आपल्या DB वर; `/opt/lokportal/migrate.env`). *नवे* table/column जोडले जातात; **कोणताही row बदलत नाही** | backend बरोबर |
+| DB मध्ये column **हटवणे / नाव बदलणे / data बदलणे** | **आपोआप होत नाही** (जाणूनबुजून). हाताने: master user ने SQL; आधी backup | — |
+| Tests अयशस्वी | deploy होतच नाही; GitHub मध्ये लाल ✗ | — |
+| एकामागून एक दोन push | queue मध्ये (concurrency) — क्रमाने deploy | — |
+
+**Developer साठी नियम:** (1) नवे table `schema.sql` मध्ये (`CREATE TABLE IF NOT EXISTS`), नवे column `database.py` च्या `*_COLUMNS` मध्ये आणि `init_db.add_missing_columns()` मध्ये; (2) फक्त जोडणारे बदल (additive); (3) Windows वर फाईल-नावाचे अक्षर-case (`Logo.PNG` ≠ `logo.png`) — live host case-sensitive आहे; (4) स्थानिकरित्या Admin मधून अपलोड केलेले फोटो `frontend/assets/images/` मध्ये जातात — ते Git मध्ये commit केले तरच live वेबसाईटवर दिसतात (live Admin मधून अपलोड केलेले फोटो S3 वर जातात, Git मध्ये नाही); (5) बातम्या / व्हिडिओ / जाहिराती **live Admin Panel मध्ये** भरा — स्थानिक डेटाबेस live वर जात नाही.
+
+## 7. Rollback आणि तातडीची कामे
+
+```bash
+# Backend मागच्या आवृत्तीवर (server वर):
+sudo docker tag lokportal-api:previous lokportal-api:current && sudo docker compose -f /opt/lokportal/docker-compose.yml up -d --force-recreate --no-deps api
+# Website मागच्या आवृत्तीवर: GitHub → Actions → जुना यशस्वी "Deploy" run → Re-run all jobs  (किंवा git revert + push)
+# Logs:   sudo docker logs --tail 100 -f lokportal-api
+# Backups: /opt/lokportal/backups/ (backend.env च्या जुन्या प्रती, deploy-entry.sh, DB import आधीची data-प्रत). RDS चा automatic backup (RDS console) हा खरा DB backup.
+# Admin पासवर्ड बदलणे:  cd backend && python manage.py set-admin-password --print-only  → ADMIN_PASSWORD_HASH='…' backend.env मध्ये → api container restart
+```
+
 ## सुरक्षेच्या मर्यादा (प्रामाणिकपणे)
+
+- **सुधारणा (पुढचा टप्पा):** CloudFront → EC2 टप्प्यावर TLS हवा असेल तर `origin.lokmangal.info` साठी Let's Encrypt certificate (DNS-01, acme-dns CNAME ने — GoDaddy token कायमचा ठेवावा लागत नाही) + nginx मध्ये `listen 8445 ssl` + CloudFront `OriginProtocolPolicy: https-only`.
 
 - CloudFront → EC2 हा टप्पा **plain HTTP** आहे (domain नसल्याने origin साठी certificate मिळत नाही). बाहेरून थेट server चा port 8445 वापरला तर `X-Origin-Verify` secret नसल्याने `403` मिळतो. Domain आल्यावर हा टप्पा TLS करा (nginx ला certificate + CloudFront `https-only`).
 - EC2 चा port 22 जगभर खुला आहे (दुसऱ्या projects चा निर्णय); key-only login असल्याची खात्री करा.
