@@ -532,6 +532,13 @@ def get_media():
     return ok(images=store.list("image", newest_first=True), pdfs=store.list("pdf"))
 
 
+@api.get("/live")
+def live():
+    """The program itself is up (no database call). A deploy asks THIS to decide whether the new container started: a database that is
+    briefly unavailable (RDS maintenance / fail-over) must not make a good new version roll back."""
+    return ok()
+
+
 @api.get("/health")
 def health():
     database.ping()                       # raises -> handled below as "database not available"
@@ -550,7 +557,7 @@ PUBLIC_CACHEABLE = {"api.get_articles", "api.get_article", "api.get_weekly", "ap
 def api_cache_headers(response):
     if (request.method == "GET" and response.status_code == 200 and request.endpoint in PUBLIC_CACHEABLE
             and not auth.bearer_token()):
-        response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60"
+        response.headers["Cache-Control"] = "public, max-age=15, stale-while-revalidate=60, stale-if-error=3600"
     else:
         response.headers["Cache-Control"] = "no-store"
     response.headers.add("Vary", "Authorization")
@@ -632,8 +639,8 @@ def create_app():
                            "\nFix backend/.env (see .env.example and DEPLOY.md).")
     app = Flask(__name__, static_folder=None)
     if config.TRUSTED_PROXIES:
-        n = config.TRUSTED_PROXIES
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=n, x_proto=n, x_host=n)
+        # only the visitor's ADDRESS is taken from the proxies (not their idea of the host name / protocol)
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=config.TRUSTED_PROXIES)
     app.config["MAX_CONTENT_LENGTH"] = max(config.MAX_UPLOAD_MB, config.MAX_VIDEO_MB) * MB     # (images / PDFs are held to their own limit by the check above)
     app.json.ensure_ascii = False         # Marathi text stays readable (and half the size) in API answers
     CORS(app, resources={r"/api/*": {"origins": config.CORS_ORIGINS}}, max_age=600)

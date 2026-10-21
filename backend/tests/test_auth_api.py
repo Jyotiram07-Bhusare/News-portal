@@ -37,7 +37,7 @@ def test_admin_reads_need_login(client, path):
     assert client.get(path).status_code == 401
 
 
-@pytest.mark.parametrize("path", ["/api/articles", "/api/weekly", "/api/videos", "/api/ads", "/api/health"])
+@pytest.mark.parametrize("path", ["/api/articles", "/api/weekly", "/api/videos", "/api/ads", "/api/health", "/api/live"])
 def test_public_reads_stay_public(client, path):
     assert client.get(path).status_code == 200
 
@@ -118,3 +118,15 @@ def test_cors_only_for_the_listed_site(client):
                                                    "Access-Control-Request-Headers": "authorization,content-type"})
     assert pre.status_code in (200, 204)
     assert "authorization" in pre.headers.get("Access-Control-Allow-Headers", "").lower()
+
+
+def test_live_does_not_need_the_database(client, monkeypatch):
+    """A deploy asks /api/live whether the new container started: a database that is down must not make it fail."""
+    import database
+    import pymysql
+
+    def down():
+        raise pymysql.err.OperationalError(2003, "no database")
+    monkeypatch.setattr(database, "ping", down)
+    assert client.get("/api/live").status_code == 200
+    assert client.get("/api/health").status_code == 503
