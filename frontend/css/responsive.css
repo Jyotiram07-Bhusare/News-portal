@@ -142,10 +142,6 @@ button:focus-visible,
     min-height: 56px;
   }
 
-  .footer-links-row a {
-    padding: 10px 4px;
-  }
-
   /* breadcrumb links fill the (taller) bar, so the whole strip is really tappable */
   .breadcrumb-bar {
     min-height: 44px;
@@ -1223,32 +1219,6 @@ button:focus-visible,
 
   .footer-copy {
     line-height: 1.6;
-  }
-
-  /* the links, one below the other: a full-width row each, an arrow at its end */
-  .footer-links-row {
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-    gap: 8px;
-  }
-
-  .footer-links-row a {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 46px;
-    padding: 0 16px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.07);
-    font-size: 14.5px;
-  }
-
-  .footer-links-row a::after {
-    content: "›";
-    font-size: 22px;
-    line-height: 1;
-    color: var(--orange, #EE7B30);
   }
 
   /* ---- Modals become bottom sheets -------------------------------------- */

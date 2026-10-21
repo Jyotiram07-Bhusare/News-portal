@@ -2061,6 +2061,77 @@ html.is-dark .video-more-wrap .btn-load-more:hover {
   margin-top: 40px;
 }
 
+/* Quick links: the header's buttons (maroon, the section you are in is orange) in the footer. A wrapping row; one below the other on a phone. */
+.footer-quick {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-quick-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--brick-maroon, #7F2A1D);
+  border-radius: 999px;
+  background: var(--brick-maroon, #7F2A1D);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.footer-quick-link:hover {
+  background: var(--brick-maroon-dark, #631F15);
+  border-color: var(--brick-maroon-dark, #631F15);
+}
+
+.footer-quick-link i {
+  font-size: 12px;
+}
+
+.footer-quick-link.active {
+  background: var(--orange, #EE7B30);
+  border-color: var(--orange, #EE7B30);
+  font-weight: 700;
+}
+
+.footer-quick-link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .footer-quick-list {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .footer-quick-link {
+    width: 100%;
+    height: 46px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+
+  .footer-quick-link i {
+    width: 18px;
+    font-size: 14px;
+    text-align: center;
+  }
+}
+
 /* Office contact: address | phone | e-mail, above the copyright line */
 .footer-contact {
   margin-bottom: 18px;
@@ -2166,20 +2237,6 @@ a.footer-contact-value:hover {
 
 .footer-copy strong {
   color: #ffffff;
-}
-
-.footer-links-row {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-
-.footer-links-row a {
-  color: var(--border-cream, #ECE4DC);
-}
-
-.footer-links-row a:hover {
-  color: var(--orange, #EE7B30);
 }
 
 /* Modals */

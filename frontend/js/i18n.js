@@ -72,6 +72,7 @@
     ["भाषा", "Language", ["भाषा / Language"]],
     ["वर जा", "Back to top"],
     ["बंद करा", "Close", ["Close"]],
+    ["क्विक लिंक्स", "Quick Links"],
     ["कार्यालय संपर्क", "Office contact"],
     ["पत्ता", "Address"],
     ["फोन", "Phone"],

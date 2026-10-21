@@ -1189,6 +1189,14 @@ function updateNavActiveStates(category) {
   const activeChip = document.querySelector(".chip.active");
   if (activeChip) centerChip(activeChip);
 
+  // Footer quick links (the same buttons as the header)
+  document.querySelectorAll(".footer-quick-link").forEach(btn => {
+    const on = btn.dataset.cat === category;
+    btn.classList.toggle("active", on);
+    if (on) btn.setAttribute("aria-current", "true");
+    else btn.removeAttribute("aria-current");
+  });
+
   // Slide-out menu
   document.querySelectorAll(".drawer-nav-link[data-cat]").forEach(link => {
     link.classList.toggle("active", link.dataset.cat === category);

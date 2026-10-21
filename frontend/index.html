@@ -413,6 +413,28 @@
        3. FOOTER
        ========================================================================== -->
   <footer class="site-footer">
+    <!-- Quick links: the same buttons as the header (the one of the section you are in is orange - see updateNavActiveStates in js/app.js) -->
+    <nav class="container footer-quick" aria-labelledby="footer-quick-title">
+      <h3 class="footer-contact-title" id="footer-quick-title">क्विक लिंक्स</h3>
+      <div class="footer-quick-list">
+        <button type="button" class="footer-quick-link active" data-cat="all" aria-current="true" onclick="setCategoryFilter('all')">
+          <i class="fa-solid fa-house" aria-hidden="true"></i><span>होम</span>
+        </button>
+        <button type="button" class="footer-quick-link" data-cat="weekly" onclick="setCategoryFilter('weekly')">
+          <i class="fa-solid fa-newspaper" aria-hidden="true"></i><span>साप्ताहिक आवृत्ती</span>
+        </button>
+        <button type="button" class="footer-quick-link" data-cat="samajik" onclick="setCategoryFilter('samajik')">
+          <i class="fa-solid fa-users" aria-hidden="true"></i><span>सामाजिक</span>
+        </button>
+        <button type="button" class="footer-quick-link" data-cat="rajkiy" onclick="setCategoryFilter('rajkiy')">
+          <i class="fa-solid fa-landmark" aria-hidden="true"></i><span>राजकीय</span>
+        </button>
+        <button type="button" class="footer-quick-link" data-cat="blogs" onclick="setCategoryFilter('blogs')">
+          <i class="fa-solid fa-pen-nib" aria-hidden="true"></i><span>ब्लॉग्स</span>
+        </button>
+      </div>
+    </nav>
+
     <!-- Office contact (dummy details - replace with the real address, phone and e-mail) -->
     <div class="container footer-contact">
       <h3 class="footer-contact-title">कार्यालय संपर्क</h3>
@@ -443,13 +465,6 @@
     <div class="container footer-inner-flex">
       <div class="footer-copy">
         © २०२६ <strong>लोकमंगल न्यूज पोर्टल</strong>. सर्व हक्क राखीव.
-      </div>
-      <div class="footer-links-row">
-        <a href="javascript:void(0)" onclick="setCategoryFilter('all')">होम</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('weekly')">साप्ताहिक आवृत्ती</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('samajik')">सामाजिक</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
-        <a href="javascript:void(0)" onclick="setCategoryFilter('blogs')">ब्लॉग्स</a>
       </div>
     </div>
   </footer>
