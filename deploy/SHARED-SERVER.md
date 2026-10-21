@@ -122,6 +122,8 @@ hash तुमच्या PC वर बनवा (`cd backend && python manage.
 sudo docker tag lokportal-api:previous lokportal-api:current && sudo docker compose -f /opt/lokportal/docker-compose.yml up -d --force-recreate --no-deps api
 # Website मागच्या आवृत्तीवर: GitHub → Actions → जुना यशस्वी "Deploy" run → Re-run all jobs  (किंवा git revert + push)
 # Logs:   sudo docker logs --tail 100 -f lokportal-api
+# nginx.conf बदलल्यावर (फाईल बदलली की container ला जुनी दिसते - single-file mount): sudo docker compose -f /opt/lokportal/docker-compose.yml up -d --force-recreate --no-deps proxy
+# बदलल्यानंतर Admin मधून अपलोड वापरून पहा (browser चा OPTIONS pre-check नेहमी जाऊ द्यावा - nginx.conf मधला $upload_no_login map)
 # Backups: /opt/lokportal/backups/ (backend.env च्या जुन्या प्रती, deploy-entry.sh, DB import आधीची data-प्रत). RDS चा automatic backup (RDS console) हा खरा DB backup.
 # Admin पासवर्ड बदलणे:  cd backend && python manage.py set-admin-password --print-only  → ADMIN_PASSWORD_HASH='…' backend.env मध्ये → api container restart
 ```
