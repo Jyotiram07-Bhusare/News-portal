@@ -66,6 +66,11 @@
           <span>व्हिडिओ अपलोड (Videos)</span>
           <span class="nav-badge" id="sidebar-videos-count">…</span>
         </a>
+        <a href="#ads" class="nav-item" data-tab="tab-ads">
+          <i class="fa-solid fa-rectangle-ad"></i>
+          <span>जाहिरात (Advertisements)</span>
+          <span class="nav-badge" id="sidebar-ads-count">…</span>
+        </a>
 
         <div class="nav-section-title">थेट पोर्टल</div>
         <a href="/" target="_blank" class="nav-item nav-item-external">
@@ -73,16 +78,6 @@
           <span>थेट वेबसाईट पहा (Live Site)</span>
         </a>
       </nav>
-
-      <div class="sidebar-footer">
-        <div class="server-status" id="server-status">
-          <span class="status-indicator-dot" id="server-status-dot"></span>
-          <div class="server-info">
-            <span class="server-name">Python Flask API + MySQL</span>
-            <span class="server-port" id="server-status-text">तपासत आहे…</span>
-          </div>
-        </div>
-      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -367,6 +362,43 @@
                   </tr>
                 </thead>
                 <tbody id="videos-table-body">
+                  <tr><td colspan="6" style="text-align: center; padding: 30px;">लोड होत आहे...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 5: ADVERTISEMENTS (a photo or a video -> the website's "जाहिरात" slider) -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-ads">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">जाहिरात अपलोड व व्यवस्थापन</h2>
+              <p class="tab-desc">येथे अपलोड केलेला फोटो किंवा व्हिडिओ वेबसाईटवरील "जाहिरात" विभागात एकामागून एक दिसतो. व्हिडिओ आपोआप (आवाजाशिवाय) चालतो.</p>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn btn-primary" onclick="openNewAdModal()">
+                <i class="fa-solid fa-rectangle-ad"></i> नवीन जाहिरात अपलोड करा
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="ads-table">
+                <thead>
+                  <tr>
+                    <th style="width: 90px;">जाहिरात</th>
+                    <th>जाहिरातीचे शीर्षक</th>
+                    <th style="width: 100px;">प्रकार</th>
+                    <th style="width: 100px;">आकार</th>
+                    <th style="width: 130px;">अपलोड तारीख</th>
+                    <th style="width: 150px; text-align: center;">कृती</th>
+                  </tr>
+                </thead>
+                <tbody id="ads-table-body">
                   <tr><td colspan="6" style="text-align: center; padding: 30px;">लोड होत आहे...</td></tr>
                 </tbody>
               </table>
@@ -697,6 +729,99 @@
   </div>
 
   <!-- ========================================================= -->
+  <!-- MODAL: UPLOAD / EDIT ADVERTISEMENT (a photo or a video) -->
+  <!-- ========================================================= -->
+  <div class="admin-modal-backdrop" id="ad-modal">
+    <div class="admin-modal">
+      <div class="modal-header">
+        <h3 id="ad-modal-title"><i class="fa-solid fa-rectangle-ad"></i> नवीन जाहिरात अपलोड करा</h3>
+        <button class="modal-close-btn" onclick="closeAdModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="ad-form" onsubmit="handleAdFormSubmit(event)">
+          <!-- Photo or video: the file is chosen here and uploaded when the form is saved (cancelling leaves nothing behind) -->
+          <div class="form-group">
+            <label>जाहिरातीचा प्रकार <span class="req">*</span></label>
+            <div class="ad-type-switch" role="group" aria-label="जाहिरातीचा प्रकार">
+              <button type="button" class="ad-type-opt active" data-type="image" aria-pressed="true" onclick="setAdType('image')"><i class="fa-regular fa-image"></i> <span>फोटो</span></button>
+              <button type="button" class="ad-type-opt" data-type="video" aria-pressed="false" onclick="setAdType('video')"><i class="fa-solid fa-film"></i> <span>व्हिडिओ</span></button>
+            </div>
+          </div>
+
+          <div class="form-group" id="ad-pane-image">
+            <div class="file-drop-area video-drop-area" id="ad-image-drop" tabindex="0" role="button" onclick="document.getElementById('ad-image-input').click()">
+              <i class="fa-regular fa-image drop-icon"></i>
+              <span id="ad-image-name">फोटो निवडा किंवा ड्रॅग करा</span>
+              <small>JPG, PNG, WebP किंवा GIF • मोठा फोटो आपोआप लहान केला जातो</small>
+            </div>
+            <input type="file" id="ad-image-input" accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif" style="display:none;" onchange="handleAdImageChosen(this)">
+            <div class="video-form-preview-wrap" id="ad-image-preview-wrap" hidden>
+              <img id="ad-image-preview" class="video-form-preview ad-form-preview" alt="" data-no-i18n>
+              <div class="video-form-meta" id="ad-image-meta" data-no-i18n></div>
+            </div>
+          </div>
+
+          <div class="form-group" id="ad-pane-video" hidden>
+            <div class="file-drop-area video-drop-area" id="ad-video-drop" tabindex="0" role="button" onclick="document.getElementById('ad-video-input').click()">
+              <i class="fa-solid fa-film drop-icon"></i>
+              <span id="ad-video-name">व्हिडिओ फाईल निवडा किंवा ड्रॅग करा</span>
+              <small id="ad-video-limit">MP4 किंवा WebM • कमाल मर्यादा २०० MB</small>
+            </div>
+            <input type="file" id="ad-video-input" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.m4v,.mov,.webm,.ogv" style="display:none;" onchange="handleAdVideoChosen(this)">
+            <div class="video-link-field">
+              <input type="text" id="ad-video-link" class="form-control" inputmode="url" autocomplete="off" placeholder="किंवा .mp4 / .webm ची थेट लिंक येथे paste करा (https://...)" oninput="handleAdVideoLinkInput()">
+            </div>
+            <p class="video-form-warn" id="ad-video-link-warn" hidden></p>
+            <div class="video-form-preview-wrap" id="ad-video-preview-wrap" hidden>
+              <video id="ad-video-preview" class="video-form-preview" controls muted playsinline preload="metadata"></video>
+              <div class="video-form-meta" id="ad-video-meta" data-no-i18n></div>
+              <p class="video-form-warn" id="ad-video-warn" hidden><i class="fa-solid fa-triangle-exclamation"></i> हा व्हिडिओ या ब्राउझरमध्ये चालत नाही — वेबसाईटवरही चालणार नाही. MP4 (H.264) मध्ये convert करून पुन्हा निवडा.</p>
+            </div>
+          </div>
+
+          <div class="lang-tabs" role="tablist" aria-label="भाषा / Language">
+            <button type="button" class="lang-tab active" role="tab" aria-selected="true" data-lang="mr" onclick="setFormLang('ad-modal', 'mr')">मराठी <i class="lang-dot on"></i></button>
+            <button type="button" class="lang-tab" role="tab" aria-selected="false" data-lang="en" onclick="setFormLang('ad-modal', 'en')">English <i class="lang-dot"></i></button>
+          </div>
+          <div class="form-group" data-lang-field="mr">
+            <label for="form-ad-title">जाहिरातीचे शीर्षक <span class="req">*</span></label>
+            <input type="text" id="form-ad-title" required maxlength="300" class="form-control" placeholder="उदा. लोकमंगल पतसंस्था — सोने खरेदी कर्ज" data-no-i18n>
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-ad-title-en">Ad title (English)</label>
+            <input type="text" id="form-ad-title-en" maxlength="300" class="form-control" placeholder="e.g. Lokmangal Patsanstha — gold purchase loan" data-no-i18n>
+          </div>
+
+          <div class="form-group">
+            <label for="form-ad-link">क्लिक केल्यावर उघडणारी लिंक (पर्यायी)</label>
+            <input type="text" id="form-ad-link" class="form-control" inputmode="url" autocomplete="off" maxlength="1000" placeholder="https://..." data-no-i18n>
+          </div>
+
+          <div class="form-group video-order-group">
+            <label for="form-ad-order">क्रम क्रमांक (१ = सर्वात वर)</label>
+            <input type="number" id="form-ad-order" class="form-control" min="1" step="1" required>
+          </div>
+
+          <div class="video-upload-progress" id="ad-progress" role="status" aria-live="polite" hidden>
+            <div class="video-progress-track"><div class="video-progress-bar" id="ad-progress-bar"></div></div>
+            <div class="video-progress-line">
+              <span id="ad-progress-label">अपलोड होत आहे...</span>
+              <span id="ad-progress-pct" data-no-i18n></span>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeAdModal()">रद्द करा</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-ad">
+              <i class="fa-solid fa-cloud-arrow-up"></i> जाहिरात जतन व प्रकाशित करा
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
   <!-- MODAL: ARTICLE PREVIEW -->
   <!-- ========================================================= -->
   <div class="admin-modal-backdrop" id="preview-modal">
@@ -734,5 +859,6 @@
   <script src="/admin/admin-i18n.js"></script>
   <script src="/admin/admin.js"></script>
   <script src="/admin/admin-videos.js"></script>
+  <script src="/admin/admin-ads.js"></script>
 </body>
 </html>

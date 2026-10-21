@@ -161,7 +161,13 @@ def _video_problem(data, creating):
     thumb = str(data.get("thumbnail") or "").strip()
     if thumb and not re.fullmatch(r"assets/images/\w[\w.\-]*", thumb) and not re.fullmatch(r"https?://\S+", thumb):
         return "The thumbnail must be an uploaded image"
-    for key in database.VIDEO_NUMBERS:
+    return _numbers_problem(data, database.VIDEO_NUMBERS)
+
+
+def _numbers_problem(data, keys):
+    """Why the numbers of a video / ad request cannot be saved, or None. `keys` are whole numbers >= 0, sort_order is a whole number >= 1;
+    they are normalised in place."""
+    for key in keys:
         if key in data and str(data[key] if data[key] is not None else "").strip() != "":
             try:
                 number = int(round(float(data[key])))
@@ -236,16 +242,18 @@ def delete_video(video_id):
     return ok(message="व्हिडिओ यशस्वीरीत्या हटवला!", files_removed=sum(removed))
 
 
-def _remove_upload(url, video_id):
-    """Delete the file of a video / thumbnail that was saved by this server (assets/videos/<name>, assets/images/video-poster_<...>).
-    Nothing else is ever deleted: other hosts, other folders, a picture that does not carry the video-poster_ prefix, a file another video uses."""
-    for prefix, folder, name_start in (("assets/videos/", config.VIDEO_DIR, ""), ("assets/images/", config.IMAGES_DIR, "video-poster_")):
+def _remove_upload(url, video_id=None, ad_id=None):
+    """Delete the file of a video / ad / thumbnail that was saved by this server (assets/videos/<name>, assets/images/video-poster_<...>,
+    assets/images/ad-image_<...>, assets/images/ad-poster_<...>). Nothing else is ever deleted: other hosts, other folders, a picture that
+    does not carry one of those prefixes (the built-in ads assets/ad-1.jpg ... are never touched), a file another video / ad uses."""
+    for prefix, folder, name_starts in (("assets/videos/", config.VIDEO_DIR, ("",)),
+                                        ("assets/images/", config.IMAGES_DIR, ("video-poster_", "ad-image_", "ad-poster_"))):
         if not url or not url.startswith(prefix):
             continue
         name = url[len(prefix):]
-        if not name or "/" in name or "\\" in name or name.startswith(".") or not name.startswith(name_start):
+        if not name or "/" in name or "\\" in name or name.startswith(".") or not name.startswith(name_starts):
             return False
-        if database.video_file_in_use(url, video_id):
+        if database.upload_in_use(url, video_id, ad_id):
             return False
         path = folder / name
         try:
@@ -256,6 +264,89 @@ def _remove_upload(url, video_id):
             pass
         return False
     return False
+
+
+# -------------------------------------------------------------
+# REST API: Ads (the photo / video comes from POST /upload/image or /upload/video, the row from POST /ads)
+# -------------------------------------------------------------
+def _ad_problem(data, creating):
+    """Why this request cannot be saved (an English sentence for the Admin Panel), or None. Numbers are normalised in place."""
+    kind = str(data.get("media_type") or "").strip()
+    if (creating or "media_type" in data) and kind not in database.AD_TYPES:
+        return "The ad must be a photo or a video"
+    if creating or "title" in data:
+        title = str(data.get("title") or "").strip()
+        if not title:
+            return "Ad title is required"
+        if len(title) > 300 or len(str(data.get("title_en") or "")) > 300:
+            return "The ad title is too long (300 characters at most)"
+    if creating or "media_url" in data:
+        url = str(data.get("media_url") or "").strip()
+        photo = re.fullmatch(r"assets/images/\w[\w.\-]*", url)
+        video = re.fullmatch(r"assets/videos/\w[\w.\-]*", url) or re.fullmatch(r"https?://\S+", url)      # an uploaded file or a link - nothing else
+        if not (photo if kind == "image" else video if kind == "video" else photo or video) or len(url) > 1000:
+            return "A photo or a video is required (upload it first)"
+    thumb = str(data.get("thumbnail") or "").strip()
+    if thumb and (not (re.fullmatch(r"assets/images/\w[\w.\-]*", thumb) or re.fullmatch(r"https?://\S+", thumb)) or len(thumb) > 1000):
+        return "The thumbnail must be an uploaded image"
+    link = str(data.get("link_url") or "").strip()
+    if link and (not re.fullmatch(r"https?://\S+", link) or len(link) > 1000):          # (no javascript: / data: addresses)
+        return "The click link must start with http:// or https://"
+    return _numbers_problem(data, database.AD_NUMBERS)
+
+
+@api.get("/ads")
+def get_ads():
+    ads = database.get_ads(limit=request.args.get("limit", type=int))
+    return ok(count=len(ads), ads=ads)
+
+
+@api.get("/ads/<int:ad_id>")
+def get_ad(ad_id):
+    ad = database.get_ad(ad_id)
+    if not ad:
+        return fail("Ad not found", 404)
+    return ok(ad=ad)
+
+
+@api.post("/ads")
+def create_ad():
+    data = body()
+    problem = _ad_problem(data, creating=True)
+    if problem:
+        return fail(problem, 400)
+    new_id = database.create_ad(data)
+    database.publish_ads_file()
+    return jsonify({"success": True, "message": "जाहिरात यशस्वीरीत्या प्रकाशित झाली!", "ad": database.get_ad(new_id)}), 201
+
+
+@api.route("/ads/<int:ad_id>", methods=["PUT", "POST"])
+def update_ad(ad_id):
+    data = body()
+    if not data:
+        return fail("No update data provided", 400)
+    problem = _ad_problem(data, creating=False)
+    if problem:
+        return fail(problem, 400)
+    before = database.get_ad(ad_id)
+    if not before:
+        return fail("Ad not found", 404)
+    if not database.update_ad(ad_id, data):
+        return fail("No update data provided", 400)
+    after = database.get_ad(ad_id)
+    removed = [_remove_upload(before[k], None, ad_id) for k in ("media_url", "thumbnail") if before[k] != after[k]]    # a replaced file is not kept
+    database.publish_ads_file()
+    return ok(message="जाहिरात अद्यतनित करण्यात आली!", ad=after, files_removed=sum(removed))
+
+
+@api.delete("/ads/<int:ad_id>")
+def delete_ad(ad_id):
+    row = database.delete_ad(ad_id)
+    if not row:
+        return fail("Ad not found", 404)
+    removed = [_remove_upload(row[k], None, ad_id) for k in ("media_url", "thumbnail")]
+    database.publish_ads_file()
+    return ok(message="जाहिरात यशस्वीरीत्या हटवली!", files_removed=sum(removed))
 
 
 # -------------------------------------------------------------
@@ -383,6 +474,15 @@ def discard_uploaded_video():
     if not re.fullmatch(r"assets/videos/\w[\w.\-]*", url):
         return fail("Not an uploaded video", 400)
     return ok(removed=_remove_upload(url, None))
+
+
+@api.delete("/upload/ad")
+def discard_uploaded_ad_image():
+    """The Admin Panel takes back a photo / poster it uploaded for an ad but could not save the ad for. Only a file no video / ad points to is deleted."""
+    url = str(body().get("url") or "")
+    if not re.fullmatch(r"assets/images/(?:ad-image|ad-poster)_[\w.\-]+", url):
+        return fail("Not an uploaded ad picture", 400)
+    return ok(removed=_remove_upload(url))
 
 
 # -------------------------------------------------------------

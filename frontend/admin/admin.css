@@ -1819,6 +1819,17 @@ body:has(.admin-modal-backdrop.open) {
   #videos-table td:nth-child(5) { grid-column: 2 / -1; grid-row: 3; }
   #videos-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; }
 
+  /* ads: picture | title / type + size / date; actions */
+  #ads-table .ad-thumb-wrap,
+  #ads-table .ad-table-thumb { width: 62px; }
+  #ads-table .ad-table-thumb { height: 78px; }
+  #ads-table td:nth-child(1):not([colspan]) { grid-column: 1; grid-row: 1 / span 3; }
+  #ads-table td:nth-child(2) { grid-column: 2 / -1; grid-row: 1; }
+  #ads-table td:nth-child(3) { grid-column: 2; grid-row: 2; }
+  #ads-table td:nth-child(4) { grid-column: 3; grid-row: 2; text-align: right; }
+  #ads-table td:nth-child(5) { grid-column: 2 / -1; grid-row: 3; }
+  #ads-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; }
+
   .placement-badges-cell {
     display: flex;
     flex-wrap: wrap;
@@ -2228,4 +2239,97 @@ body:has(.admin-modal-backdrop.open) {
 body.dark-theme .video-form-warn {
   background: rgba(245, 158, 11, 0.16);
   color: #fcd34d;
+}
+
+/* ===== Advertisements (admin-ads.js) ===== */
+/* the list: a 4:5 picture (like the website's ad frame) with the order number; a video also gets the play badge */
+.ad-thumb-wrap {
+  position: relative;
+  width: 56px;
+}
+
+.ad-table-thumb {
+  width: 56px;
+  height: 70px;
+  object-fit: cover;
+  background: #0f172a;
+}
+
+.ad-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(2, 132, 199, 0.12);
+  color: var(--brand-blue);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ad-type-badge.is-video {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.ad-link-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  vertical-align: middle;
+}
+
+/* the form: photo | video switch */
+.ad-type-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ad-type-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ad-type-opt.active {
+  border-color: var(--brand-primary);
+  background: rgba(211, 47, 47, 0.08);
+  color: var(--brand-primary);
+}
+
+.ad-type-opt:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+#ad-pane-image[hidden],
+#ad-pane-video[hidden] {
+  display: none;
+}
+
+/* the chosen photo is shown whole (it can be any shape) */
+.ad-form-preview {
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
+  background: #f1f5f9;
 }

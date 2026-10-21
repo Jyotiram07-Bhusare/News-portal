@@ -23,7 +23,12 @@ let appState = {
   videosLoaded: false,           // true once the list really came from the backend
   videosFailed: false,           // the backend answered the other lists but not this one (an old backend without /api/videos, a dropped connection)
   editingVideoId: null,          // id while the video form edits an existing video (null = a new video)
-  maxVideoMb: 200                // the backend's limit for one video file (/api/health tells it)
+  maxVideoMb: 200,               // the backend's limit for one video file (/api/health tells it)
+  maxUploadMb: 50,               // ... and for one photo
+  ads: [],                       // the Advertisements section (admin-ads.js)
+  adsLoaded: false,              // true once the list really came from the backend
+  adsFailed: false,
+  editingAdId: null              // id while the ad form edits an existing ad (null = a new ad)
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
@@ -145,6 +150,7 @@ function initNavigation() {
     if (hash === 'articles') switchTab('tab-articles');
     else if (hash === 'weekly') switchTab('tab-weekly');
     else if (hash === 'videos') switchTab('tab-videos');
+    else if (hash === 'ads') switchTab('tab-ads');
     else switchTab('tab-dashboard');
   });
 
@@ -153,6 +159,7 @@ function initNavigation() {
     if (h === 'articles') switchTab('tab-articles');
     else if (h === 'weekly') switchTab('tab-weekly');
     else if (h === 'videos') switchTab('tab-videos');
+    else if (h === 'ads') switchTab('tab-ads');
   }
 }
 
@@ -234,7 +241,8 @@ function switchTab(tabId) {
     'tab-dashboard': 'डॅशबोर्ड (Dashboard)',
     'tab-articles': 'बातम्या व्यवस्थापन (News Manager)',
     'tab-weekly': 'साप्ताहिक ई-पेपर (Weekly PDF)',
-    'tab-videos': 'व्हिडिओ अपलोड (Videos)'
+    'tab-videos': 'व्हिडिओ अपलोड (Videos)',
+    'tab-ads': 'जाहिरात (Advertisements)'
   };
   if (breadcrumb) breadcrumb.textContent = names[tabId] || 'डॅशबोर्ड';
 
@@ -271,16 +279,17 @@ function initDateDisplay() {
 // -------------------------------------------------------------
 // Data Fetching: REST API Calls
 // -------------------------------------------------------------
-// Sidebar footer: the real state of the backend (address + MySQL), asked from /api/health.
+// The real state of the backend, asked from /api/health (it also brings the upload limits and whether the database has the English columns).
 // Answers 'online', 'database' (the backend answers, MySQL does not) or 'down' (nobody answers: no backend at this address).
+// (The status box of the sidebar was removed: show() only fills it when a page still has one.)
 async function checkServerStatus() {
   const dot = document.getElementById('server-status-dot');
   const text = document.getElementById('server-status-text');
   const box = document.getElementById('server-status');
-  if (!dot || !text) return 'online';
   let where = window.location.host;
   try { if (API_BASE) where = new URL(API_BASE).host; } catch (e) { /* keep the page's own address */ }
   const show = (state, label, tip) => {
+    if (!dot || !text) return;
     dot.className = 'status-indicator-dot ' + state;
     text.textContent = `${where} • ${label}`;
     if (box) box.title = tip || '';
@@ -292,6 +301,7 @@ async function checkServerStatus() {
       show('online', 'सुरू', 'MySQL database: ' + data.database);
       appState.dbEnglish = data.english !== false;
       if (data.limits && Number(data.limits.video_mb) > 0) appState.maxVideoMb = Number(data.limits.video_mb);
+      if (data.limits && Number(data.limits.upload_mb) > 0) appState.maxUploadMb = Number(data.limits.upload_mb);
       return 'online';
     }
     show('offline', 'MySQL बंद', data.error || '');
@@ -308,14 +318,15 @@ async function loadAllData() {
     fetchStats(),
     fetchArticles(),
     fetchWeekly(),
-    fetchVideos()
+    fetchVideos(),
+    fetchAds()
   ]);
   // the backend answers but a list did not arrive (a dropped connection): say so, never show a silent empty list
   showBackendBanner(state === 'online' && !(appState.articlesLoaded && appState.weeklyLoaded) ? 'partial' : state);
 }
 
 // The numbers of the dashboard start as "…" (not as made-up numbers): a number that never arrives becomes "—", never a wrong "0".
-const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'sidebar-videos-count', 'stat-total-articles', 'stat-total-weekly',
+const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'sidebar-videos-count', 'sidebar-ads-count', 'stat-total-articles', 'stat-total-weekly',
                        'stat-total-rajkiy', 'stat-total-samajik', 'stat-total-popular', 'stat-total-random'];
 
 function backendProblem(state) {
@@ -459,6 +470,9 @@ function updateBadgeCounts() {
 
   const vCount = document.getElementById('sidebar-videos-count');
   if (vCount && appState.videosLoaded) vCount.textContent = appState.videos.length;
+
+  const adCount = document.getElementById('sidebar-ads-count');
+  if (adCount && appState.adsLoaded) adCount.textContent = appState.ads.length;
 }
 
 // -------------------------------------------------------------

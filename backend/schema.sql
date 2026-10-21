@@ -61,3 +61,21 @@ CREATE TABLE IF NOT EXISTS videos (
   created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ads of the website's "जाहिरात" widget (Admin Panel > Advertisements): a photo or a video, shown one after the other.
+-- Created (and filled with the three ads the website always had) by the backend itself the first time ads are used - init_db.py does not run this
+-- statement directly, it calls database.ensure_ads_table().
+CREATE TABLE IF NOT EXISTS ads (
+  id             INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  media_type     VARCHAR(10)     NOT NULL DEFAULT 'image',    -- image | video
+  title          VARCHAR(300)    NOT NULL DEFAULT '',         -- what the ad is (the photo's alt text, the name in the Admin Panel)
+  title_en       VARCHAR(300)    NOT NULL DEFAULT '',
+  media_url      VARCHAR(1000)   NOT NULL,                    -- assets/images/ad-image_*.jpg | assets/videos/<file> | the https address of a video file
+  thumbnail      VARCHAR(1000)   NOT NULL DEFAULT '',         -- a video ad's first picture (assets/images/ad-poster_*.jpg)
+  link_url       VARCHAR(1000)   NOT NULL DEFAULT '',         -- where a click on the ad goes (https://...), empty = nowhere
+  duration_sec   INT UNSIGNED    NULL,
+  size_bytes     BIGINT UNSIGNED NULL,
+  sort_order     INT             NULL,                        -- the place in the slider: 1 = first
+  created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
