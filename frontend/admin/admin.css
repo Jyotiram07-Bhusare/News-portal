@@ -1,5 +1,4 @@
-/* ============================================================
-   LOKMANGAL NEWS PORTAL — ADMIN DASHBOARD STYLESHEET
+/* =====================================================   LOKMANGAL NEWS PORTAL — ADMIN DASHBOARD STYLESHEET
    Clean Executive Dark/Light Design System
 ============================================================ */
 
@@ -2241,6 +2240,67 @@ body.dark-theme .video-form-warn {
   color: #fcd34d;
 }
 
+/* ===== Sign-in (shown by admin.js while there is no valid login) ===== */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(9, 13, 22, 0.94);
+  overflow-y: auto;
+}
+.login-overlay[hidden] { display: none; }
+body.login-open { overflow: hidden; }
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 26px 24px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+.login-card .form-group { text-align: left; margin-bottom: 14px; }
+.login-logo { width: 56px; height: 56px; object-fit: contain; margin-bottom: 8px; }
+.login-card h2 { font-size: 1.15rem; margin: 0 0 2px; }
+.login-sub { margin: 0 0 18px; font-size: 0.85rem; color: var(--text-muted); }
+.login-error, .login-problem {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  text-align: left;
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+body.dark-theme .login-error, body.dark-theme .login-problem { color: #fca5a5; }
+.login-error[hidden], .login-problem[hidden], .login-retry[hidden] { display: none; }
+.login-submit, .login-retry { width: 100%; justify-content: center; min-height: 44px; margin-top: 4px; }
+.signout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--text-sidebar-muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.signout-btn:hover { background: var(--bg-sidebar-hover); color: #ffffff; }
+.admin-sidebar.collapsed .signout-btn span { display: none; }
+.login-card [hidden] { display: none !important; }
+=======
 /* ===== Advertisements (admin-ads.js) ===== */
 /* the list: a 4:5 picture (like the website's ad frame) with the order number; a video also gets the play badge */
 .ad-thumb-wrap {

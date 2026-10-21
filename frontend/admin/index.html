@@ -82,6 +82,11 @@
           <span>थेट वेबसाईट पहा (Live Site)</span>
         </a>
       </nav>
+      <div class="sidebar-footer">
+        <button type="button" class="signout-btn" id="signout-btn" title="बाहेर पडा / Sign out" data-no-i18n>
+          <i class="fa-solid fa-right-from-bracket"></i> <span>बाहेर पडा / Sign out</span>
+        </button>
+      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -883,10 +888,36 @@
     </div>
   </div>
 
+  <!-- Sign-in: nothing of the Admin Panel works without it (admin.js shows this while there is no valid login) -->
+  <div class="login-overlay" id="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
+    <form class="login-card" id="login-form" autocomplete="on" novalidate>
+      <img src="/assets/logo-icon.png" alt="" class="login-logo">
+      <h2 id="login-title">प्रशासकीय कक्ष — लॉगिन</h2>
+      <p class="login-sub">Admin Panel — Sign in</p>
+      <div class="login-problem" id="login-problem" role="alert" hidden></div>
+      <div class="form-group">
+        <label for="login-user">वापरकर्ता नाव / User name</label>
+        <input type="text" id="login-user" class="form-control" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="form-group">
+        <label for="login-pass">पासवर्ड / Password</label>
+        <input type="password" id="login-pass" class="form-control" name="password" autocomplete="current-password" required>
+      </div>
+      <p class="login-error" id="login-error" role="alert" hidden></p>
+      <button type="submit" class="btn btn-primary login-submit" id="login-submit">
+        <i class="fa-solid fa-right-to-bracket"></i> <span>लॉगिन / Sign in</span>
+      </button>
+      <button type="button" class="btn btn-outline login-retry" id="login-retry" hidden>
+        <i class="fa-solid fa-rotate"></i> <span>पुन्हा तपासा / Check again</span>
+      </button>
+    </form>
+  </div>
+
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Admin JS Engine -->
+  <script src="/js/env-config.js"></script>
   <script src="/js/config.js"></script>
   <script src="/admin/admin-i18n.js"></script>
   <script src="/admin/admin.js"></script>

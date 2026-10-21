@@ -439,6 +439,8 @@ function uploadAdFile(path, blob, filename, label) {
     const xhr = new XMLHttpRequest();
     adForm.xhr = xhr;
     xhr.open('POST', API_BASE + path);
+    const token = getToken();
+    if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token);
     xhr.upload.onprogress = (e) => {
       if (!e.lengthComputable) return;
       if (e.loaded >= e.total) setAdProgress('सर्व्हरवर जतन होत आहे...', e.total, e.total);
@@ -447,6 +449,7 @@ function uploadAdFile(path, blob, filename, label) {
     xhr.onload = () => {
       let data = null;
       try { data = JSON.parse(xhr.responseText); } catch (e) { /* not JSON */ }
+      if (xhr.status === 401) signedOut(msg('तुमचे लॉगिन संपले आहे. पुन्हा लॉगिन करा.', 'Your login has ended. Please sign in again.'));
       if (xhr.status >= 200 && xhr.status < 300 && data && data.success) resolve(data);
       else reject(new Error((data && data.error) || `HTTP ${xhr.status}`));
     };

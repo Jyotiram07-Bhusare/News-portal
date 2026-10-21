@@ -1,0 +1,18 @@
+version: 1
+# AWS Amplify Hosting: the website is plain HTML / CSS / JS (frontend/), nothing to compile.
+# The only build step writes frontend/js/env-config.js from the Amplify environment variables
+# (LOKMANGAL_API_BASE, LOKMANGAL_PDF_BASE - see DEPLOY.md).
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - node deploy/amplify/write-env-config.js
+    build:
+      commands:
+        - echo "Static site - nothing to build"
+  artifacts:
+    baseDirectory: frontend
+    files:
+      - '**/*'
+  cache:
+    paths: []

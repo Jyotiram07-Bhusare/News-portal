@@ -36,52 +36,175 @@ let appState = {
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
 const API_BASE = (window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE) || '';
+// Where the PUBLIC website lives (js/config.js). The Admin Panel runs on its own subdomain and has none of the site's pictures / PDFs:
+// relative addresses (assets/images/x.jpg) are read from the website. "" = the same address as this page (local development).
+const SITE_BASE = String((window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.SITE_BASE) || '').replace(/\/+$/, '');
 
 // A message that is not page text (a confirm dialog, the backend banner): the Marathi or the English one, by the language chosen in the
 // sidebar (admin-i18n.js). Page text itself is translated by admin-i18n.js's dictionary.
 function msg(mr, en) {
   return typeof window.tx === 'function' ? window.tx(mr, en) : mr;
 }
+// ---- sign-in ------------------------------------------------------------------------------------------------------------
+// The backend gives a login token (POST /api/auth/login). It lives in this browser TAB only (sessionStorage): closing the tab signs out.
+const TOKEN_KEY = 'lokmangal_admin_token';
+let memoryToken = '';
+function getToken() {
+  try { return sessionStorage.getItem(TOKEN_KEY) || memoryToken; } catch (e) { return memoryToken; }
+}
+function setToken(token) {
+  memoryToken = token || '';
+  try { if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* storage blocked: the token stays in memory */ }
+}
+
+// Every request carries the token. A 401 answer means the login ended (or never was): the sign-in screen comes back.
 // Reading is repeated once when the connection is dropped (a hiccup must not leave an empty list behind);
 // writing is never repeated by itself.
 const apiFetch = async (path, options) => {
   const method = String((options && options.method) || 'GET').toUpperCase();
+  const token = getToken();
+  const opts = token ? { ...(options || {}), headers: { ...((options && options.headers) || {}), Authorization: 'Bearer ' + token } } : options;
+  let res;
   try {
-    return await fetch(API_BASE + path, options);
+    res = await fetch(API_BASE + path, opts);
   } catch (err) {
     if (method !== 'GET') throw err;
     await new Promise((resolve) => setTimeout(resolve, 500));
-    return fetch(API_BASE + path, options);
+    res = await fetch(API_BASE + path, opts);
   }
+  if (res.status === 401 && token) signedOut(msg('तुमचे लॉगिन संपले आहे. पुन्हा लॉगिन करा.', 'Your login has ended. Please sign in again.'));
+  return res;
 };
 
 // URL Helpers for consistent assets
 function formatAssetUrl(url) {
-  if (!url) return '/assets/images/lokmangal_what_we_do.jpg';
+  if (!url) return SITE_BASE + '/assets/images/lokmangal_what_we_do.jpg';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/')) return url;
-  if (url.startsWith('../')) return '/' + url.replace(/^\.\.\//, '');
-  return '/' + url;
+  if (url.startsWith('/')) return SITE_BASE + url;
+  if (url.startsWith('../')) return SITE_BASE + '/' + url.replace(/^\.\.\//, '');
+  return SITE_BASE + '/' + url;
 }
 
+// Where the weekly PDFs are read from: the S3 / CloudFront address from js/config.js, or this site's own assets/pdf/ folder
 function formatPdfUrl(filename) {
   if (!filename) return '#';
   if (filename.startsWith('http://') || filename.startsWith('https://')) return filename;
-  if (filename.startsWith('/')) return filename;
-  if (filename.startsWith('../')) return '/' + filename.replace(/^\.\.\//, '');
-  if (filename.startsWith('assets/pdf/')) return '/' + filename;
-  return '/assets/pdf/' + filename;
+  if (filename.startsWith('/')) return SITE_BASE + filename;
+  if (filename.startsWith('../')) return SITE_BASE + '/' + filename.replace(/^\.\.\//, '');
+  if (filename.startsWith('assets/pdf/')) return SITE_BASE + '/' + filename;
+  const base = String((window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.PDF_BASE) || '').trim();
+  return (/^https:\/\//.test(base) ? base.replace(/\/*$/, '/') : SITE_BASE + '/assets/pdf/') + filename;
 }
+
+// The same addresses, ready to be written into a src="..." / href="..." of a template
+const attrUrl = (url) => escapeHtml(formatAssetUrl(url));
+const attrPdf = (name) => escapeHtml(formatPdfUrl(name));
 
 // -------------------------------------------------------------
 // Initialization on DOMContentLoaded
 // -------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  // "Live site" opens the public website (it is another address than this one when the Admin Panel has its own subdomain)
+  const liveSite = document.querySelector('a.nav-item-external');
+  if (liveSite) { liveSite.href = SITE_BASE ? SITE_BASE + '/' : '/'; liveSite.rel = 'noopener'; }
   initTheme();
   initNavigation();
   initDateDisplay();
-  loadAllData();
+  initSignIn();
+  bootAdmin();
 });
+
+// -------------------------------------------------------------
+// Sign-in screen
+// -------------------------------------------------------------
+// Start: the backend must answer; then a valid login opens the panel, anything else shows the sign-in screen.
+async function bootAdmin() {
+  const state = await checkServerStatus();                 // (the public /api/health: online | database | down)
+  if (state !== 'online') { showLogin('', state); return; }
+  if (getToken()) {
+    try {
+      const res = await fetch(API_BASE + '/api/auth/me', { headers: { Authorization: 'Bearer ' + getToken() } });
+      await res.text();                                    // (read to the end: an unread answer keeps the request "open")
+      if (res.ok) { hideLogin(); loadAllData(); return; }
+    } catch (err) { /* the sign-in screen below says what is wrong */ }
+    setToken('');
+  }
+  showLogin();
+}
+
+function showLogin(note, problemState) {
+  const overlay = document.getElementById('login-overlay');
+  if (!overlay) return;
+  const problem = document.getElementById('login-problem');
+  const form = document.getElementById('login-form');
+  const retry = document.getElementById('login-retry');
+  const broken = !!problemState && problemState !== 'online';
+  if (problem) {
+    problem.hidden = !broken;
+    if (broken) { const p = backendProblem(problemState); problem.textContent = `${p.title} — ${p.text}`; }
+  }
+  form.querySelectorAll('.form-group, #login-submit').forEach((el) => { el.hidden = broken; });
+  if (retry) retry.hidden = !broken;
+  const error = document.getElementById('login-error');
+  if (error) { error.textContent = note || ''; error.hidden = !note; }
+  overlay.hidden = false;
+  document.body.classList.add('login-open');
+  if (!broken) setTimeout(() => { const f = document.getElementById(document.getElementById('login-user').value ? 'login-pass' : 'login-user'); if (f) f.focus(); }, 50);
+}
+
+function hideLogin() {
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.hidden = true;
+  document.body.classList.remove('login-open');
+  const pass = document.getElementById('login-pass');
+  if (pass) pass.value = '';
+}
+
+// the token was refused (expired, password changed ...) or the user chose "Sign out"
+function signedOut(note) {
+  setToken('');
+  showLogin(note);
+}
+
+function initSignIn() {
+  const form = document.getElementById('login-form');
+  if (form) form.addEventListener('submit', handleLoginSubmit);
+  const retry = document.getElementById('login-retry');
+  if (retry) retry.addEventListener('click', () => { bootAdmin(); });
+  const out = document.getElementById('signout-btn');
+  if (out) out.addEventListener('click', () => { signedOut(''); });
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const error = document.getElementById('login-error');
+  const button = document.getElementById('login-submit');
+  const fail = (text) => { error.textContent = text; error.hidden = false; };
+  error.hidden = true;
+  if (!user || !pass) { fail(msg('वापरकर्ता नाव आणि पासवर्ड लिहा.', 'Enter the user name and the password.')); return; }
+  button.disabled = true;
+  try {
+    const res = await fetch(API_BASE + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.success && data.token) {
+      setToken(data.token);
+      hideLogin();
+      await loadAllData();
+    } else {
+      fail((data && data.error) || msg('लॉगिन होऊ शकले नाही.', 'Could not sign in.'));
+    }
+  } catch (err) {
+    fail(msg('सर्व्हरशी संपर्क होत नाही. इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.', 'Cannot reach the server. Check the internet and try again.'));
+  } finally {
+    button.disabled = false;
+  }
+}
 
 // -------------------------------------------------------------
 // Theme Management
@@ -523,11 +646,11 @@ function renderRecentArticles() {
 
   container.innerHTML = recents.map(a => `
     <div class="recent-item" onclick="openEditArticleModal(${a.id})" style="cursor: pointer;">
-      <img src="${formatAssetUrl(a.image)}" class="recent-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
+      <img src="${attrUrl(a.image)}" class="recent-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
       <div class="recent-body">
         <h4 class="recent-title" data-no-i18n>${escapeHtml(a.title)}</h4>
         <div class="recent-meta">
-          <span class="category-pill pill-${a.category}">${escapeHtml(a.categoryLabel || a.category)}</span>
+          <span class="category-pill pill-${escapeHtml(a.category)}">${escapeHtml(a.categoryLabel || a.category)}</span>
           <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(a.date)}</span>
           <span><i class="fa-regular fa-eye"></i> ${escapeHtml(a.views)}</span>
         </div>
@@ -548,7 +671,7 @@ function renderRecentWeekly() {
 
   container.innerHTML = recents.map(w => `
     <div class="recent-item">
-      <img src="${formatAssetUrl(w.image)}" class="recent-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
+      <img src="${attrUrl(w.image)}" class="recent-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
       <div class="recent-body">
         <h4 class="recent-title" data-no-i18n>${escapeHtml(w.title)}</h4>
         <div class="recent-meta">
@@ -557,7 +680,7 @@ function renderRecentWeekly() {
           ${w.views && w.views !== '—' ? `<span><i class="fa-regular fa-eye"></i> ${escapeHtml(w.views)}</span>` : ''}
         </div>
       </div>
-      <a href="${formatPdfUrl(w.pdf_filename)}" target="_blank" class="action-btn" title="PDF पहा">
+      <a href="${attrPdf(w.pdf_filename)}" target="_blank" rel="noopener" class="action-btn" title="PDF पहा">
         <i class="fa-solid fa-file-pdf"></i>
       </a>
     </div>
@@ -617,14 +740,14 @@ function renderArticlesTable() {
     <tr>
       <td style="font-weight: 700; color: var(--text-muted);">${a.id}</td>
       <td>
-        <img src="${formatAssetUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
+        <img src="${attrUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
       </td>
       <td>
         <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;" data-no-i18n>${escapeHtml(a.title)}${a.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
         <div style="font-size: 0.78rem; color: var(--text-muted);"><span>by</span> <span data-no-i18n>${escapeHtml(a.author || 'प्रतिनिधी')}</span></div>
       </td>
       <td>
-        <span class="category-pill pill-${a.category}">${a.categoryLabel || a.category}</span>
+        <span class="category-pill pill-${escapeHtml(a.category)}">${escapeHtml(a.categoryLabel || a.category)}</span>
       </td>
       <td>
         <div class="placement-badges-cell">
@@ -837,11 +960,28 @@ function plainTextToParagraphs(text) {
     .map((p) => `<p>${esc(p).replace(/\r?\n/g, '<br>')}</p>`).join('\n');
 }
 
+// HTML for a preview: parsed in an inert document, then scripts / frames / event handlers / javascript: addresses are taken out.
+// (The backend cleans every story before it is saved; this protects the preview of older rows and of text still being typed.)
+function safeHtml(html) {
+  const body = new DOMParser().parseFromString(`<body>${String(html || '')}</body>`, 'text/html').body;
+  body.querySelectorAll('script, style, iframe, object, embed, link, meta, base, form, svg, math').forEach((el) => el.remove());
+  body.querySelectorAll('*').forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      const name = attr.name.toLowerCase();
+      const value = attr.value.replace(/[\u0000- ]+/g, '').toLowerCase();
+      if (name.startsWith('on') || ((name === 'href' || name === 'src' || name === 'xlink:href' || name === 'action') && /^(javascript|data|vbscript):/.test(value))) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return body.innerHTML;
+}
+
 // The saved HTML of a story -> the plain text the editor sees in the box (paragraphs separated by a blank line, no tags,
 // &amp; & co. turned back into characters).
 function htmlToPlainText(html) {
-  const box = document.createElement('div');
-  box.innerHTML = String(html || '');
+  // (parsed in an inert document: an <img onerror=...> inside a saved story must not run just because the story is opened)
+  const box = new DOMParser().parseFromString(`<body>${String(html || '')}</body>`, 'text/html').body;
   const blocks = [];
   let line = '';
   const flush = () => { const t = line.replace(/[ \t]*\n[ \t]*/g, '\n').trim(); if (t) blocks.push(t); line = ''; };
@@ -1005,9 +1145,9 @@ function openPreviewArticle(articleId) {
   document.getElementById('prev-views').textContent = `${a.views || '1.5K'} वाचक`;
   
   const img = document.getElementById('prev-img');
-  img.src = (a.image && a.image.startsWith('assets/')) ? `../${a.image}` : a.image;
+  img.src = formatAssetUrl(a.image);
   
-  document.getElementById('prev-content').innerHTML = a.content || `<p>${a.excerpt}</p>`;
+  document.getElementById('prev-content').innerHTML = safeHtml(a.content) || `<p>${escapeHtml(a.excerpt)}</p>`;
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -1030,7 +1170,7 @@ function previewArticleBeforeSubmit() {
   if (image) img.src = formatAssetUrl(image);
   else img.removeAttribute('src');
 
-  document.getElementById('prev-content').innerHTML = content;
+  document.getElementById('prev-content').innerHTML = safeHtml(content);
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -1052,12 +1192,12 @@ function renderWeeklyTable() {
   }
 
   tbody.innerHTML = list.map(w => {
-    const pdfUrl = formatPdfUrl(w.pdf_filename);
+    const pdfUrl = attrPdf(w.pdf_filename);
     return `
       <tr>
         <td style="font-weight: 800; color: var(--brand-orange);">अंक ${w.issue_no}</td>
         <td>
-          <img src="${formatAssetUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
+          <img src="${attrUrl(w.image)}" class="table-thumb table-thumb-cover" alt="अंक ${w.issue_no}">
         </td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary);" data-no-i18n>${escapeHtml(w.title)}${w.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
@@ -1065,14 +1205,14 @@ function renderWeeklyTable() {
         </td>
         <td style="font-size: 0.85rem;">${escapeHtml(w.date)}</td>
         <td>
-          <a href="${pdfUrl}" target="_blank" class="btn btn-sm btn-outline" style="color: #ea580c;">
-            <i class="fa-solid fa-file-pdf"></i> ${escapeHtml(w.pdf_filename)}
+          <a href="${pdfUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline" style="color: #ea580c;">
+            <i class="fa-solid fa-file-pdf"></i> ${escapeHtml(String(w.pdf_filename || '').split('/').pop())}
           </a>
         </td>
         <td style="font-weight: 600;">${w.views && w.views !== '—' ? escapeHtml(w.views) : '—'}</td>
         <td>
           <div class="table-actions">
-            <a href="${pdfUrl}" target="_blank" class="action-btn" title="PDF पहा">
+            <a href="${pdfUrl}" target="_blank" rel="noopener" class="action-btn" title="PDF पहा">
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
             </a>
             <button class="action-btn" title="अंक संपादित करा" onclick="openEditWeeklyModal(${w.issue_no})">
@@ -1120,7 +1260,7 @@ function openEditWeeklyModal(issueNo) {
   imgField.value = w.image || '';
   document.getElementById('form-weekly-pdffilename').value = w.pdf_filename || `lokmangal-weekly-${w.issue_no}.pdf`;
   document.getElementById('weekly-pdf-filename-display').innerHTML =
-    `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${escapeHtml(w.pdf_filename || '')} — सध्याची फाईल (बदलायची असेल तरच नवीन PDF निवडा)`;
+    `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${escapeHtml(String(w.pdf_filename || '').split('/').pop())} — सध्याची फाईल (बदलायची असेल तरच नवीन PDF निवडा)`;
   document.getElementById('form-weekly-desc').value = w.description || '';
   document.getElementById('form-weekly-title-en').value = w.title_en || '';
   document.getElementById('form-weekly-desc-en').value = w.description_en || '';
@@ -1192,7 +1332,9 @@ function loadAdminPdfjs() {
     adminPdfjsPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = ADMIN_PDFJS_BASE + 'pdf.min.js';
+      s.integrity = 'sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==';   // (the same file the website's reader uses)
       s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
       s.onload = () => {
         if (!window.pdfjsLib) { adminPdfjsPromise = null; reject(new Error('pdfjs')); return; }
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = ADMIN_PDFJS_BASE + 'pdf.worker.min.js';
@@ -1260,8 +1402,9 @@ async function handleWeeklyPdfUpload(input) {
     const data = await res.json();
     if (data.success) {
       appState.weeklyPdfChosen = true;
-      document.getElementById('form-weekly-pdffilename').value = data.filename;
-      document.getElementById('weekly-pdf-filename-display').innerHTML = `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${data.filename} (${Math.round(data.size / 1024)} KB)`;
+      // local folder: the file name (the website finds it in assets/pdf/); S3: the full https address of the file
+      document.getElementById('form-weekly-pdffilename').value = /^https:\/\//.test(data.url || '') ? data.url : data.filename;
+      document.getElementById('weekly-pdf-filename-display').innerHTML = `<i class="fa-solid fa-circle-check" style="color: #22c55e;"></i> ${escapeHtml(data.filename)} (${Math.round(Number(data.size) / 1024)} KB)`;
       showToast('PDF यशस्वीरीत्या अपलोड झाली!', 'success');
 
       // the date from the file name and the cover from the first page - unless they were already typed / chosen by hand
@@ -1432,10 +1575,11 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-triangle-exclamation' : 'fa-info-circle');
-  toast.innerHTML = `
-    <i class="fa-solid ${icon}"></i>
-    <span>${message}</span>
-  `;
+  const iconEl = document.createElement('i');
+  iconEl.className = `fa-solid ${icon}`;
+  const text = document.createElement('span');
+  text.textContent = String(message == null ? '' : message);          // (a message may carry text from the server: never as HTML)
+  toast.append(iconEl, text);
 
   container.appendChild(toast);
   setTimeout(() => {

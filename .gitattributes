@@ -1,0 +1,13 @@
+# Files that run on the Linux server must keep LF line endings (a CRLF breaks "#!/usr/bin/env bash" scripts and systemd units)
+*.sh              text eol=lf
+*.service         text eol=lf
+deploy/ec2/*      text eol=lf
+deploy/aws/*      text eol=lf
+deploy/amplify/*  text eol=lf
+amplify.yml       text eol=lf
+customHttp.yml    text eol=lf
+deploy/docker/*     text eol=lf
+backend/Dockerfile  text eol=lf
+backend/.dockerignore text eol=lf
+.github/workflows/*.yml text eol=lf
+backend/certs/*.pem  text eol=lf

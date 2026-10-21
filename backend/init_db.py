@@ -3,6 +3,10 @@
     python init_db.py            create the database + tables (articles, weekly_editions, videos, ads, site_settings; an older database also gets the English columns
                                  and updated_at, and the sample news / issues that exist get their English text - only where it is still empty)
     python init_db.py --seed     ... and load the sample content (seed/*.json) when the tables are empty
+    python init_db.py --schema-only
+                                 ONLY the structure: new tables / new columns are added, nothing is filled in, no row is touched.
+                                 This is what every deploy runs (deploy/docker/deploy-entry.sh), so a developer's new table or column
+                                 (put it in schema.sql / the *_COLUMNS specs of database.py) is there before the new code starts.
 """
 import argparse
 import re
@@ -61,6 +65,7 @@ def add_missing_columns():
 def main():
     parser = argparse.ArgumentParser(description="Create the Lokmangal MySQL database and tables.")
     parser.add_argument("--seed", action="store_true", help="also load the sample content when the tables are empty")
+    parser.add_argument("--schema-only", action="store_true", help="only add missing tables / columns; never fill in or change any row")
     args = parser.parse_args()
 
     print(f"MySQL  {config.DB_USER}@{config.DB_HOST}:{config.DB_PORT}  database '{config.DB_NAME}'")
@@ -74,6 +79,8 @@ def main():
     print("Database and tables are ready.")
     if added:
         print("Columns added: " + ", ".join(added))
+    if args.schema_only:
+        return
     try:
         filled = seed_data.fill_english()       # the sample news / issues that exist get their English text (empty English fields only)
     except pymysql.MySQLError as e:

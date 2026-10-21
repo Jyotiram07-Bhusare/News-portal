@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+tests/
+tmp_uploads/
+__pycache__/
+*.pyc
+.pytest_cache/
+legacy/
+Dockerfile
+.dockerignore
