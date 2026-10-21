@@ -27,6 +27,7 @@ aws amplify create-branch --app-id <appId> --branch-name main --stage PRODUCTION
 aws cloudformation deploy --stack-name lokportal-shared --template-file deploy/aws/shared-server-stack.yml --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides "SiteOrigins=https://main.<appId>.amplifyapp.com" AmplifyAppId=<appId> \
   ApiOriginHost=<server चे Public IPv4 DNS> ApiOriginPort=8445 OriginSecret=<48 यादृच्छिक अक्षरे/अंक>
+  "GitHubSubjectPrefix=<gh api repos/<owner>/<repo>/actions/oidc/customization/sub चा sub_claim_prefix>"      # GitHub 'immutable' subject वापरत असेल तर (हा account तसा आहे)
 aws cloudformation describe-stacks --stack-name lokportal-shared --query 'Stacks[0].Outputs'
 aws iam create-access-key --user-name lokportal-media-uploader        # key फक्त server च्या backend.env मध्ये जाते
 ```
@@ -63,7 +64,7 @@ hash तुमच्या PC वर बनवा (`cd backend && python manage.
 `.github/workflows/ci.yml` प्रत्येक push / PR वर चालते: backend tests (92), JS syntax, CloudFormation lint, scripts, Docker image build.
 `.github/workflows/deploy.yml` `main` वर push झाल्यावर, CI पास झाल्यावर:
 
-1. **Website → Amplify:** GitHub OIDC ने `lokportal-github-deploy` role (फक्त त्या एका Amplify app चे अधिकार, फक्त `main` branch) → `js/env-config.js` लिहितो → `customHttp.yml` headers → `frontend/` चा zip upload → publish → smoke test.
+1. **Website → Amplify:** (job ला GitHub `environment:` नाही — role फक्त repo + branch `main` वर विश्वास ठेवतो) GitHub OIDC ने `lokportal-github-deploy` role (फक्त त्या एका Amplify app चे अधिकार, फक्त `main` branch) → `js/env-config.js` लिहितो → `customHttp.yml` headers → `frontend/` चा zip upload → publish → smoke test.
 2. **Backend → EC2:** `backend/` चा tar.gz SSH ने server वर. त्या SSH key ला **फक्त एकच आज्ञा** चालवता येते (`/opt/lokportal/deploy-entry.sh`: image build → container बदल → `/api/health` तपासणी → अपयश आले तर जुनी आवृत्ती परत). Key सक्रिय करण्यासाठी (एकदाच, तुमच्या परवानगीने):
    ```bash
    ssh-keygen -t ed25519 -N "" -C github-actions-lokportal -f deploykey

@@ -20,6 +20,12 @@ Parameters:
   GitHubBranch:
     Type: String
     Default: main
+  GitHubSubjectPrefix:
+    Type: String
+    Default: ''
+    Description: >-
+      Only if GitHub uses "immutable" OIDC subjects for the repository (check: gh api repos/<owner>/<repo>/actions/oidc/customization/sub):
+      the sub_claim_prefix it prints, e.g. repo:my-org@123456/my-repo@7890123. Leave empty otherwise.
   ApiOriginHost:
     Type: String
     Description: >-
@@ -35,6 +41,9 @@ Parameters:
     MinLength: 24
     AllowedPattern: '[A-Za-z0-9]+'
     Description: A random secret that CloudFront sends in the header X-Origin-Verify; the server refuses requests without it.
+
+Conditions:
+  HasImmutableSubject: !Not [!Equals [!Ref GitHubSubjectPrefix, '']]
 
 Resources:
   # ------------------------------------------------------------------ files: S3 + CloudFront
@@ -234,7 +243,12 @@ Resources:
             Condition:
               StringEquals:
                 'token.actions.githubusercontent.com:aud': sts.amazonaws.com
-                'token.actions.githubusercontent.com:sub': !Sub 'repo:${GitHubRepository}:ref:refs/heads/${GitHubBranch}'
+                'token.actions.githubusercontent.com:sub':
+                  - !Sub 'repo:${GitHubRepository}:ref:refs/heads/${GitHubBranch}'
+                  - !If
+                    - HasImmutableSubject
+                    - !Sub '${GitHubSubjectPrefix}:ref:refs/heads/${GitHubBranch}'
+                    - !Ref AWS::NoValue
       Policies:
         - PolicyName: deploy-the-website-only
           PolicyDocument:

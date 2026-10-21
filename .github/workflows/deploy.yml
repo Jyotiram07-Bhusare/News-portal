@@ -73,8 +73,11 @@ jobs:
       - name: Smoke test
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error "$SITE_URL/" | grep -q 'html'
-          curl --fail --silent --show-error "$SITE_URL/js/env-config.js" | grep -q "$LOKMANGAL_API_BASE"
+          # (into files first: "curl | grep -q" ends with a write error under pipefail)
+          curl --fail --silent --show-error -o index.out "$SITE_URL/"
+          grep -q 'html' index.out
+          curl --fail --silent --show-error -o env.out "$SITE_URL/js/env-config.js"
+          grep -q "$LOKMANGAL_API_BASE" env.out
           curl --fail --silent --show-error -o /dev/null "$SITE_URL/admin/"
 
   backend:
@@ -98,4 +101,5 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           tar -czf - -C backend --exclude=__pycache__ --exclude=tests --exclude=tmp_uploads --exclude='.env' --exclude=.pytest_cache . \
             | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "lokdeploy@$SERVER_HOST" deploy
-          curl --fail --silent --show-error "$LOKMANGAL_API_BASE/api/health" | grep -q '"success":true'
+          curl --fail --silent --show-error -o health.out "$LOKMANGAL_API_BASE/api/health"
+          grep -q '"success":true' health.out
