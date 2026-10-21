@@ -30,11 +30,21 @@ def plain(value: Any, max_len: int = 500, label: str = "Text") -> str:
 
 
 STORY_TAGS = {"p", "br", "strong", "b", "em", "i", "u", "s", "ul", "ol", "li", "blockquote", "h2", "h3", "h4", "hr",
-              "a", "img", "figure", "figcaption", "span"}
+              "a", "img", "figure", "figcaption", "span",
+              "table", "thead", "tbody", "tr", "th", "td", "div"}       # (a table; the div only as the table's scroll wrapper, see below)
 STORY_ATTRIBUTES = {
     "a": {"href", "title"},
     "img": {"src", "alt", "title", "width", "height"},
+    "div": {"class"},
 }
+TABLE_WRAPPER_CLASS = "article-table-wrap"     # the one class a div may carry: it makes a wide table scroll sideways on a phone
+
+
+def _attribute_filter(tag: str, attribute: str, value: str):
+    """A div keeps its class only when it is exactly the table wrapper; every other attribute is already limited by STORY_ATTRIBUTES."""
+    if tag == "div" and attribute == "class":
+        return value if value == TABLE_WRAPPER_CLASS else None
+    return value
 
 
 def story(value: Any, max_len: int = 400_000, label: str = "The story") -> str:
@@ -44,6 +54,7 @@ def story(value: Any, max_len: int = 400_000, label: str = "The story") -> str:
         text,
         tags=STORY_TAGS,
         attributes=STORY_ATTRIBUTES,
+        attribute_filter=_attribute_filter,
         url_schemes={"http", "https", "mailto"},
         link_rel="noopener noreferrer nofollow",
         set_tag_attribute_values={"a": {"target": "_blank"}},

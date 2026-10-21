@@ -32,6 +32,16 @@ def test_story_keeps_formatting_and_drops_dangerous_parts():
     assert 'href="https://example.org/a"' in cleaned and "noopener" in cleaned
 
 
+def test_story_keeps_a_table_with_its_scroll_wrapper_and_nothing_else_on_a_div():
+    table = ('<div class="article-table-wrap"><table><thead><tr><th>Details</th><th>Amount</th></tr></thead>'
+             '<tbody><tr><td>Monthly cost</td><td>₹1,500</td></tr></tbody></table></div>')
+    assert sanitize.story(table) == table
+    cleaned = sanitize.story(table + '<div class="evil" onclick="x()">t</div><table onclick="x()"><tr><td style="color:red">c</td></tr></table>')
+    for bad in ('class="evil"', "onclick", "style"):
+        assert bad not in cleaned
+    assert "<td>c</td>" in cleaned and cleaned.startswith(table)
+
+
 def test_story_keeps_the_existing_seed_formatting():
     seed = "<p><strong>सोलापूर:</strong> लोकमंगल फाउंडेशन</p>\n<p>दुसरा परिच्छेद</p>"
     assert sanitize.story(seed) == seed
