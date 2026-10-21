@@ -10,3 +10,4 @@ deploy/docker/*     text eol=lf
 backend/Dockerfile  text eol=lf
 backend/.dockerignore text eol=lf
 .github/workflows/*.yml text eol=lf
+backend/certs/*.pem  text eol=lf

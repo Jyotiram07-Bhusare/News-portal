@@ -39,8 +39,8 @@ aws iam create-access-key --user-name lokportal-media-uploader        # key फ�
 
 ```bash
 # PC वरून फाईल्स पाठवा, मग server वर
-tar -czf - -C deploy/docker . | ssh -i <key.pem> ubuntu@<server> 'mkdir -p /tmp/lokportal-setup && tar -xzf - -C /tmp/lokportal-setup'
-ssh -i <key.pem> ubuntu@<server> "sudo ORIGIN_SECRET='<तोच OriginSecret>' bash /tmp/lokportal-setup/setup-server.sh"
+tar -czf - -C deploy/docker . | ssh -i <key.pem> ubuntu@<server> 'D=$(mktemp -d) && tar -xzf - -C "$D" && echo "$D"'      # (त्या फोल्डरचे नाव छापते)
+ssh -i <key.pem> ubuntu@<server> "sudo ORIGIN_SECRET='<तोच OriginSecret>' bash <छापलेले फोल्डर>/setup-server.sh"
 ```
 `/opt/lokportal/backend.env` (मालक uid 10001, mode 600) मध्ये `backend/.env.example` प्रमाणे भरा — खास मूल्ये:
 `APP_ENV=production`, `SERVE_FRONTEND=false`, **`TRUSTED_PROXIES=2`** (nginx + CloudFront), `CORS_ORIGINS=https://main.<appId>.amplifyapp.com`, `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME`, `DB_SSL_CA=/app/certs/rds-global-bundle.pem`, `DB_POOL_SIZE=2` (shared RDS), `STORAGE_BACKEND=s3`, `S3_BUCKET`, `MEDIA_BASE_URL`, `AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY` (वरचा IAM user), `UPLOAD_TMP_DIR=/tmp/uploads`, `ADMIN_PASSWORD_HASH`, `SECRET_KEY`.
@@ -128,8 +128,15 @@ sudo docker tag lokportal-api:previous lokportal-api:current && sudo docker comp
 
 ## सुरक्षेच्या मर्यादा (प्रामाणिकपणे)
 
-- **सुधारणा (पुढचा टप्पा):** CloudFront → EC2 टप्प्यावर TLS हवा असेल तर `origin.lokmangal.info` साठी Let's Encrypt certificate (DNS-01, acme-dns CNAME ने — GoDaddy token कायमचा ठेवावा लागत नाही) + nginx मध्ये `listen 8445 ssl` + CloudFront `OriginProtocolPolicy: https-only`.
+**आधीच केलेले:** लॉगिन + lockout (खरा visitor-पत्ता मोजतो, `X-Forwarded-For` ने फसवता येत नाही), बातमीचा मजकूर server वर स्वच्छ, फाईल्सचा आशय तपासला, Admin वेगळ्या origin वर + कडक CSP, सर्व TLS 1.2/1.3 + HSTS, S3 private (फक्त CloudFront), DB TLS ने (certificate तपासून) + वेगवेगळे MySQL users (app = फक्त data; migrate = फक्त table/column जोडणे), nginx मध्ये body-size / अपलोड / rate-limit gates, origin secret (थेट server IP वर `403`), deploy key फक्त एकच आज्ञा, deploy अयशस्वी झाला तर आपोआप मागची आवृत्ती.
 
-- CloudFront → EC2 हा टप्पा **plain HTTP** आहे (domain नसल्याने origin साठी certificate मिळत नाही). बाहेरून थेट server चा port 8445 वापरला तर `X-Origin-Verify` secret नसल्याने `403` मिळतो. Domain आल्यावर हा टप्पा TLS करा (nginx ला certificate + CloudFront `https-only`).
-- EC2 चा port 22 जगभर खुला आहे (दुसऱ्या projects चा निर्णय); key-only login असल्याची खात्री करा.
-- `lokdeploy` user docker गटात आहे (docker गट = server वर root समान). म्हणून त्याची key **forced command** ने मर्यादित आहे — ती key GitHub secret मध्येच ठेवा, कुठेही कॉपी करू नका.
+**उरलेल्या मर्यादा / धोके (क्रमाने महत्त्वाचे):**
+
+1. **CloudFront → EC2 हा टप्पा plain HTTP** आहे: Admin पासवर्ड, 12 तासांचा token आणि origin secret हा टप्पा **विना-एन्क्रिप्शन** पार करतात (AWS च्या नेटवर्कमधून, पण तरी). उपाय (पुढचा टप्पा, ~10 मिनिटांची maintenance window): `origin.<domain>` साठी Let's Encrypt certificate (DNS-01, acme-dns CNAME ने — GoDaddy token कायमचा ठेवावा लागत नाही) + nginx `listen 8445 ssl` + CloudFront `OriginProtocolPolicy: https-only`.
+2. **Shared server:** (अ) EC2 वर IMDSv1 चालू आहे (`HttpTokens=optional`) — कोणत्याही container मधून (आपल्यासह) instance-role चे credentials मिळू शकतात; हे **इतर projects चे** सेटिंग आहे, ते बदलल्यास त्यांचे काही अ‍ॅप तुटू शकतात — त्यांच्या मालकाने ठरवावे (IMDSv2 सक्ती + hop-limit). (आ) RDS **एनक्रिप्टेड नाही (at-rest), DeletionProtection बंद, Multi-AZ नाही** — shared instance आहे; automatic backup 7 दिवस आहे. (इ) Server चे port 22 जगभर खुले आहे — key-only login असल्याची खात्री करा.
+3. **GitHub:** repo मध्ये write access असलेले कोणीही workflow बदलून deploy key / AWS role वापरू शकतात. उपाय (repo मालकाने, GitHub → Settings): `main` वर *Branch protection* (PR + मालकाची मान्यता) आणि `DEPLOY_SSH_KEY` ला *Environment* (फक्त `main`) — यासाठी admin अधिकार लागतो (मला नव्हता).
+4. **Lockout** प्रत्येक gunicorn worker च्या memory मध्ये (2 workers) — कमाल ~10 चुकीचे प्रयत्न / 15 मिनिटे, restart वर पुसले जाते.
+5. **API वाचन CloudFront वर cache होत नाही** (`CachingDisabled`) — प्रत्येक visitor चे 4 API calls EC2 वर येतात; खूप गर्दीत shared 2-vCPU server वर ताण. उपाय: 15–60 सेकंदांची cache policy (`Origin` + `Authorization` key मध्ये).
+6. **200 MB व्हिडिओ अपलोड** CloudFront च्या 60 s origin-timeout जवळ (चाचणी: 25 MB = 13 s). खूप मोठे व्हिडिओ अयशस्वी होऊ शकतात → उपाय: browser वरून थेट S3 (presigned) अपलोड.
+7. **Admin पासवर्ड** फक्त एक व्यक्ती-खाते; 2-factor नाही. मजबूत पासवर्ड वापरा; बदलणे: `manage.py set-admin-password --print-only`.
+8. **Root AWS keys / GoDaddy token / RDS master पासवर्ड** हे मला काम करण्यासाठी दिले होते — काम झाल्यावर **निष्क्रिय / बदलणे** (root keys: IAM → Security credentials; GoDaddy: developer.godaddy.com/keys → Delete; RDS master पासवर्ड बदलण्यापूर्वी इतर projects तो वापरतात का ते तपासा).

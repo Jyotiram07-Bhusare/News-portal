@@ -11,9 +11,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# the Amazon RDS certificate bundle: the database connection is encrypted and the server is verified (DB_SSL_CA=/app/certs/rds-global-bundle.pem)
-ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/certs/rds-global-bundle.pem
-RUN chmod 755 /app/certs
+# the Amazon RDS certificate bundle (certs/rds-global-bundle.pem, kept in the repository so a build never depends on a download):
+# the database connection is encrypted and the server is verified (DB_SSL_CA=/app/certs/rds-global-bundle.pem).
+# Source: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem - replace the file when AWS publishes a new bundle.
+COPY certs/rds-global-bundle.pem /app/certs/rds-global-bundle.pem
+RUN chmod 755 /app/certs && chmod 644 /app/certs/rds-global-bundle.pem
 
 COPY . .
 

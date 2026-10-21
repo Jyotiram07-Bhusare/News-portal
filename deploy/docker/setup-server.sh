@@ -13,8 +13,13 @@ BASE=/opt/lokportal
 
 [ "$(id -u)" -eq 0 ] || { echo "Run this as root (sudo)."; exit 1; }
 command -v docker >/dev/null || { echo "docker is needed."; exit 1; }
+# (the secret goes into a sed command and a config file: letters and digits only, and long enough to be a secret)
+[[ "$ORIGIN_SECRET" =~ ^[A-Za-z0-9]{24,}$ ]] || { echo "ORIGIN_SECRET must be at least 24 letters / digits."; exit 1; }
+umask 077
 
-install -d -o root -g root -m 755 "$BASE" "$BASE/releases"
+install -d -o root -g root -m 755 "$BASE"
+# (not touched again on a second run: the deploy user owns the releases folder)
+[ -d "$BASE/releases" ] || install -d -o root -g root -m 755 "$BASE/releases"
 install -m 644 "$SRC/docker-compose.yml" "$BASE/docker-compose.yml"
 sed "s/__ORIGIN_SECRET__/$ORIGIN_SECRET/g" "$SRC/nginx.conf" > "$BASE/nginx.conf"; chmod 640 "$BASE/nginx.conf"
 install -m 755 "$SRC/deploy-entry.sh" "$BASE/deploy-entry.sh"
