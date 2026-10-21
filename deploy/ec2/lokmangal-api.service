@@ -1,0 +1,31 @@
+[Unit]
+Description=Lokmangal news portal API (gunicorn + Flask)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lokmangal
+Group=lokmangal
+WorkingDirectory=/opt/lokmangal/app/backend
+# big uploads are staged on the disk, not in the RAM-backed /tmp
+Environment=TMPDIR=/var/lib/lokmangal/tmp
+Environment=PYTHONUNBUFFERED=1
+# settings (database, S3, login ...) are read from /opt/lokmangal/app/backend/.env by the app itself
+ExecStart=/opt/lokmangal/venv/bin/gunicorn -c gunicorn.conf.py app:app
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=40
+
+# the web server needs nothing but its own folders
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/lokmangal /opt/lokmangal/app/backend
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

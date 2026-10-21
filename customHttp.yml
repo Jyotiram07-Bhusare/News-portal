@@ -1,0 +1,49 @@
+# AWS Amplify Hosting: response headers (security + caching) for the website. Amplify reads this file from the repository root.
+#
+# Content-Security-Policy notes (the website was written with inline handlers, so 'unsafe-inline' scripts must stay allowed):
+#  - scripts only from this site + cdnjs (Font Awesome, pdf.js); no <object>/<embed>; nobody can frame the site; forms only to itself
+#  - images / video / API calls may use any https:// address (Unsplash, YouTube thumbnails, the CloudFront media domain, the EC2 API)
+#  - YouTube videos play in youtube-nocookie.com iframes
+customHeaders:
+  - pattern: '**/*'
+    headers:
+      - key: Strict-Transport-Security
+        value: 'max-age=31536000; includeSubDomains'
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: X-Frame-Options
+        value: SAMEORIGIN
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - key: Permissions-Policy
+        value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+      - key: Cache-Control
+        value: 'public, max-age=300, must-revalidate'
+  # pages are always checked again (a new deploy shows at once)
+  - pattern: '**/*.html'
+    headers:
+      - key: Cache-Control
+        value: 'public, max-age=0, must-revalidate'
+  # pictures and logos change rarely
+  - pattern: '/assets/**/*'
+    headers:
+      - key: Cache-Control
+        value: 'public, max-age=86400'
+  # the weekly PDFs never change once published
+  - pattern: '/assets/pdf/*'
+    headers:
+      - key: Cache-Control
+        value: 'public, max-age=604800'
+  - pattern: '/assets/weekly/*'
+    headers:
+      - key: Cache-Control
+        value: 'public, max-age=604800'
+  # the Admin Panel is private
+  - pattern: '/admin/**/*'
+    headers:
+      - key: X-Robots-Tag
+        value: 'noindex, nofollow'
+      - key: Cache-Control
+        value: 'no-cache'

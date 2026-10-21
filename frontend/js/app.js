@@ -559,7 +559,12 @@ const issueByNo = (no) => articlesData.find((a) => a.category === "weekly" && a.
 //     Content-Length, Content-Range and Accept-Ranges, (3) support HTTP Range requests. See README -> "PDF storage".
 // One article can also carry its own file:  pdf: "https://.../special-issue.pdf"
 // (no PDF ships with the website: put the real files into assets/pdf/ with these names and set WEEKLY_PDF = true in js/config.js)
-const PDF_BASE = "assets/pdf/";
+// js/config.js sets PDF_BASE (the S3 / CloudFront address of the pdf folder, e.g. "https://media.lokmangal.in/pdf/") on the live site; without it
+// the files are read from this website's own assets/pdf/ folder.
+const PDF_BASE = (() => {
+  const base = String((window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.PDF_BASE) || "assets/pdf/").trim();
+  return /^(https:\/\/|assets\/)/.test(base) ? base.replace(/\/*$/, "/") : "assets/pdf/";
+})();
 const pdfFileName = (no) => `lokmangal-weekly-${no}.pdf`;
 const pdfUrlFor = (a) => a.pdf || PDF_BASE + pdfFileName(a.issue);
 const isSameOrigin = (u) => { try { return new URL(u, window.location.href).origin === window.location.origin; } catch (e) { return true; } };
@@ -641,15 +646,18 @@ function imgW(url, w) {
 
 // Small thumbnail (list rows, grids): fixed width, lazy loaded
 function thumbImg(url, alt, w) {
-  return `<img src="${imgW(url, w)}" alt="${alt}" ${LAZY_IMG} />`;
+  return `<img src="${imgW(url, w)}" alt="${altText(alt)}" ${LAZY_IMG} />`;
 }
+
+// (a headline with a " in it must not end the alt="..." attribute)
+const altText = (alt) => String(alt == null ? "" : alt).replace(/"/g, "&quot;");
 
 // Large image with srcset, so phones fetch ~480px and big screens the bigger file
 function fluidImg(url, alt, widths, sizes, attrs = LAZY_IMG) {
-  if (!/[?&]w=\d+/.test(url)) return `<img src="${url}" alt="${alt}" ${attrs} />`;
+  if (!/[?&]w=\d+/.test(url)) return `<img src="${url}" alt="${altText(alt)}" ${attrs} />`;
   const mid = widths[Math.floor(widths.length / 2)];
   const srcset = widths.map(w => `${imgW(url, w)} ${w}w`).join(", ");
-  return `<img src="${imgW(url, mid)}" srcset="${srcset}" sizes="${sizes}" alt="${alt}" ${attrs} />`;
+  return `<img src="${imgW(url, mid)}" srcset="${srcset}" sizes="${sizes}" alt="${altText(alt)}" ${attrs} />`;
 }
 
 // The large card (Popular, Latest Reviews, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
@@ -2303,63 +2311,21 @@ function getInitials(name) {
   return clean.substring(0, 2);
 }
 
-const DEFAULT_COMMENTS_SEED = {
-  1: [
-    { id: 101, name: "रविंद्र गायकवाड (कार्यकर्ता)", text: "सोलापूर दक्षिण मतदारसंघात बापूंचा विजय अपेक्षितच होता! केलेल्या प्रामाणिक विकासकामांची ही जनतेने दिलेली पावती आहे.", time: "२ तास आधी", color: "#2563eb", likes: 8 },
-    { id: 102, name: "सुप्रिया पाटील", text: "हार्दिक अभिनंदन बापू! ७७ हजारांचे विक्रमी मताधिक्य म्हणजे जनतेचा अथांग विश्वास आहे.", time: "४५ मिनिटे आधी", color: "#059669", likes: 5 }
-  ],
-  2: [
-    { id: 201, name: "विकास जाधव (शेतकरी)", text: "गरिबांच्या डोक्यावरील कर्जाचा बोजा हलका करणारा हा अत्यंत स्तुत्य उपक्रम आहे. लोकमंगल फाऊंडेशनचे मनापासून आभार!", time: "३ तास आधी", color: "#7c3aed", likes: 9 },
-    { id: 202, name: "सचिन शिंदे", text: "सर्वधर्मीय सामुदायिक विवाह सोहळा ही समाजाला एकत्र आणणारी खरी समाजसेवा आहे. लोकमंगलचे अभिनंदन!", time: "१ तास आधी", color: "#d97706", likes: 4 }
-  ],
-  3: [
-    { id: 301, name: "अमित जोशी (भाजप पदाधिकारी)", text: "बापूंच्या प्रदीर्घ अनुभवाचा आगामी महापालिका व स्थानिक निवडणुकांमध्ये पक्षाला नक्कीच मोठा फायदा होईल.", time: "४ तास आधी", color: "#db2777", likes: 6 }
-  ],
-  4: [
-    { id: 401, name: "दत्तात्रय पवार (ज्येष्ठ नागरिक)", text: "वृद्ध आणि निराधार लोकांना वेळेवर सात्त्विक जेवणाचा डबा पोहोचवणे म्हणजे ईश्वरसेवाच! लोकमंगल अन्नपूर्णा योजनेला सलाम.", time: "२ तास आधी", color: "#0891b2", likes: 7 }
-  ],
-  5: [
-    { id: 501, name: "संजय देशमुख (सहकार अभ्यासक)", text: "जिल्हा मध्यवर्ती बँकेत पारदर्शकता आणण्यासाठी सुभाष देशमुखांची भूमिका अत्यंत निर्णायक ठरेल. शेतकऱ्यांना न्याय मिळाला पाहिजे.", time: "२ तास आधी", color: "#2563eb", likes: 5 }
-  ],
-  6: [
-    { id: 601, name: "आनंद मोहिते", text: "आमच्या गावात नाला खोलीकरण आणि सिमेंट बंधारा झाल्यामुळे विहिरीला भरपूर पाणी आले आहे. शेती जगली!", time: "३ तास आधी", color: "#059669", likes: 8 }
-  ],
-  7: [
-    { id: 701, name: "अ‍ॅड. निलेश सावंत", text: "नितीन गडकरी आणि सुभाष देशमुख यांच्या भेटीमुळे सोलापूर रिंग रोड व रस्त्यांच्या कामाला प्रचंड गती मिळेल.", time: "६ तास आधी", color: "#4f46e5", likes: 4 }
-  ],
-  8: [
-    { id: 801, name: "डॉ. प्रज्ञा कुलकर्णी", text: "मोफत तपासणी आणि मोतीबिंदू शस्त्रक्रिया यामुळे हजारो ग्रामीण वृद्धांना नवी दृष्टी लाभली आहे. उत्तम उपक्रम!", time: "१ तास आधी", color: "#e11d48", likes: 6 }
-  ]
-};
+// Comments are kept in the visitor's own browser only (there is no comments database), so they are OFF on the live site:
+// js/config.js -> COMMENTS = true turns the section on again. The invented sample comments that used to fill it are gone.
+const COMMENTS_ENABLED = !!(window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.COMMENTS === true);
 
 window.getArticleComments = function(articleId) {
-  const key = "lokmangal_comments_" + articleId;
-  const stored = localStorage.getItem(key);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {
-      console.error("Failed to parse comments", e);
-    }
+  try {
+    const parsed = JSON.parse(localStorage.getItem("lokmangal_comments_" + articleId) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];                       // blocked or damaged storage: no comments
   }
-  // Fallback / default seed
-  const defaults = DEFAULT_COMMENTS_SEED[articleId] || [
-    {
-      id: Date.now() - 3600000,
-      name: "लोकमंगल वाचक",
-      text: "छान बातमी! लोकमंगल न्यूज पोर्टलच्या नियमित वार्तांकनामुळे ताज्या घडामोडी समजतात.",
-      time: "२ तास आधी",
-      color: AVATAR_PALETTE[articleId % AVATAR_PALETTE.length],
-      likes: 2
-    }
-  ];
-  localStorage.setItem(key, JSON.stringify(defaults));
-  return defaults;
 };
 
 window.saveArticleComments = function(articleId, comments) {
-  localStorage.setItem("lokmangal_comments_" + articleId, JSON.stringify(comments));
+  try { localStorage.setItem("lokmangal_comments_" + articleId, JSON.stringify(comments)); } catch (e) { /* storage blocked / full */ }
 };
 
 window.renderCommentsListHTML = function(comments) {
@@ -2374,20 +2340,20 @@ window.renderCommentsListHTML = function(comments) {
 
   return comments.map(c => `
     <div class="comment-item-card" id="comment-card-${c.id}">
-      <div class="author-circle-avatar comment-avatar" style="background:${c.color || '#2563eb'}">
-        ${getInitials(trUI(c.name))}
+      <div class="author-circle-avatar comment-avatar" style="background:${AVATAR_PALETTE.includes(c.color) ? c.color : '#2563eb'}">
+        ${escText(getInitials(trUI(c.name)))}
       </div>
       <div class="comment-body-wrap">
         <div class="comment-header-row">
-          <span class="comment-user-name">${c.name}</span>
-          <span class="comment-time-badge"><i class="fa-regular fa-clock"></i> ${c.time || 'आत्ताच'}</span>
+          <span class="comment-user-name">${escText(c.name)}</span>
+          <span class="comment-time-badge"><i class="fa-regular fa-clock"></i> ${escText(c.time || 'आत्ताच')}</span>
         </div>
-        <p class="comment-text-content">${c.text}</p>
+        <p class="comment-text-content">${escText(c.text)}</p>
         <div class="comment-actions-bar">
           <button class="comment-action-btn" onclick="toggleCommentLike(this, ${c.id})">
             <i class="fa-regular fa-thumbs-up"></i> पसंत (${c.likes || 0})
           </button>
-          <button class="comment-action-btn" onclick="replyToComment('${(c.name || '').replace(/'/g, "\\'")}')">
+          <button class="comment-action-btn" data-name="${escText(c.name || '')}" onclick="replyToComment(this.dataset.name)">
             <i class="fa-solid fa-reply"></i> उत्तर द्या
           </button>
         </div>
@@ -2473,7 +2439,7 @@ function renderArticleView(article) {
   if (!container) return;
 
   const isIssue = article.category === "weekly" && !!article.issue;
-  const comments = getArticleComments(article.id);
+  const comments = COMMENTS_ENABLED ? getArticleComments(article.id) : [];
   const pageUrl = shareUrlFor(article);
   const sectionOnclick = `setCategoryFilter('${article.category}')`;
 
@@ -2610,6 +2576,7 @@ function renderArticleView(article) {
       <button class="btn-archive-pill" onclick="setCategoryFilter('weekly')"><i class="fa-solid fa-layer-group" style="color:var(--accent-red)"></i> सर्व ${toDevanagari(weeklyIssues().length)} अंक${WEEKLY_PDF ? " व PDF" : ""} पहा</button>
     </div>` : ""}
 
+    ${COMMENTS_ENABLED ? `
     <!-- Comments Section (वाचकांच्या सर्व प्रतिक्रिया) -->
     <div class="comments-section-wrap" id="comments-section">
       <h3 class="comments-heading">
@@ -2637,6 +2604,7 @@ function renderArticleView(article) {
         </div>
       </div>
     </div>
+    ` : ""}
 
     <!-- Back links: to the section this page belongs to, and to Home -->
     <div class="back-home-wrap">
@@ -3302,7 +3270,9 @@ async function syncPortalWithApi() {
             ...makeWeeklyArticle({ no, date: row.date, title: row.title, img: row.image, views: row.views, desc: row.description, titleEn: row.title_en, descEn: row.description_en }),
             issue: no,
           };
-          if (row.pdf_filename && row.pdf_filename !== pdfFileName(no)) issue.pdf = PDF_BASE + row.pdf_filename;
+          if (row.pdf_filename && row.pdf_filename !== pdfFileName(no)) {
+            issue.pdf = /^https:\/\//i.test(row.pdf_filename) ? row.pdf_filename : PDF_BASE + row.pdf_filename;   // (a full address, or a file name in PDF_BASE)
+          }
           const idx = articlesData.findIndex(a => a.category === 'weekly' && a.issue === no);
           if (idx !== -1) {
             articlesData[idx] = { ...articlesData[idx], ...issue };

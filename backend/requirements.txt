@@ -1,6 +1,12 @@
-Flask>=3.0.3
-Flask-Cors>=4.0.1
-PyMySQL>=1.1.0
+Flask>=3.0.3,<4
+Flask-Cors>=4.0.1,<7
+PyMySQL>=1.1.0,<2
 # needed by PyMySQL for MySQL 8's default login method (caching_sha2_password)
 cryptography>=42.0.0
 python-dotenv>=1.0.1
+# removes scripts / event handlers from the news text before it is saved (sanitize.py)
+nh3>=0.2.18,<1
+# Amazon S3 file storage (STORAGE_BACKEND=s3)
+boto3>=1.34
+# production web server (Linux / EC2). Not used on Windows - there "python app.py" is enough.
+gunicorn>=22.0; sys_platform != "win32"

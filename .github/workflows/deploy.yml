@@ -1,0 +1,102 @@
+# Deploys when something is pushed to main - after the CI checks passed:
+#   website  -> AWS Amplify (a zip of frontend/ is uploaded; GitHub signs in to AWS with OIDC: no AWS key is stored anywhere)
+#   backend  -> the EC2 server (a tar.gz of backend/ goes over SSH to /opt/lokportal/deploy-entry.sh, which builds the image, switches the
+#               container and rolls back by itself when the new version does not answer). Needs the repository secrets
+#               DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS (see DEPLOY.md); without them this job only prints a note.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ROLE_ARN: arn:aws:iam::888544051752:role/lokportal-github-deploy
+  AMPLIFY_APP_ID: d3c5tglr8un3e
+  AMPLIFY_BRANCH: main
+  SITE_URL: https://main.d3c5tglr8un3e.amplifyapp.com
+  # public values: the website's address of the API (CloudFront) and the server that receives the backend
+  LOKMANGAL_API_BASE: https://d1favpgmr0p5li.cloudfront.net
+  SERVER_HOST: 13.205.79.72
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  website:
+    name: Website -> Amplify
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Write js/env-config.js (the API address)
+        run: node deploy/amplify/write-env-config.js
+      - name: Security and cache headers (customHttp.yml is the source of truth)
+        run: aws amplify update-app --app-id "$AMPLIFY_APP_ID" --custom-headers "$(cat customHttp.yml)" --query 'app.appId' --output text
+      - name: Upload and publish
+        run: |
+          set -euo pipefail
+          (cd frontend && zip -qr ../site.zip .)
+          read -r JOB_ID UPLOAD_URL < <(aws amplify create-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --query '[jobId,zipUploadUrl]' --output text)
+          curl --fail --silent --show-error -T site.zip "$UPLOAD_URL"
+          aws amplify start-deployment --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" --query 'jobSummary.status' --output text
+          STATUS=""
+          for i in $(seq 1 60); do
+            STATUS=$(aws amplify get-job --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH" --job-id "$JOB_ID" --query 'job.summary.status' --output text)
+            echo "deployment $JOB_ID: $STATUS"
+            case "$STATUS" in
+              SUCCEED) break ;;
+              FAILED|CANCELLED) echo "::error::Amplify deployment $STATUS"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          [ "$STATUS" = "SUCCEED" ]
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$SITE_URL/" | grep -q 'html'
+          curl --fail --silent --show-error "$SITE_URL/js/env-config.js" | grep -q "$LOKMANGAL_API_BASE"
+          curl --fail --silent --show-error -o /dev/null "$SITE_URL/admin/"
+
+  backend:
+    name: Backend -> EC2
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send backend/ to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::notice::Backend deploy skipped: the repository secrets DEPLOY_SSH_KEY / DEPLOY_KNOWN_HOSTS are not set (DEPLOY.md, Automatic deploy of the backend)."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          tar -czf - -C backend --exclude=__pycache__ --exclude=tests --exclude=tmp_uploads --exclude='.env' --exclude=.pytest_cache . \
+            | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "lokdeploy@$SERVER_HOST" deploy
+          curl --fail --silent --show-error "$LOKMANGAL_API_BASE/api/health" | grep -q '"success":true'

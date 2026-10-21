@@ -1,0 +1,274 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lokmangal news portal on an EXISTING shared EC2 server + RDS (other projects live there and are not touched):
+  only the NEW pieces - S3 media bucket behind CloudFront, an https:// address (CloudFront) for the API, a small IAM user for the server and a GitHub Actions deploy role.
+  (lokmangal-stack.yml is the all-in-one version that also creates the server and the database.)
+
+Parameters:
+  SiteOrigins:
+    Type: CommaDelimitedList
+    Description: >-
+      Websites that may read the media files from a browser (PDF reader), comma separated, https only, no trailing slash.
+      Example: https://main.d1abc23xyz.amplifyapp.com,https://www.lokmangalnews.com
+  AmplifyAppId:
+    Type: String
+    Description: The Amplify app that hosts the website (GitHub Actions may deploy to it - and only to it).
+  GitHubRepository:
+    Type: String
+    Default: maheshofficelokmangalgroup-tech/lokmangal_news-portal
+    Description: owner/repository that is allowed to deploy.
+  GitHubBranch:
+    Type: String
+    Default: main
+  ApiOriginHost:
+    Type: String
+    Description: >-
+      The public DNS name of the EC2 server (EC2 console > the instance > "Public IPv4 DNS"), e.g. ec2-13-205-79-72.ap-south-1.compute.amazonaws.com.
+      CloudFront (the https:// address of the API) forwards to it.
+  ApiOriginPort:
+    Type: Number
+    Default: 8445
+    Description: The port of the API container's proxy on the server (a port that is open in the server's security group and not used by anything else).
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 24
+    AllowedPattern: '[A-Za-z0-9]+'
+    Description: A random secret that CloudFront sends in the header X-Origin-Verify; the server refuses requests without it.
+
+Resources:
+  # ------------------------------------------------------------------ files: S3 + CloudFront
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'lokportal-media-${AWS::AccountId}-${AWS::Region}'
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortBrokenUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 2
+          - Id: ForgetOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 60
+      Tags:
+        - Key: Project
+          Value: lokmangal-news-portal
+
+  MediaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-media'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MediaHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-media-cors'
+        Comment: Lets the website's PDF reader (pdf.js) read the weekly PDFs with HTTP Range requests.
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items: [Range, Content-Type, Cache-Control, Pragma, If-None-Match, If-Modified-Since]
+          AccessControlAllowMethods:
+            Items: [GET, HEAD, OPTIONS]
+          AccessControlAllowOrigins:
+            Items: !Ref SiteOrigins
+          AccessControlExposeHeaders:
+            Items: [Content-Length, Content-Range, Accept-Ranges, ETag]
+          AccessControlMaxAgeSec: 86400
+          OriginOverride: true
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+
+  MediaDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Lokmangal news portal media (${AWS::StackName})'
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        Origins:
+          - Id: media-s3
+            DomainName: !GetAtt MediaBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt MediaOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: media-s3
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6          # Managed-CachingOptimized
+          ResponseHeadersPolicyId: !Ref MediaHeadersPolicy
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadOnlyThroughThisCloudFrontDistribution
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${MediaBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}'
+          - Sid: HttpsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt MediaBucket.Arn
+              - !Sub '${MediaBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  # ------------------------------------------------------------------ the server's small identity
+  # (create its access key with the CLI and put it on the server only - see DEPLOY.md; the key is never in this template)
+  MediaUploaderUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: lokportal-media-uploader
+      Policies:
+        - PolicyName: this-media-bucket-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Files
+                Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+                Resource: !Sub '${MediaBucket.Arn}/*'
+              - Sid: ListAndCheck
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !GetAtt MediaBucket.Arn
+      Tags:
+        - Key: Project
+          Value: lokmangal-news-portal
+
+  # ------------------------------------------------------------------ the API's https:// address (until the portal has its own domain)
+  ApiDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Lokmangal news portal API (${AWS::StackName})'
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200
+        Origins:
+          - Id: api-ec2
+            DomainName: !Ref ApiOriginHost
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              HTTPPort: !Ref ApiOriginPort
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 30
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Ref OriginSecret
+        DefaultCacheBehavior:
+          TargetOriginId: api-ec2
+          ViewerProtocolPolicy: https-only
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad          # Managed-CachingDisabled (the API sets its own cache headers)
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # Managed-AllViewerExceptHostHeader (Authorization, Origin ... reach the API)
+
+  # ------------------------------------------------------------------ GitHub Actions -> AWS without any stored key (OIDC)
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lokportal-github-deploy
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !GetAtt GitHubOidcProvider.Arn
+            Action: 'sts:AssumeRoleWithWebIdentity'
+            Condition:
+              StringEquals:
+                'token.actions.githubusercontent.com:aud': sts.amazonaws.com
+                'token.actions.githubusercontent.com:sub': !Sub 'repo:${GitHubRepository}:ref:refs/heads/${GitHubBranch}'
+      Policies:
+        - PolicyName: deploy-the-website-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AmplifyManualDeployment
+                Effect: Allow
+                Action:
+                  - amplify:GetApp
+                  - amplify:UpdateApp
+                  - amplify:GetBranch
+                  - amplify:CreateDeployment
+                  - amplify:StartDeployment
+                  - amplify:GetJob
+                  - amplify:ListJobs
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:amplify:${AWS::Region}:${AWS::AccountId}:apps/${AmplifyAppId}'
+                  - !Sub 'arn:${AWS::Partition}:amplify:${AWS::Region}:${AWS::AccountId}:apps/${AmplifyAppId}/*'
+      Tags:
+        - Key: Project
+          Value: lokmangal-news-portal
+
+Outputs:
+  MediaBucketName:
+    Description: S3_BUCKET in the server's .env
+    Value: !Ref MediaBucket
+  MediaBaseUrl:
+    Description: MEDIA_BASE_URL in the server's .env
+    Value: !Sub 'https://${MediaDistribution.DomainName}'
+  MediaUploaderUserName:
+    Value: !Ref MediaUploaderUser
+  ApiBaseUrl:
+    Description: LOKMANGAL_API_BASE (the website's address of the API) and the API's address for the admin panel
+    Value: !Sub 'https://${ApiDistribution.DomainName}'
+  GitHubDeployRoleArn:
+    Description: role-to-assume in .github/workflows/deploy.yml
+    Value: !GetAtt GitHubDeployRole.Arn

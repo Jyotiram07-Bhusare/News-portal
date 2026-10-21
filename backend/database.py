@@ -63,6 +63,15 @@ LATEST_COLUMNS = {
 # -------------------------------------------------------------
 # Connection
 # -------------------------------------------------------------
+def _ssl_options():
+    """RDS: an encrypted connection. With the RDS CA bundle (DB_SSL_CA) the server's certificate AND its host name are verified."""
+    if not config.DB_SSL:
+        return {}
+    if config.DB_SSL_CA:
+        return {"ssl_ca": config.DB_SSL_CA, "ssl_verify_cert": True, "ssl_verify_identity": True}
+    return {"ssl": {"check_hostname": False, "verify_mode": "none"}}      # encrypted, but the server is not verified
+
+
 def connect(with_database: bool = True):
     return pymysql.connect(
         host=config.DB_HOST,
@@ -77,10 +86,11 @@ def connect(with_database: bool = True):
         connect_timeout=5,
         read_timeout=30,
         write_timeout=30,
+        **_ssl_options(),
     )
 
 
-POOL_SIZE = 5
+POOL_SIZE = config.DB_POOL_SIZE
 _idle = queue.LifoQueue(maxsize=POOL_SIZE)      # open connections waiting for the next request
 
 
@@ -158,17 +168,19 @@ _videos_state = {"ok": False}
 
 def ensure_videos_table() -> None:
     """The `videos` table was added after the first two: a database made before that gets it here, the first time videos are used
-    (CREATE TABLE IF NOT EXISTS from schema.sql - nothing that exists is touched). `python init_db.py` creates it too."""
+    (CREATE TABLE IF NOT EXISTS from schema.sql - nothing that exists is touched). `python init_db.py` creates it too.
+    A complete table is only READ about, so the website's MySQL user needs no CREATE / ALTER right in production."""
     if _videos_state["ok"]:
         return
     with connection() as conn:
         cur = conn.cursor()
-        for statement in schema_statements():
-            if re.match(r"CREATE TABLE IF NOT EXISTS\s+videos\b", statement, re.I):
-                cur.execute(statement)
-        cur.execute("SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'videos' AND COLUMN_NAME = 'sort_order'",
-                    (config.DB_NAME,))
-        if not cur.fetchone()["n"]:
+        cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'videos'", (config.DB_NAME,))
+        have = {r["COLUMN_NAME"] for r in cur.fetchall()}
+        if not have:
+            for statement in schema_statements():
+                if re.match(r"CREATE TABLE IF NOT EXISTS\s+videos\b", statement, re.I):
+                    cur.execute(statement)
+        elif "sort_order" not in have:
             cur.execute("ALTER TABLE videos ADD COLUMN sort_order INT NULL")          # a videos table made before the order numbers existed
         cur.execute("SELECT COUNT(*) AS n FROM videos WHERE sort_order IS NULL")
         if cur.fetchone()["n"]:
@@ -545,9 +557,11 @@ VIDEOS_DATA_FIELDS = ("id", "title", "title_en", "description", "description_en"
 
 
 def publish_videos_file() -> bool:
-    """Keep frontend/js/videos-data.js equal to the videos table. A static host (Vercel) has no backend, so the website shows the videos
+    """Keep frontend/js/videos-data.js equal to the videos table. A static host has no backend, so the website shows the videos
     from this file there; with a backend the website asks /api/videos instead. Only videos that are LINKS (YouTube / the https address of
-    a file) go in: a file uploaded here is not on the static host. Written only when something changed. Returns True when it was rewritten."""
+    a file) go in. Written only when something changed (and only when PUBLISH_VIDEOS_FILE is on - a development PC). Returns True when it was rewritten."""
+    if not config.PUBLISH_VIDEOS_FILE:
+        return False
     rows = [{k: v[k] for k in VIDEOS_DATA_FIELDS} for v in get_videos() if re.match(r"https?://", v["video_url"] or "")]
     text = ("// Written by the backend (Admin Panel > Videos) after every change - do not edit by hand.\n"
             "// The website shows these videos where it has no backend (a static host); with a backend it asks /api/videos instead.\n"

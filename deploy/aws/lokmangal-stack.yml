@@ -1,0 +1,336 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lokmangal news portal - the AWS resources behind the API: S3 media bucket served through CloudFront, an IAM role for the server,
+  security groups, an RDS MySQL database and the EC2 API server. (The website itself runs on AWS Amplify - see DEPLOY.md.)
+
+# Create it once:  CloudFormation > Create stack > Upload this file. Nothing here is public except the CloudFront address of the media
+# files, HTTP(S) on the server and (optionally) SSH. The database is private, the bucket is private, the server has no keys on it.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC (the default VPC is fine).
+  ServerSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: A PUBLIC subnet of that VPC (it has a route to an internet gateway) - the API server goes here.
+  DatabaseSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets of that VPC in different availability zones - the database goes here.
+  SiteOrigins:
+    Type: CommaDelimitedList
+    Description: >-
+      The websites that may read the media files (the weekly PDFs) from a browser, comma separated, https only, no trailing slash.
+      Example: https://www.lokmangal.in,https://main.d1abc23xyz.amplifyapp.com
+  ServerInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium, t3.large]
+    Description: t3.small (2 GB) is enough for this site; t3.micro (1 GB) works for a quiet one.
+  ServerImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: Amazon Linux 2023 (always the latest one).
+  DatabaseInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium, db.t3.micro, db.t3.small]
+  DatabaseStorageGb:
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 1000
+  DatabaseMultiAz:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: A standby copy in a second zone (automatic fail-over, about double the price).
+  SshCidr:
+    Type: String
+    Default: ''
+    Description: >-
+      Leave EMPTY (recommended): connect with AWS Systems Manager > Session Manager, no SSH port is opened.
+      Or give your own address range, e.g. 203.0.113.7/32, to allow SSH from there.
+
+Conditions:
+  OpenSsh: !Not [!Equals [!Ref SshCidr, '']]
+  MultiAz: !Equals [!Ref DatabaseMultiAz, 'true']
+
+Resources:
+  # ------------------------------------------------------------------ files: S3 + CloudFront
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain                     # the uploaded pictures / PDFs / videos survive even if the stack is deleted
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'lokmangal-media-${AWS::AccountId}-${AWS::Region}'
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:                 # a replaced or deleted file can be brought back
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortBrokenUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 2
+          - Id: ForgetOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 60
+
+  MediaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-media'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MediaHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-media-cors'
+        Comment: Lets the website's PDF reader (pdf.js) read the weekly PDFs with HTTP Range requests.
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items: [Range, Content-Type, Cache-Control, Pragma, If-None-Match, If-Modified-Since]
+          AccessControlAllowMethods:
+            Items: [GET, HEAD, OPTIONS]
+          AccessControlAllowOrigins:
+            Items: !Ref SiteOrigins
+          AccessControlExposeHeaders:
+            Items: [Content-Length, Content-Range, Accept-Ranges, ETag]
+          AccessControlMaxAgeSec: 86400
+          OriginOverride: true
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+
+  MediaDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Lokmangal media (${AWS::StackName})'
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200             # includes India / Asia
+        Origins:
+          - Id: media-s3
+            DomainName: !GetAtt MediaBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt MediaOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: media-s3
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6          # Managed-CachingOptimized
+          ResponseHeadersPolicyId: !Ref MediaHeadersPolicy
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadOnlyThroughThisCloudFrontDistribution
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${MediaBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}'
+          - Sid: HttpsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt MediaBucket.Arn
+              - !Sub '${MediaBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  # ------------------------------------------------------------------ the server's identity (no access keys anywhere)
+  ServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'      # Session Manager (a shell without SSH)
+      Policies:
+        - PolicyName: media-bucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Files
+                Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+                Resource: !Sub '${MediaBucket.Arn}/*'
+              - Sid: ListAndCheck
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !GetAtt MediaBucket.Arn
+
+  ServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ServerRole
+
+  # ------------------------------------------------------------------ network rules
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lokmangal API server - HTTP and HTTPS from the internet
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP (certificate check and redirect to HTTPS)}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS}
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIpv6: '::/0', Description: HTTP IPv6}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIpv6: '::/0', Description: HTTPS IPv6}
+
+  ServerSshRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: OpenSsh
+    Properties:
+      GroupId: !GetAtt ServerSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref SshCidr
+      Description: SSH from the administrator's address only
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lokmangal MySQL - only the API server may connect
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt ServerSecurityGroup.GroupId
+          Description: MySQL from the API server
+
+  # ------------------------------------------------------------------ database
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Lokmangal database subnets
+      SubnetIds: !Ref DatabaseSubnetIds
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot                   # deleting the stack leaves a final snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub '${AWS::StackName}-db'
+      Engine: mysql
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      AllocatedStorage: !Ref DatabaseStorageGb
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: lokmangal_news_portal
+      MasterUsername: admin
+      ManageMasterUserPassword: true           # the master password lives in AWS Secrets Manager (Outputs > DatabaseSecretArn)
+      MultiAZ: !If [MultiAz, true, false]
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      BackupRetentionPeriod: 7                 # automatic backups, any moment of the last 7 days can be restored
+      DeletionProtection: true
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      EnableCloudwatchLogsExports: [error, slowquery]
+
+  # ------------------------------------------------------------------ the API server
+  ServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${AWS::StackName}-api'
+      LaunchTemplateData:
+        ImageId: !Ref ServerImageId
+        InstanceType: !Ref ServerInstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt ServerInstanceProfile.Arn
+        MetadataOptions:                       # IMDSv2 only (protects the server's role from request-forgery attacks)
+          HttpTokens: required
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 1
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 30
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
+
+  ServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchTemplate
+        Version: !GetAtt ServerLaunchTemplate.LatestVersionNumber
+      SubnetId: !Ref ServerSubnetId
+      SecurityGroupIds:
+        - !Ref ServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-api'
+
+  ServerElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref ServerInstance
+
+Outputs:
+  MediaBucketName:
+    Description: S3 bucket for uploads -> S3_BUCKET in backend/.env
+    Value: !Ref MediaBucket
+  MediaBaseUrl:
+    Description: CloudFront address of the bucket -> MEDIA_BASE_URL in backend/.env, and (+ /pdf/) LOKMANGAL_PDF_BASE in Amplify
+    Value: !Sub 'https://${MediaDistribution.DomainName}'
+  ServerPublicIp:
+    Description: Elastic IP of the API server -> the A record of api.<your domain>
+    Value: !Ref ServerElasticIp
+  ServerInstanceId:
+    Description: Connect with Systems Manager > Session Manager (no SSH needed)
+    Value: !Ref ServerInstance
+  DatabaseEndpoint:
+    Description: -> DB_HOST in backend/.env
+    Value: !GetAtt Database.Endpoint.Address
+  DatabaseSecretArn:
+    Description: The MySQL master user's password (Secrets Manager) - needed once, for init_db.py
+    Value: !GetAtt Database.MasterUserSecret.SecretArn

@@ -21,8 +21,13 @@ lokmangal news portal/
 │   ├── admin/                      ← Admin Panel (index.html, admin.js, admin-videos.js, admin.css)
 │   └── assets/                     ← लोगो, फोटो (images/), साप्ताहिक PDF (pdf/) आणि Admin मधून अपलोड केलेले व्हिडिओ (videos/ — Git मध्ये जात नाही)
 ├── backend/                        ← Python (Flask) REST API + MySQL
-│   ├── app.py                      ← सर्व्हर:  python app.py
-│   ├── config.py                   ← .env मधील सेटिंग्ज वाचतो
+│   ├── app.py                      ← सर्व्हर:  python app.py   (प्रकाशित: gunicorn -c gunicorn.conf.py app:app)
+│   ├── config.py                   ← .env मधील सेटिंग्ज वाचतो; production मध्ये असुरक्षित सेटिंग्ज असतील तर सुरूच होऊ देत नाही
+│   ├── auth.py                     ← Admin लॉगिन (signed token, चुकीच्या पासवर्डवर मर्यादा)
+│   ├── sanitize.py                 ← येणारा मजकूर स्वच्छ करतो / तपासतो (script काढतो, फोटो-पत्ते तपासतो)
+│   ├── storage.py                  ← फाईल्स कुठे: local फोल्डर (विकास) किंवा Amazon S3 (प्रकाशित)
+│   ├── manage.py                   ← set-admin-password · gen-secret · check
+│   ├── tests/                      ← स्वयंचलित चाचण्या:  python -m pytest -q
 │   ├── database.py                 ← MySQL चे सर्व प्रश्न (बातम्या / साप्ताहिक अंक / व्हिडिओ)
 │   ├── schema.sql                  ← MySQL टेबल्स (articles, weekly_editions, videos)
 │   ├── init_db.py                  ← डेटाबेस + टेबल्स तयार करतो (जुन्या डेटाबेसमध्ये English कॉलम्सही जोडतो)
@@ -33,6 +38,9 @@ lokmangal news portal/
 │   ├── requirements.txt
 │   ├── .env.example                ← सेटिंग्जचा नमुना (Git मध्ये)
 │   └── .env                        ← तुमच्या खऱ्या सेटिंग्ज / पासवर्ड (Git मध्ये जात नाही)
+├── deploy/                         ← AWS: CloudFormation (S3 + CloudFront + RDS + EC2), EC2 स्क्रिप्ट्स (nginx, systemd), Amplify build स्टेप
+├── amplify.yml · customHttp.yml    ← AWS Amplify: build + security headers
+├── DEPLOY.md                       ← AWS वर प्रकाशित करण्याची पायरी-पायरी मार्गदर्शिका (Amplify + EC2 + RDS + S3)
 └── README.md
 ```
 
@@ -118,16 +126,16 @@ lokmangal news portal/
 - डाउनलोड बटणावर फाईलचा आकार ("PDF डाउनलोड • १०.७ MB") दिसतो; फाईल अजून ठेवली नसेल तर बटणांऐवजी "PDF लवकरच उपलब्ध होईल".
 - चूक झाल्यास स्पष्ट संदेश: फाईल नाही / PDF नाही / इंटरनेट नाही → "पुन्हा प्रयत्न करा" + "नवीन टॅबमध्ये उघडा" + "डाउनलोड".
 
-**फाईल्स कुठे ठेवायच्या:** `frontend/js/app.js` च्या सुरुवातीला `PDF_BASE` आहे. तेच एक सेटिंग.
+**फाईल्स कुठे ठेवायच्या:** `PDF_BASE` (आता `frontend/js/config.js` मध्ये; Amplify वर `LOKMANGAL_PDF_BASE` हा Environment variable) हेच एक सेटिंग. Admin मधून अपलोड केलेले नवे PDF `STORAGE_BACKEND=s3` असताना आपोआप S3 वर जातात व त्यांचा पूर्ण पत्ता डेटाबेसमध्ये राहतो — त्यासाठी `PDF_BASE` बदलायला नको; ते फक्त जुने ६८ PDF बकेटवर हलवल्यावर लागते.
 
 | पर्याय | कधी | लक्षात ठेवा |
 |---|---|---|
 | `assets/pdf/` (साईटच्या आत, सध्याचे) | सध्याचे ६८ अंक (प्रत्येकी सुमारे २ MB, एकूण ≈ **१३३ MB**) | मोठे (१०–३० MB) PDF वापरायचे असतील तर ४२ अंक × १० MB ≈ **४२० MB** होतात. GitHub repo शक्यतो १ GB खाली ठेवायला सांगते (५ GB खाली "strongly"); एक फाईल १०० MB पेक्षा मोठी चालत नाही; आणि PDF बदलली की जुनी आवृत्ती Git इतिहासात **कायम** राहते, म्हणजे repo फुगत जातो. Vercel Hobby चे CLI-अपलोड मर्यादा १०० MB आहे. |
 | **स्टोरेज बकेट (शिफारस)** — Cloudflare R2 / Vercel Blob / Amazon S3 | रोजचा वापर, सर्व अंक (वर्षाला ५२ अंक वाढतात) | साईट हलकी राहते, PDF बदलणे म्हणजे फक्त फाईल अपलोड (साईट पुन्हा deploy नको). R2 मध्ये १० GB स्टोरेज मोफत व डेटा-ट्रान्सफर (egress) मोफत आहे (दर कधीही बदलू शकतात — Cloudflare ची किंमत-पाने तपासा). |
 
-बकेट वापरताना: (१) फाईल्स त्याच नावांनी (`lokmangal-weekly-30.pdf` …) अपलोड करा, (२) बकेटला स्वतःचा पत्ता द्या (R2 चा `r2.dev` पत्ता फक्त चाचणीसाठी; प्रत्यक्षासाठी स्वतःचे डोमेन, उदा. `pdf.lokmangal.com`), (३) खालील **CORS** लावा, (४) `frontend/js/app.js` मध्ये बदला:
+बकेट वापरताना: (१) फाईल्स त्याच नावांनी (`lokmangal-weekly-30.pdf` …) अपलोड करा, (२) बकेटला स्वतःचा पत्ता द्या (R2 चा `r2.dev` पत्ता फक्त चाचणीसाठी; प्रत्यक्षासाठी स्वतःचे डोमेन, उदा. `pdf.lokmangal.com`), (३) खालील **CORS** लावा, (४) `frontend/js/config.js` मध्ये बदला:
 ```js
-const PDF_BASE = "https://pdf.lokmangal.com/weekly/";   // शेवटी "/" असू द्या
+var PDF_BASE = "https://pdf.lokmangal.com/weekly/";   // शेवटी "/" असू द्या  (frontend/js/config.js)
 ```
 CORS (R2: Bucket → Settings → CORS policy):
 ```json
@@ -181,13 +189,14 @@ copy .env.example .env               # Mac / Linux:  cp .env.example .env
 #   .env उघडून DB_USER / DB_PASSWORD तुमच्या MySQL प्रमाणे भरा
 
 python init_db.py --seed             # डेटाबेस + टेबल्स तयार करतो व १८ बातम्या + ६८ साप्ताहिक अंक भरतो
+python manage.py set-admin-password  # Admin Panel चा पासवर्ड ठरवा (एकदाच) - त्याशिवाय Admin मध्ये लॉगिन होत नाही
 python app.py
 ```
 
 | काय | पत्ता |
 |---|---|
 | वेबसाईट | http://localhost:5000/ |
-| Admin Panel | http://localhost:5000/admin/ |
+| Admin Panel (लॉगिन: user `admin` + वरचा पासवर्ड) | http://localhost:5000/admin/ |
 | बॅकएंड तपासणी | http://localhost:5000/api/health |
 
 - `init_db.py` कितीही वेळा चालवला तरी चालतो — काहीही पुसले जात नाही. `--seed` फक्त **रिकाम्या** टेबल्समध्ये नमुना डेटा भरतो (तेच id / अंक पुन्हा लिहायचे असतील तर `python seed_data.py --force`).
@@ -213,10 +222,17 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | `DB_HOST`, `DB_PORT` | MySQL चा पत्ता | `localhost`, `3306` |
 | `DB_USER`, `DB_PASSWORD` | MySQL लॉगिन | `root`, (रिकामे) |
 | `DB_NAME` | डेटाबेसचे नाव (`init_db.py` तो स्वतः तयार करतो) | `lokmangal_news_portal` |
+| `APP_ENV` | `development` / `production` — production मध्ये असुरक्षित सेटिंग्ज असतील तर बॅकएंड सुरू होत नाही (`python manage.py check` कारण सांगतो) | `development` |
+| `SECRET_KEY` | लॉगिन token वर सही करते (किमान 32 अक्षरे; `python manage.py gen-secret`). विकासात नसेल तर प्रत्येक सुरुवातीला नवी बनते | — |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | Admin लॉगिन (hash `python manage.py set-admin-password` भरतो; पासवर्ड स्वतः कुठेही साठवला जात नाही) | `admin`, — |
+| `TOKEN_TTL_HOURS` | लॉगिन किती तास टिकते | `12` |
+| `DB_SSL_CA` | RDS चा CA bundle; दिला की DB कनेक्शन TLS ने व सर्टिफिकेट तपासून | — |
+| `STORAGE_BACKEND` | `local` = फाईल्स `frontend/assets/…` मध्ये · `s3` = Amazon S3 (`S3_BUCKET`, `S3_REGION`, `MEDIA_BASE_URL` = CloudFront पत्ता) | `local` |
+| `TRUSTED_PROXIES` | समोर किती proxy (nginx = 1) | `0` |
 | `HOST` | `0.0.0.0` = वाय-फायवरील फोनवरूनही; `127.0.0.1` = फक्त हा PC | `0.0.0.0` |
 | `PORT` | सर्व्हर पोर्ट | `5000` |
-| `SERVE_FRONTEND` | `true` = हा सर्व्हर `frontend/` ही देतो (साईट + `/admin/`); `false` = फक्त API | `true` |
-| `CORS_ORIGINS` | कोणत्या साईट्स ब्राउझरमधून API वापरू शकतात (स्वल्पविरामाने; `*` = कोणतीही) | `*` |
+| `SERVE_FRONTEND` | `true` = हा सर्व्हर `frontend/` ही देतो (साईट + `/admin/`); `false` = फक्त API (production) | `true` (production मध्ये `false`) |
+| `CORS_ORIGINS` | कोणत्या साईट्स ब्राउझरमधून API वापरू शकतात (स्वल्पविरामाने; `*` = कोणतीही — **फक्त विकासात**, production मध्ये https पत्ते द्यावेच लागतात) | `*` |
 | `MAX_UPLOAD_MB` | फोटो / PDF अपलोडची कमाल मर्यादा (इतर API विनंत्यांचीही) | `50` |
 | `MAX_VIDEO_MB` | एका व्हिडिओ फाईलची कमाल मर्यादा (Admin → व्हिडिओ अपलोड) | `200` |
 | `IMAGES_DIR`, `PDF_DIR`, `VIDEO_DIR` | अपलोड कुठे जतन होतात | `frontend/assets/images`, `frontend/assets/pdf`, `frontend/assets/videos` |
@@ -225,8 +241,11 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 
 ### ४. API (`/api/...`)
 
+**वाचणे (बातम्या, अंक, व्हिडिओ) सर्वांसाठी खुले; लिहिणे / हटवणे / अपलोड / `stats` / `media` साठी लॉगिन लागते** — `POST /api/auth/login` `{"username","password"}` → `{"token"}`, मग प्रत्येक विनंतीत `Authorization: Bearer <token>`. लॉगिनशिवाय `401`.
+
 | Method | पत्ता | काम |
 |---|---|---|
+| POST | `/api/auth/login` · GET `/api/auth/me` | लॉगिन / लॉगिन वैध आहे का |
 | GET | `/api/articles` (`?category=` `?search=` `?placement=lead\|popular\|random` `?limit=`) | बातम्या |
 | GET | `/api/articles/<id>` | एक बातमी |
 | POST | `/api/articles` | नवी बातमी (`title` गरजेचे) |
@@ -255,7 +274,7 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 |---|---|
 | बॅकएंडवरूनच (`http://localhost:5000`) | रिकामे = तोच पत्ता (बॅकएंडचा `PORT` कोणताही असला तरी बरोबर) |
 | दुसऱ्या लोकल सर्व्हरवरून (Live Server `:5500`, `http.server` `:3000` …) | `http://<तोच होस्ट>:5000` आपोआप — लोकल चाचणीत कधीही production बॅकएंडला जात नाही, म्हणून खऱ्या डेटाला धक्का लागत नाही |
-| इंटरनेटवरून (Vercel इ.) | `API_BASE_PRODUCTION` मध्ये तुम्ही भरलेला पत्ता; रिकामे असेल तर API वापरला जात नाही आणि साईट आतल्या डेटावर चालते |
+| इंटरनेटवरून (Amplify इ.) | Amplify चा `LOKMANGAL_API_BASE` (किंवा `config.js` मधील `API_BASE_PRODUCTION`); रिकामे असेल तर API वापरला जात नाही आणि साईट आतल्या डेटावर चालते |
 
 ### ६. Admin Panel (`/admin/`)
 
@@ -289,22 +308,28 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 - "सविस्तर बातमी मजकूर" बॉक्समध्ये साधा मजकूर (HTML टॅग शिवाय) लिहिला तर रिकामी ओळ सोडून नवा परिच्छेद सुरू होतो आणि वेबसाईटवर तो वेगळा परिच्छेद दिसतो; `<p>`, `<b>` असे HTML टॅग वापरले तर मजकूर जसा लिहिला तसाच राहतो. फोटो निवडला नाही तर एक डिफॉल्ट फोटो लागतो — प्रत्येक बातमीला स्वतःचा फोटो अपलोड करा.
 - सर्व बातम्या, अंक, फोटो-नावे, Lead / Popular / Random निवड MySQL मध्ये साठवल्या जातात; server restart नंतरही टिकतात.
 - **Admin Panel फोन / टॅबलेटवरही नीट चालतो** (२८० px पासून): मेनू डावीकडून सरकणारा drawer (बटण / बाहेर टॅप / Esc ने बंद), याद्या कार्ड्ससारख्या, फॉर्म्स पूर्ण-स्क्रीन शीटसारखे (जतन करा बटण नेहमी खाली दिसते), बटणे ४४ px (बोटाने दाबायला सोपी), फॉर्ममधील अक्षरे १६ px (iPhone झूम करत नाही).
-- **Admin Panel फक्त बॅकएंड असलेल्या पत्त्यावरच काम करतो** (`http://localhost:5000/admin/` किंवा बॅकएंड ठेवलेला सर्व्हर). Vercel सारख्या फक्त-फ्रंटएंड होस्टवर `/admin/` पान उघडते, पण तिथे Python + MySQL बॅकएंड नसल्याने त्याला काहीच वाचता येत नाही: आकडे "—" दिसतात आणि वर लाल सूचना येते ("या पत्त्यावर बॅकएंड नाही") — अंक / बातम्या हरवलेल्या नसतात, साईटवर ते जसेच्या तसे असतात. कनेक्शन तुटले तरी (बॅकएंड बंद, MySQL बंद, यादी अर्धवट आली) याच जागी स्पष्ट सूचना येते; चुकीचे "०" कधी दाखवले जात नाही.
+- **Admin Panel ला बॅकएंड व लॉगिन लागते** (`http://localhost:5000/admin/`, किंवा Amplify वरील `/admin/` + EC2 वरचा API). उघडल्यावर आधी लॉगिन स्क्रीन येते; लॉगिन टॅब बंद केल्यावर संपते (token फक्त त्या टॅबमध्ये राहतो), 12 तासांनीही संपते; डाव्या मेनूच्या तळाशी **बाहेर पडा / Sign out**. बॅकएंड नसलेल्या फक्त-फ्रंटएंड होस्टवर `/admin/` पान उघडते, पण त्याला काहीच वाचता येत नाही: आकडे "—" दिसतात आणि वर लाल सूचना येते ("या पत्त्यावर बॅकएंड नाही") — अंक / बातम्या हरवलेल्या नसतात, साईटवर ते जसेच्या तसे असतात. कनेक्शन तुटले तरी (बॅकएंड बंद, MySQL बंद, यादी अर्धवट आली) याच जागी स्पष्ट सूचना येते; चुकीचे "०" कधी दाखवले जात नाही.
 - तारीख: वेबसाईट "२ सप्टेंबर २०२६", "2 September 2026", "02-09-2026", "2026-09-02" वाचते; दुसऱ्या पद्धतीची तारीख वाचता आली नाही तर तो अंक यादीत सर्वात वर येतो.
 - बॅकएंड सुरू असताना वेबसाईट डेटाबेसला **सत्य** मानते: Admin मध्ये शेवटची बातमी / शेवटचा अंक हटवल्यानंतरही साईटच्या आतल्या (built-in) जुन्या नोंदी परत येत नाहीत.
-- वाचकांच्या प्रतिक्रिया (comments) **डेटाबेसमध्ये नाहीत** — त्या फक्त त्या वाचकाच्या ब्राउझरमध्ये साठवल्या जातात (इतर वाचकांना दिसत नाहीत). प्रत्येक बातमीखाली दिसणाऱ्या नमुना प्रतिक्रिया `frontend/js/app.js` मध्ये लिहिलेल्या आहेत (खऱ्या नाहीत) — साईट सार्वजनिक करण्यापूर्वी त्या काढा.
+- वाचकांच्या प्रतिक्रिया (comments) **डेटाबेसमध्ये नाहीत** — त्या फक्त त्या वाचकाच्या ब्राउझरमध्ये साठवल्या जातात (इतर वाचकांना दिसत नाहीत). म्हणून बातमीखालील प्रतिक्रिया-विभाग **बंद** आहे (`frontend/js/config.js` → `COMMENTS = false`) आणि पूर्वी भरलेल्या खोट्या नमुना प्रतिक्रिया (नावे व पदांसह) काढून टाकल्या आहेत. खऱ्या comments चा डेटाबेस बनल्यावरच `COMMENTS = true` करा.
 - "वाचक संख्या (Views)" हा तुम्ही लिहिलेला मजकूर आहे; तो आपोआप मोजला जात नाही.
 
 **बॅकअप:** बातम्या व अंकांची माहिती आता MySQL मध्ये आहे (Git मध्ये नाही), म्हणून नियमित बॅकअप घ्या: `mysqldump -u root -p lokmangal_news_portal > backup.sql`. फोटो / PDF साठी `frontend/assets/` फोल्डर कॉपी करा (किंवा Git मध्ये commit करा). **व्हिडिओ** Git मध्ये जात नाहीत, म्हणून `frontend/assets/videos/` फोल्डर वेगळा कॉपी करा (व्हिडिओंची नावे / शीर्षके `mysqldump` मध्ये येतात, फाईल्स नाही).
 
-## 🌐 इंटरनेटवर ठेवताना (Deployment)
+## 🌐 इंटरनेटवर ठेवताना (Deployment) — AWS
 
-1. **Vercel (फ्रंटएंड):** Project → Settings → General → **Root Directory = `frontend`**. (हे केले नाही तर साईट 404 देईल — कारण `index.html` आता `frontend/` च्या आत आहे.)
-2. **बॅकएंड:** Vercel वर Python + MySQL चालत नाही; VPS / Railway / Render सारखी जागा + MySQL लागते. `python app.py` फक्त विकासासाठी; प्रत्यक्षासाठी:
-   ```bash
-   pip install waitress
-   waitress-serve --listen=0.0.0.0:5000 app:app          # Linux: gunicorn -w 2 -b 0.0.0.0:5000 app:app
-   ```
-3. दोन्ही जोडा: `frontend/js/config.js` मध्ये `API_BASE_PRODUCTION = "https://api.तुमचे-डोमेन.com"` आणि बॅकएंडच्या `.env` मध्ये `CORS_ORIGINS=https://तुमची-साईट.vercel.app,https://तुमचे-डोमेन.com`.
-4. **सुरक्षा — महत्त्वाचे:** Admin Panel व API ला सध्या **लॉगिन नाही**; पत्ता माहित असलेला कोणीही बातम्या बदलू / हटवू शकतो. फक्त स्वतःच्या PC वर वापरताना `.env` मध्ये `HOST=127.0.0.1` ठेवा. इंटरनेटवर ठेवण्यापूर्वी लॉगिन लावा (किंवा Nginx Basic-Auth / VPN), आणि MySQL साठी `root` ऐवजी फक्त या डेटाबेसचे अधिकार असलेला वेगळा user बनवा.
-5. अपलोड केलेले फोटो / PDF / **व्हिडिओ** बॅकएंडच्या `IMAGES_DIR` / `PDF_DIR` / `VIDEO_DIR` मध्ये जतन होतात (व्हिडिओ मोठे असल्यामुळे `frontend/assets/videos/` Git मध्ये जात नाही — ते ज्या PC / सर्व्हरवर बॅकएंड चालतो तिथेच राहतात, आणि वेबसाईटवर ते **बॅकएंड चालू असलेल्या पत्त्यावरच** दिसतात; Vercel सारख्या फक्त-फ्रंटएंड होस्टवर नमुना व्हिडिओ दिसतात). फ्रंटएंड वेगळ्या होस्टवर असेल तर ते फोल्डर्स त्या होस्टवरूनही उपलब्ध असले पाहिजेत (PDF साठी वरचे `PDF_BASE` + स्टोरेज बकेट हा उत्तम पर्याय).
+पूर्ण पायरी-पायरी मार्गदर्शिका: **[DEPLOY.md](DEPLOY.md)**. थोडक्यात:
+
+| भाग | कुठे |
+|---|---|
+| Frontend (`frontend/`) | **AWS Amplify** — `amplify.yml` (build) + `customHttp.yml` (HTTPS सक्ती, CSP, security headers). API चा पत्ता Amplify च्या Environment variable `LOKMANGAL_API_BASE` मधून (`js/env-config.js` आपोआप लिहिला जातो; `config.js` हाताने बदलायला नको) |
+| Backend (`backend/`) | **EC2** — nginx (HTTPS, rate-limit) → gunicorn → Flask. `deploy/ec2/bootstrap.sh` (एकदाच), `deploy/ec2/update.sh` (प्रत्येक नव्या आवृत्तीला) |
+| Database | **RDS MySQL** — private, TLS, automatic backup. website चा MySQL user फक्त त्या DB चा data बदलू शकतो (`deploy/aws/create-db-user.sql`) |
+| फोटो / PDF / व्हिडिओ | **S3 + CloudFront** — `STORAGE_BACKEND=s3`; EC2 ला IAM role (access key नाहीत) |
+| सर्व AWS संसाधने | `deploy/aws/lokmangal-stack.yml` (CloudFormation) एकाच वेळी S3, CloudFront, IAM role, security groups, RDS, EC2 बनवतो |
+
+**सुरक्षा:** Admin Panel व लिहिणारे सर्व API ला **लॉगिन आहे** (`python manage.py set-admin-password`); बातमीचा मजकूर सर्व्हरवर स्वच्छ केला जातो; फाईल्सचा आशय तपासला जातो. production मध्ये (`APP_ENV=production`) कमकुवत `SECRET_KEY`, `CORS_ORIGINS=*`, `root` user, एन्क्रिप्ट नसलेला DB कनेक्शन असेल तर बॅकएंड सुरू होत नाही.
+
+**अपलोड कुठे जातात:** `STORAGE_BACKEND=local` (विकास) = `IMAGES_DIR` / `PDF_DIR` / `VIDEO_DIR`; `STORAGE_BACKEND=s3` (प्रकाशित) = S3 बकेटचे `images/`, `pdf/`, `videos/` फोल्डर, आणि DB मध्ये CloudFront चा पूर्ण `https://` पत्ता जतन होतो (साईट तोच वापरते). repository मधले ६८ जुने PDF व फोटो Amplify वरूनच चालतात; ते S3 वर हलवणे ऐच्छिक (DEPLOY.md, पायरी ९).
+
+**चाचण्या:** `cd backend && pip install pytest "moto[s3]" && python -m pytest -q` — लॉगिन, स्वच्छता, अपलोड (local + S3), production सेटिंग्जची तपासणी.

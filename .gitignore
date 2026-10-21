@@ -24,3 +24,13 @@ lokmangal saptahik karyakram/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Uploads waiting to be checked (backend/tmp_uploads) and test leftovers
+backend/tmp_uploads/
+.pytest_cache/
+
+# Local secrets / keys - never commit
+*.pem
+*.key
+.env.*
+!.env.example
