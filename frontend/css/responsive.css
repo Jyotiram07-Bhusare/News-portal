@@ -1984,66 +1984,82 @@ button:focus-visible,
   .view-home .main-post-headline {
     order: 0;
     margin: 16px 0 14px;
-    font-size: clamp(20px, 5.7vw, 23px);
-    line-height: 1.38;
+    font-size: clamp(18px, 5vw, 20px);
+    line-height: 1.4;
     font-weight: 700;
   }
 
   .single-post-headline {
-    font-size: clamp(20px, 5.7vw, 23px);
-    line-height: 1.38;
+    font-size: clamp(18px, 5vw, 20px);
+    line-height: 1.4;
   }
 
   .more-posts-title {
-    font-size: 19px;
+    font-size: 18px;
   }
 
   .popular-card-title {
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.45;
   }
 
   .secondary-post-title {
-    font-size: 15.5px;
-    line-height: 1.45;
-  }
-
-  .popular-sub-title {
     font-size: 14.5px;
     line-height: 1.45;
   }
 
+  .popular-sub-title {
+    font-size: 13.5px;
+    line-height: 1.45;
+  }
+
   .random-grid-title {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.45;
   }
 
   .related-post-title {
-    font-size: 15.5px;
+    font-size: 14.5px;
     line-height: 1.45;
   }
 
   .weekly-latest-title {
-    font-size: 19px;
+    font-size: 18px;
     line-height: 1.4;
   }
 
   /* ---- the news text: a little smaller, so the headings stand out ---- */
   .main-article-body {
-    font-size: 14.5px;
-    line-height: 1.7;
+    font-size: 15.5px;
+    line-height: 1.72;
   }
 
   .single-article-content {
-    font-size: 15px;
-    line-height: 1.8;
+    font-size: 16px;
+    line-height: 1.82;
   }
 
   .single-article-content > p:first-child {
-    font-size: 15px !important;                 /* (the summary line has its own inline size) */
+    font-size: 16px !important;                 /* (the summary line has its own inline size) */
   }
 
   .single-article-content blockquote {
-    font-size: 14.5px;
+    font-size: 15.5px;
+  }
+
+  /* ---- every heading fills its lines to the right edge (no gap at the end of a line); the last line stays on the left ---- */
+  .main-post-headline,
+  .single-post-headline,
+  .more-posts-title,
+  .popular-card-title,
+  .popular-sub-title,
+  .secondary-post-title,
+  .random-grid-title,
+  .related-post-title,
+  .weekly-latest-title,
+  .nav-title {
+    text-align: justify;
+    text-justify: inter-word;
+    text-align-last: left;
   }
 }
