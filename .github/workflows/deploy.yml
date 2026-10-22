@@ -48,6 +48,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      # The sitemap of the website lists every story and weekly issue: it is written from the live API (/api/sitemap.xml) while the site is built, so
+      # Google's Search Console shows them under the website's own address. When the API does not answer, the sitemap.xml of the repository (Home and
+      # the sections) is deployed instead - this step never fails a deploy. Stories added later in the Admin Panel reach Google at once through the
+      # API's own sitemap (the second Sitemap line of robots.txt).
+      - name: Sitemap of the website from the live API
+        run: |
+          if curl --fail --silent --show-error --max-time 40 --retry 2 --retry-delay 3 -o api-sitemap.xml "$LOKMANGAL_API_BASE/api/sitemap.xml" \
+             && grep -q '<urlset' api-sitemap.xml && grep -q "<loc>$SITE_BASE/</loc>" api-sitemap.xml; then
+            cp api-sitemap.xml frontend/sitemap.xml
+            echo "sitemap.xml: $(grep -o '<loc>' frontend/sitemap.xml | wc -l) addresses from the API"
+          else
+            echo "::warning::The API sitemap could not be read; the sitemap.xml of the repository (Home and the sections) is deployed instead."
+          fi
       # (the AWS role trusts exactly: this repository, branch main. A job with `environment:` would present a different identity.)
       - uses: aws-actions/configure-aws-credentials@v4
         with:
