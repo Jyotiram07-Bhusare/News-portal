@@ -9,6 +9,7 @@ import queue
 import re
 import threading
 import time
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -83,6 +84,12 @@ ORDER_COLUMNS = {
     "articles": (("sort_order", "INT NULL"),),
 }
 ORDER_GROUPS = {"rajkiy": ("rajkiy", "samajik"), "samajik": ("rajkiy", "samajik")}     # the two news sections are one list; every other section is its own
+# The words of a news / blog's address (/blog/<slug>). Made once when it is created (the English headline when there is one, else the Marathi one) and never
+# changed by an edit, so a link that was shared keeps working. NULL only until backfill_slugs() has run (at start-up).
+SLUG_COLUMNS = {
+    "articles": (("slug", "VARCHAR(190) NULL"),),
+}
+SLUG_LIMIT = 90
 
 
 # -------------------------------------------------------------
@@ -274,6 +281,7 @@ _english_state = {"ok": False, "checked": 0.0}
 _updated_state = {"ok": False, "checked": 0.0}
 _latest_state = {"ok": False, "checked": 0.0}
 _order_state = {"ok": False, "checked": 0.0}
+_slug_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -340,6 +348,60 @@ def ensure_order_column() -> bool:
             raise
     _order_state.update(ok=False, checked=0.0)
     return has_order()
+
+
+def has_slug() -> bool:
+    """True when `articles` has slug (the words of the address)."""
+    return _has_columns(SLUG_COLUMNS, _slug_state)
+
+
+def ensure_slug_column() -> bool:
+    """An older database gets articles.slug here (once, at start-up). Returns whether the column is there."""
+    if has_slug():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN slug VARCHAR(190) NULL")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _slug_state.update(ok=False, checked=0.0)
+    return has_slug()
+
+
+def slugify(text: Any, limit: int = SLUG_LIMIT) -> str:
+    """'Solapur South: MLA wins!' -> 'solapur-south-mla-wins'. English letters and digits and Marathi letters stay, everything else becomes one hyphen;
+    at most `limit` characters, cut between words. Never empty."""
+    s = unicodedata.normalize("NFC", str(text or "")).lower()
+    s = re.sub(r"[^a-z0-9\u0900-\u0963\u0966-\u097f]+", "-", s).strip("-")
+    if len(s) > limit:
+        s = s[:limit].rsplit("-", 1)[0] or s[:limit]
+    return s or "story"
+
+
+def _free_slug(cur, base: str, article_id: int = 0) -> str:
+    """`base`, or base-2, base-3 ... when another news already has it."""
+    slug, n = base, 1
+    while True:
+        cur.execute("SELECT id FROM articles WHERE slug = %s AND id != %s LIMIT 1", (slug, article_id))
+        if cur.fetchone() is None:
+            return slug
+        n += 1
+        slug = f"{base[:SLUG_LIMIT - len(str(n)) - 1]}-{n}"
+
+
+def backfill_slugs() -> int:
+    """Give every news without words in its address one (start-up). Returns how many were given."""
+    if not has_slug():
+        return 0
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, " + ("title_en" if has_english() else "'' AS title_en") + " FROM articles WHERE slug IS NULL OR slug = '' ORDER BY id")
+        rows = cur.fetchall()
+        for row in rows:
+            slug = _free_slug(cur, slugify(row["title_en"] if str(row["title_en"] or "").strip() else row["title"]), row["id"])
+            cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (slug, row["id"]))
+        return len(rows)
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:
@@ -413,6 +475,15 @@ def publish_articles_file() -> bool:
         "// The website shows these news where it has no backend (a static host); with a backend it asks /api/articles instead.\n")
 
 
+def get_article_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    if not has_slug():
+        return None
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM articles WHERE slug = %s LIMIT 1", (slug,))
+        return _row(cur.fetchone())
+
+
 def get_article(article_id: int) -> Optional[Dict[str, Any]]:
     with connection() as conn:
         cur = conn.cursor()
@@ -475,6 +546,9 @@ def create_article(data: Dict[str, Any]) -> int:
             ),
         )
         new_id = cur.lastrowid
+        if has_slug():
+            english = str(data.get("title_en") or "").strip()
+            cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, slugify(english or data.get("title")), new_id), new_id))
         if data.get("sort_order") is not None and has_order():
             _renumber_articles(cur, _order_group(category), new_id, data["sort_order"])      # given a place by hand: the others move over
         return new_id

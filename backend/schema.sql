@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS articles (
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
   is_latest     TINYINT(1)    NOT NULL DEFAULT 1,                   -- 1 = listed in the Home page's Latest News section
   sort_order    INT           NULL,                                 -- the place set by hand in the Admin Panel (1 = first), NULL = listed by recency
+  slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>): made when the news is created, never changed by an edit
   PRIMARY KEY (id),
   KEY idx_articles_category (category)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

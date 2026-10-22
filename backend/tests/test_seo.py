@@ -15,6 +15,7 @@ SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 @pytest.fixture(autouse=True)
 def site(monkeypatch):
     monkeypatch.setattr(config, "SITE_URL", SITE)
+    monkeypatch.setattr(config, "PRETTY_URLS", False)         # (these tests are about the ?post=12 addresses; test_pretty.py is about /blog/<words>)
 
 
 def story(db, id, category="rajkiy", **fields):

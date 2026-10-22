@@ -40,6 +40,7 @@ import database  # noqa: E402
 
 database.ensure_latest_column = lambda: True          # no MySQL in the tests
 database.ensure_order_column = lambda: True
+database.ensure_slug_column = lambda: False          # (no MySQL: nothing to fill in)
 
 import app as app_module  # noqa: E402
 import auth  # noqa: E402
@@ -80,6 +81,9 @@ class FakeDB:
 
     def delete_article(self, article_id):
         return self.articles.pop(article_id, None) is not None
+
+    def get_article_by_slug(self, slug):
+        return next((r for r in self.articles.values() if r.get("slug") == slug), None)
 
     # ---- weekly
     def get_weekly_editions(self, limit=None):
@@ -147,7 +151,7 @@ class FakeDB:
 @pytest.fixture
 def db(monkeypatch):
     fake = FakeDB()
-    for name in ("get_articles", "get_article", "create_article", "update_article", "toggle_placement", "delete_article",
+    for name in ("get_articles", "get_article", "get_article_by_slug", "create_article", "update_article", "toggle_placement", "delete_article",
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
                  "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
                  "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad"):

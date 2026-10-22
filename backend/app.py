@@ -648,6 +648,15 @@ def register_frontend(app):
     def admin_home():
         return send_from_directory(root / "admin", "index.html")
 
+    # The pretty addresses (/blog/<words>, /rajkiy/<words>, /weekly/68 ...): on the live website Amplify passes them on to /api/page/... (deploy.yml); here the
+    # server answers them itself. The section pages (/blog, /weekly ...) are the website's index.html, which draws the section.
+    def story_page(kind):
+        return lambda slug: seo.page_response(kind, slug)
+
+    for kind in ("blog", "rajkiy", "samajik", "review", "weekly"):
+        app.add_url_rule(f"/{kind}/<slug>", f"story_page_{kind}", story_page(kind), strict_slashes=False)
+        app.add_url_rule(f"/{kind}", f"section_page_{kind}", site_home, strict_slashes=False)
+
     @app.get("/<path:filename>")
     def site_file(filename):              # css/, js/, assets/, admin/... : plain files of the frontend folder
         return send_from_directory(root, filename)
@@ -716,6 +725,8 @@ def create_app():
     try:
         database.ensure_latest_column()      # an older database gets articles.is_latest (the Latest News placement) once, here
         database.ensure_order_column()       # ... and articles.sort_order (the place number set in the Admin Panel)
+        if database.ensure_slug_column():    # ... and articles.slug (the words of the address, /blog/<words>), filled in for the news that has none
+            database.backfill_slugs()
     except pymysql.MySQLError:
         pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:

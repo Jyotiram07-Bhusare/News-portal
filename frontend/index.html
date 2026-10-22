@@ -3,8 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
+  <base href="/" />       <!-- the files (css/, js/, assets/) are found from the root whatever the address is: /blog/<words> looks like a folder to the browser -->
   <!-- viewport-fit=cover lets the page use the full screen on notched phones (safe-area insets are handled in css/responsive.css) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <!--seo:start-->  <!-- (the server replaces everything between seo:start and seo:end for a story's own address, see backend/seo.py) -->
   <title>लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी</title>
 
   <meta name="description"
@@ -18,10 +20,14 @@
        address bar, before anything else loads (js/seo.js keeps it right afterwards). -->
   <script>
     (function () {
+      var base = "https://www.lokmangal.info";
+      // a pretty address (/blog/<words>, /rajkiy/<words>, /weekly/68, /blog ...) is its own canonical address; the old ?post=12 forms name themselves
+      var path = location.pathname.replace(/\/index\.html$/, "/").replace(/(.)\/$/, "$1");
+      var pretty = /^\/(blog|rajkiy|samajik|review)\/[^\/]+$/.test(path) || /^\/(blog|rajkiy|samajik|review|weekly)$/.test(path) || /^\/weekly\/\d+$/.test(path);
       var m = /[?&](post|issue)=(\d+)(?:&|$)/.exec(location.search) || /[?&](cat)=(rajkiy|samajik|blogs|review|weekly)(?:&|$)/.exec(location.search);
       var link = document.createElement("link");
       link.rel = "canonical";
-      link.href = "https://www.lokmangal.info/" + (m ? "?" + m[1] + "=" + m[2] : "");
+      link.href = base + (pretty ? path : "/" + (m ? "?" + m[1] + "=" + m[2] : ""));
       document.head.appendChild(link);
     })();
   </script>
@@ -42,6 +48,7 @@
   <meta name="twitter:description"
     content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
   <meta name="twitter:image" content="https://www.lokmangal.info/assets/og-default.jpg" />
+  <!--seo:end-->
   <link rel="alternate" type="application/rss+xml" title="लोकमंगल न्यूज पोर्टल - RSS" href="https://api.lokmangal.info/api/rss.xml" />
   <script type="application/ld+json" id="ld-site">
     {
@@ -295,7 +302,7 @@
              COLUMN 2: MIDDLE MAIN CONTENT (Main Featured Story / Feed)
              ==================================================================== -->
         <main id="main-wrapper">
-          <div class="main-content-box view-home" id="main-content-container">
+          <div class="main-content-box view-home" id="main-content-container"><!--ssr:start-->
 
             <!-- Breadcrumb Line -->
             <div class="breadcrumb-bar" id="main-breadcrumb">
@@ -417,7 +424,7 @@
             <div id="secondary-posts-feed">
               <!-- Populated by JS -->
             </div>
-
+<!--ssr:end-->
           </div>
         </main>
 

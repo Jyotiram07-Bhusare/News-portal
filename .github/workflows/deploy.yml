@@ -29,6 +29,9 @@ env:
   ADMIN_URL: https://admin.d3c5tglr8un3e.amplifyapp.com
   # public values: the addresses the pages use
   LOKMANGAL_API_BASE: https://api.lokmangal.info
+  # "1" = the website names a story by the words of its title (/blog/<words>, /rajkiy/<words> ...) instead of ?post=12. Needs the Amplify rules of the step
+  # "Addresses of the stories" below (they are set whatever this says) and a backend that has /api/page/ (backend/seo.py). Back to "0" = the old addresses again.
+  LOKMANGAL_PRETTY_URLS: "0"
   SITE_BASE: https://www.lokmangal.info
   SERVER_HOST: 13.205.79.72
 
@@ -90,6 +93,43 @@ jobs:
       - name: Security and cache headers (customHttp.yml is the source of truth)
         run: aws amplify update-app --app-id "$AMPLIFY_APP_ID" --custom-headers "$(cat customHttp.yml)" --query 'app.appId' --output text
 
+      # The addresses of the stories (/blog/<words of the title>, /rajkiy/<words>, /samajik/<words>, /review/<words>, /weekly/68) are answered by Amplify rules: a
+      # story's address is passed on to the API, which answers with the website's index.html that has that story in it (backend/seo.py, /api/page/...); a
+      # section's address (/blog, /weekly ...) is the website's index.html. The rules the Amplify app already has (the /admin one ...) are read first and kept
+      # exactly as they are: only rules with the sources below are added / replaced, at the end of the list. Nothing is changed when the rules cannot be read
+      # or are already as wanted, and a failure here never fails the deploy. (The previous list is printed in the log, to put back by hand if ever needed.)
+      # Whether the website USES these addresses is decided by LOKMANGAL_PRETTY_URLS above, not by this step.
+      - name: Addresses of the stories (Amplify rules)
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          cat > ours.json <<EOF
+          [
+            {"source": "/blog/<*>",    "target": "$LOKMANGAL_API_BASE/api/page/blog/<*>",    "status": "200"},
+            {"source": "/rajkiy/<*>",  "target": "$LOKMANGAL_API_BASE/api/page/rajkiy/<*>",  "status": "200"},
+            {"source": "/samajik/<*>", "target": "$LOKMANGAL_API_BASE/api/page/samajik/<*>", "status": "200"},
+            {"source": "/review/<*>",  "target": "$LOKMANGAL_API_BASE/api/page/review/<*>",  "status": "200"},
+            {"source": "/weekly/<*>",  "target": "$LOKMANGAL_API_BASE/api/page/weekly/<*>",  "status": "200"},
+            {"source": "/blog",        "target": "/index.html", "status": "200"},
+            {"source": "/rajkiy",      "target": "/index.html", "status": "200"},
+            {"source": "/samajik",     "target": "/index.html", "status": "200"},
+            {"source": "/review",      "target": "/index.html", "status": "200"},
+            {"source": "/weekly",      "target": "/index.html", "status": "200"}
+          ]
+          EOF
+          aws amplify get-app --app-id "$AMPLIFY_APP_ID" --query 'app.customRules' --output json > current.json \
+            || { echo "::warning::The Amplify rules could not be read: they are left as they are."; exit 0; }
+          echo "rules before: $(cat current.json)"
+          jq -s '(.[0] // []) as $cur | .[1] as $ours | ($ours | map(.source)) as $mine
+                 | (($cur | map(select(.source as $s | ($mine | index($s)) == null))) + $ours)
+                 | map(with_entries(select(.value != null)))' current.json ours.json > merged.json
+          if [ "$(jq -cS . merged.json)" = "$(jq -cS '(. // []) | map(with_entries(select(.value != null)))' current.json)" ]; then
+            echo "The rules are already as wanted."
+          else
+            aws amplify update-app --app-id "$AMPLIFY_APP_ID" --custom-rules file://merged.json --query 'app.appId' --output text
+            echo "rules after: $(cat merged.json)"
+          fi
+
       - name: Upload and publish both sites
         run: |
           set -euo pipefail
@@ -134,6 +174,16 @@ jobs:
           curl --fail --silent --show-error -o aenv.out "$ADMIN_URL/js/env-config.js"
           grep -q "$LOKMANGAL_API_BASE" aenv.out
           grep -q "$SITE_BASE" aenv.out
+
+      # (information only: does a story's pretty address answer? The API deploy runs at the same time, so it may need a minute to catch up.)
+      - name: Check a story address
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          SLUG=$(curl --silent --max-time 30 "$LOKMANGAL_API_BASE/api/articles?category=blogs&limit=1" | jq -r '.articles[0].slug // empty')
+          if [ -z "$SLUG" ]; then echo "No story with words in its address yet: nothing to check."; exit 0; fi
+          CODE=$(curl --silent --max-time 40 -o story.out -w '%{http_code}' "$SITE_URL/blog/$SLUG")
+          if [ "$CODE" = "200" ] && grep -q 'og:title' story.out; then echo "OK: $SITE_URL/blog/$SLUG answers with the story's page"; else echo "::warning::$SITE_URL/blog/$SLUG answered $CODE (the API may still be starting, or the rules are not in place)"; fi
 
   backend:
     name: Backend -> EC2

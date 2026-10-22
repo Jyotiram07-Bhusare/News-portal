@@ -8,6 +8,7 @@
  *   LOKMANGAL_API_BASE    https://api.lokmangal.info          the backend API (https only, no trailing slash needed)
  *   LOKMANGAL_PDF_BASE    https://media.lokmangal.info/pdf/   where the weekly PDFs are (the CloudFront address of the S3 bucket + /pdf/)
  *   LOKMANGAL_SITE_BASE   https://www.lokmangal.info          the public website (only the admin panel needs it: it reads the site's pictures)
+ *   LOKMANGAL_PRETTY_URLS 1                                   optional: use the /blog/<words> addresses (needs the Amplify rules, see deploy.yml)
  *
  * An address that is not https:// stops the build (a typo must not go live). Missing values are allowed - the site then runs from its
  * built-in data / reads the PDFs from assets/pdf/ - but a warning is printed (not for the optional SITE_BASE).
@@ -41,6 +42,9 @@ function address(variable, key, { trailingSlash = false, optional = false } = {}
 address("LOKMANGAL_API_BASE", "API_BASE");
 address("LOKMANGAL_PDF_BASE", "PDF_BASE", { trailingSlash: true });
 address("LOKMANGAL_SITE_BASE", "SITE_BASE", { optional: true });
+// LOKMANGAL_PRETTY_URLS=1: the website names a story by the words of its title (/blog/<words>) instead of ?post=12. Only when the Amplify rules that answer
+// those addresses are in place (the deploy adds them, see .github/workflows/deploy.yml).
+if ((process.env.LOKMANGAL_PRETTY_URLS || "").trim() === "1") env.PRETTY_URLS = "1";
 
 if (failed) process.exit(1);
 

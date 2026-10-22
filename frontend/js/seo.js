@@ -185,7 +185,7 @@
       if (author) ld.author = { "@type": /foundation|bureau|team|desk|portal|news|फाऊंडेशन|फाउंडेशन|ब्युरो|प्रतिनिधी|टीम|पोर्टल|न्यूज|मंच/i.test(author) ? "Organization" : "Person", name: author };
       return {
         title: `${title} | ${SITE[lang]}`, description: summary, image, type: "article", published: ld.datePublished, modified: ld.dateModified,
-        section: ld.articleSection, structured: [ld, breadcrumb([[SITE[lang], ""], [ld.articleSection, `?cat=${a.category}`], [title, view.path]])],
+        section: ld.articleSection, structured: [ld, breadcrumb([[SITE[lang], ""], [ld.articleSection, view.sectionPath || `?cat=${a.category}`], [title, view.path]])],
       };
     }
     if (view.kind === "issue" && a) {
@@ -209,7 +209,7 @@
       if (published) ld.datePublished = `${published}T00:00:00${OFFSET}`;
       return {
         title: `${name} | ${SITE[lang]}`, description: summary, image, type: "article", published: ld.datePublished, modified: "", section: SECTIONS.weekly[lang][0],
-        structured: [ld, breadcrumb([[SITE[lang], ""], [SECTIONS.weekly[lang][0], "?cat=weekly"], [name, view.path]])],
+        structured: [ld, breadcrumb([[SITE[lang], ""], [SECTIONS.weekly[lang][0], view.sectionPath || "?cat=weekly"], [name, view.path]])],
       };
     }
     if (view.kind === "section" && SECTIONS[view.section]) {

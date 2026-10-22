@@ -578,7 +578,7 @@ const PDF_BASE = (() => {
 })();
 const pdfFileName = (no) => `lokmangal-weekly-${no}.pdf`;
 const pdfUrlFor = (a) => a.pdf || PDF_BASE + pdfFileName(a.issue);
-const isSameOrigin = (u) => { try { return new URL(u, window.location.href).origin === window.location.origin; } catch (e) { return true; } };
+const isSameOrigin = (u) => { try { return new URL(u, document.baseURI).origin === window.location.origin; } catch (e) { return true; } };
 // A file on another domain (storage bucket) ignores the `download` attribute, so its links open in a NEW tab
 // instead of replacing the website.
 const pdfLinkAttrs = (url, no) => `href="${url}" download="Lokmangal-Weekly-${no}.pdf"${isSameOrigin(url) ? "" : ' target="_blank" rel="noopener"'}`;
@@ -1627,7 +1627,7 @@ window.openVideoModal = function(videoId) {
     ? `<i class="fa-regular fa-clock"></i> ${video.date}`
     : `<i class="fa-solid fa-eye"></i> ${video.views} • <i class="fa-regular fa-clock"></i> ${video.date}`;
   const buttons = video.uploaded
-    ? `<button class="btn-listen-audio" data-url="${escText(new URL(raw.src, window.location.href).href)}" onclick="copyVideoLink(this)">
+    ? `<button class="btn-listen-audio" data-url="${escText(new URL(raw.src, document.baseURI).href)}" onclick="copyVideoLink(this)">
             <i class="fa-solid fa-share-nodes"></i> शेअर करा
           </button>`
     : `<button class="btn-read-full" onclick="showToast('व्हिडिओ प्लेलिस्टमध्ये सेव्ह केला')">
@@ -1815,13 +1815,39 @@ function queryForKey(key) {
   return "";
 }
 
+// PRETTY ADDRESSES: a story is /blog/<words of its title>, /rajkiy/<words>, /samajik/<words>; a section /blog, /rajkiy, /samajik, /review, /weekly; an issue
+// /weekly/68. They need a server that answers them: a development PC (the backend) and Vercel (vercel.json) do; the live website does once the deploy has
+// added the Amplify rules and switched them on (PRETTY_URLS=1 in js/env-config.js). Everywhere else the ?post=12 form above is used.
+const SECTION_PATH = { rajkiy: "rajkiy", samajik: "samajik", blogs: "blog", review: "review" };
+const PATH_SECTION = { rajkiy: "rajkiy", samajik: "samajik", blog: "blogs", review: "review" };
+const prettyUrlsOn = () => {
+  if ((window.LOKMANGAL_ENV || {}).PRETTY_URLS === "1") return true;
+  const host = window.location.hostname;
+  return /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(host) || /\.vercel\.app$/.test(host);
+};
+
+// the path (and query) of a view, without the language: "/blog/<words>", "/blog", "/weekly/68", "/?post=12" ...
+function pathForKey(key) {
+  let m;
+  if (prettyUrlsOn()) {
+    if (!key) return "/";
+    if (key === "weekly") return "/weekly";
+    if ((m = key.match(/^cat-(rajkiy|samajik|blogs|review)$/))) return "/" + SECTION_PATH[m[1]];
+    if ((m = key.match(/^issue-(\d+)$/))) return "/weekly/" + m[1];
+    if ((m = key.match(/^post-(\d+)$/))) {
+      const a = articlesData.find((x) => x.id === Number(m[1]));
+      if (a && a.slug && SECTION_PATH[a.category]) return "/" + SECTION_PATH[a.category] + "/" + encodeURIComponent(a.slug);
+    }
+  }
+  const query = queryForKey(key);
+  return (/^\/(blog|rajkiy|samajik|review|weekly)(\/|$)/.test(window.location.pathname) ? "/" : window.location.pathname) + (query ? "?" + query : "");
+}
+
 // (the chosen language stays in the address when it came in it: ?lang=en)
 function urlForKey(key) {
-  const parts = [];
-  const query = queryForKey(key);
-  if (query) parts.push(query);
-  if (new URLSearchParams(window.location.search).has("lang")) parts.push("lang=" + getLang());
-  return window.location.pathname + (parts.length ? "?" + parts.join("&") : "");
+  const path = pathForKey(key);
+  const lang = new URLSearchParams(window.location.search).has("lang") ? "lang=" + getLang() : "";
+  return path + (lang ? (path.includes("?") ? "&" : "?") + lang : "");
 }
 
 // What a visitor shares or copies. With a backend (the live site) it is the PREVIEW page of the story (backend/seo.py): WhatsApp, Facebook, X and
@@ -1829,13 +1855,17 @@ function urlForKey(key) {
 // the website's own address of the story.
 const shareUrlFor = (a) => {
   const english = getLang() === "en";
+  if (prettyUrlsOn()) {         // the story's own address (/blog/<words>): the server answers it with a page that has the story's title and picture for the preview
+    const path = pathForKey(routeForArticle(a));
+    return window.location.origin + path + (english ? (path.includes("?") ? "&" : "?") + "lang=en" : "");
+  }
   const api = window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE;
   if (api) return api + "/api/share/" + (a.category === "weekly" && a.issue ? "issue/" + a.issue : a.id) + (english ? "?lang=en" : "");
   return window.location.origin + window.location.pathname + "?" + queryForKey(routeForArticle(a)) + (english ? "&lang=en" : "");
 };
 
 // a real, crawlable link to a story / issue (a plain click is taken over by the listener below)
-const linkTo = (a) => `href="?${queryForKey(routeForArticle(a))}" data-route="${routeForArticle(a)}"`;
+const linkTo = (a) => `href="${pathForKey(routeForArticle(a))}" data-route="${routeForArticle(a)}"`;
 
 function parseRoute(hash) {
   const h = String(hash || "").replace(/^#/, "");
@@ -1868,8 +1898,30 @@ function routeFromQuery(search) {
   return null;
 }
 
-// (an old "#post-12" address is understood too)
-const routeFromLocation = () => routeFromQuery(window.location.search) || parseRoute(window.location.hash);
+// the view named by a pretty address: /blog/<words> (the story is found by its words; its id is not known until the stories are loaded), /blog, /weekly/68 ...
+function routeFromPath(pathname) {
+  let parts;
+  try { parts = decodeURIComponent(pathname).replace(/^\/+|\/+$/g, "").split("/"); } catch (e) { return null; }
+  const first = parts[0];
+  if (parts.length === 1 && first === "weekly") return { type: "weekly" };
+  if (parts.length === 1 && PATH_SECTION[first]) return { type: "cat", cat: PATH_SECTION[first] };
+  if (parts.length === 2 && first === "weekly") return /^\d+$/.test(parts[1]) ? { type: "issue", no: parseInt(parts[1], 10) } : { type: "home", unknown: true };
+  if (parts.length === 2 && PATH_SECTION[first] && parts[1]) {
+    const article = articlesData.find((a) => a.slug === parts[1]);
+    return { type: "post", slug: parts[1], id: article ? article.id : undefined };
+  }
+  return null;
+}
+
+// (an old "?post=12" and "#post-12" address is understood too)
+const routeFromLocation = () => routeFromPath(window.location.pathname) || routeFromQuery(window.location.search) || parseRoute(window.location.hash);
+
+// The address bar shows a page's own (pretty) address: an old ?post=12 / ?cat=blogs / #post-12 address, or /index.html, is turned into it.
+function normalizeAddress() {
+  if (renderedRoute === null) return;
+  const old = routeFromQuery(window.location.search) || (window.location.hash && parseRoute(window.location.hash).type !== "home") || /\/index\.html$/.test(window.location.pathname);
+  if (old && urlForKey(renderedRoute) !== window.location.pathname + window.location.search) replaceUrl(renderedRoute);
+}
 
 const currentRouteKey = () => routeKeyOf(routeFromLocation());
 
@@ -1987,6 +2039,7 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     setDocTitle(currentCategory === "all" ? "" : getMarathiCategory(currentCategory));
     seoForView(currentCategory === "all" ? "home" : "section", renderedRoute, { section: currentCategory });
   }
+  normalizeAddress();
 
   if (restoreY !== null) window.scrollTo(0, restoreY);
   else if (scroll) window.scrollTo({ top: 0, behavior: "auto" });
@@ -1996,14 +2049,16 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
 // tags, structured data. The page works without it.
 function seoForView(kind, key, { article = null, section = "" } = {}) {
   if (!window.LokmangalSEO) return;
-  const query = queryForKey(key);
-  window.LokmangalSEO.apply({ kind, section, article, path: query ? "?" + query : "" });
+  window.LokmangalSEO.apply({
+    kind, section, article, path: pathForKey(key).slice(1),
+    sectionPath: article ? pathForKey(routeForCategory(article.category)).slice(1) : "",
+  });
 }
 
 function initRouter() {
   try { history.scrollRestoration = "manual"; } catch (e) { /* ignore */ }
   // an old "#post-12" / "#cat-blogs" / "#weekly" address (shared before the views had real addresses) becomes "?post=12" ... before the first draw
-  if (!routeFromQuery(window.location.search)) {
+  if (!routeFromPath(window.location.pathname) && !routeFromQuery(window.location.search)) {
     const old = parseRoute(window.location.hash);
     if (!old.unknown && routeKeyOf(old)) replaceUrl(routeKeyOf(old));
   }
@@ -2050,7 +2105,7 @@ const pageHeading = (kind, section) => {
 };
 
 // (an item with a `route` key is a real link: "" = Home, "cat-rajkiy" ...)
-const hrefForKey = (key) => (key ? "?" + queryForKey(key) : "./");
+const hrefForKey = (key) => pathForKey(key);
 const crumbHTML = (items) => items.map((it, i) => {
   const sep = i ? `<i class="fa-solid fa-chevron-right"></i>` : "";
   return sep + (it.onclick
@@ -3046,7 +3101,7 @@ async function loadReader(url) {
   try {
     const lib = await loadPdfJs();
     if (run !== readerRun) return;
-    const task = lib.getDocument({ url, ...PDF_OPEN_OPTIONS });
+    const task = lib.getDocument({ url: new URL(url, document.baseURI).href, ...PDF_OPEN_OPTIONS });      // (pdf.js resolves a relative file name against the ADDRESS, not the <base>: /weekly/42 would look in /weekly/assets/pdf/)
     readerTask = task;
     task.onProgress = (p) => { if (run === readerRun) updateReaderProgress(p.loaded, p.total); };
     const doc = await task.promise;

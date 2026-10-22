@@ -8,6 +8,9 @@ card for every story, and a crawler that does not run JavaScript would find no s
     /api/share/<id>          one story as a plain page: its own title, summary and picture for the preview, the whole text for crawlers,
                              and a jump to the website for people (?lang=en: English)
     /api/share/issue/<no>    the same for one weekly issue
+    /api/page/<kind>/<words> the PAGE of one story under its pretty address (/blog/<words>): the website's index.html with that story's title, description,
+                             preview tags, structured data and text put in. The website passes /blog/... on to it (deploy.yml adds the Amplify rules), so a
+                             link preview and a crawler see the story; the page then starts the website, which opens the same story.
 
 They live under /api/ because that is the only part of this server the production nginx lets through (deploy/docker/nginx.conf).
 Nothing here writes anything and nothing needs a login. The website's own addresses are ?post=12, ?issue=42 and ?cat=rajkiy (see app.js).
@@ -15,12 +18,15 @@ Nothing here writes anything and nothing needs a login. The website's own addres
 import html
 import json
 import re
+import time
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from email.utils import format_datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, redirect, request
 
 import config
 import database
@@ -41,6 +47,8 @@ SECTIONS = {   # key -> (Marathi, English): the same names the website shows
     "review": ("रिव्ह्यू", "Reviews"),
     "weekly": ("साप्ताहिक आवृत्ती", "Weekly Edition"),
 }
+SECTION_PATH = {"rajkiy": "rajkiy", "samajik": "samajik", "blogs": "blog", "review": "review", "weekly": "weekly"}    # the first word of a pretty address
+PAGE_KINDS = {"blog": "blogs", "rajkiy": "rajkiy", "samajik": "samajik", "review": "review"}                         # ... and the section it stands for
 STORY_SECTIONS = ("rajkiy", "samajik", "blogs", "review")      # sections whose items are stories (the weekly issues are listed on their own)
 DEFAULT_IMAGE = "assets/og-default.jpg"                        # the card shown when a story has no picture a preview can use
 LOGO = "assets/logo-192.jpg"
@@ -166,6 +174,28 @@ def _json_for_script(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
+# ---------------------------------------------------------------------------------------------------- addresses
+def story_path(row: Dict[str, Any]) -> str:
+    """'blog/<words>' (the pretty address), or '?post=12' while PRETTY_URLS is off or the story has no words in its address yet. No leading slash."""
+    slug = str(row.get("slug") or "")
+    prefix = SECTION_PATH.get(str(row.get("category")))
+    if config.PRETTY_URLS and slug and prefix:
+        return f"{prefix}/{quote(slug, safe='-')}"
+    return f"?post={row['id']}"
+
+
+def issue_path(number: Any) -> str:
+    return f"weekly/{number}" if config.PRETTY_URLS else f"?issue={number}"
+
+
+def section_path(section: str) -> str:
+    return SECTION_PATH[section] if config.PRETTY_URLS else f"?cat={section}"
+
+
+def with_lang(url: str, lang: str) -> str:
+    return url + ((("&" if "?" in url else "?") + "lang=en") if lang == "en" else "")
+
+
 # ---------------------------------------------------------------------------------------------------- a story as a plain description
 def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     """Everything a preview / crawler page needs about one news item or blog (row of the articles table)."""
@@ -182,7 +212,7 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     created = _stamp(row.get("created_at"))
     published = parse_date(row.get("date")) or (created.date() if created else None)
     author = _pick(row, "author", lang)
-    canonical = f"{site}/?post={row['id']}"
+    canonical = f"{site}/{story_path(row)}"
     image = preview_image(row.get("image"), site)
     summary = summary_of(_pick(row, "excerpt", lang), content)
     data: Dict[str, Any] = {
@@ -204,7 +234,7 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     return {"lang": lang, "title": title, "summary": summary, "image": image, "body": body,
             "author": author, "section": section_name, "published": published, "published_iso": data.get("datePublished", ""),
             "modified_iso": data.get("dateModified", ""), "canonical": canonical,
-            "target": canonical + ("&lang=en" if lang == "en" else ""), "jsonld": data}
+            "target": with_lang(canonical, lang), "jsonld": data}
 
 
 def issue_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
@@ -217,7 +247,7 @@ def issue_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     description = _pick(row, "description", lang)
     created = _stamp(row.get("created_at"))
     published = parse_date(row.get("date")) or (created.date() if created else None)
-    canonical = f"{site}/?issue={number}"
+    canonical = f"{site}/{issue_path(number)}"
     image = preview_image(row.get("image"), site)
     summary = summary_of(description, headline)
     data: Dict[str, Any] = {
@@ -237,7 +267,7 @@ def issue_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     return {"lang": lang, "title": title, "summary": summary, "image": image, "body": body, "author": WEEKLY_NAME[lang],
             "section": SECTIONS["weekly"][0 if lang == "mr" else 1], "published": published, "published_iso": data.get("datePublished", ""),
             "modified_iso": data.get("datePublished", ""), "canonical": canonical,
-            "target": canonical + ("&lang=en" if lang == "en" else ""), "jsonld": data}
+            "target": with_lang(canonical, lang), "jsonld": data}
 
 
 # ---------------------------------------------------------------------------------------------------- the share page
@@ -320,6 +350,116 @@ def share_issue(issue_no):
     return _html(share_page(issue_story(row, lang, site_url())))
 
 
+# ---------------------------------------------------------------------------------------------------- the page of one story (/blog/<words>)
+_SHELL = {"text": "", "at": 0.0}
+SHELL_KEPT = 300          # seconds the website's index.html is kept after it was fetched
+
+
+def shell_html() -> Optional[str]:
+    """The website's own index.html: read from the frontend folder on a development PC; on the server fetched from the website (and kept 5 minutes)."""
+    local = config.FRONTEND_DIR / "index.html"
+    try:
+        if local.is_file():
+            return local.read_text(encoding="utf-8")
+    except OSError:
+        pass
+    if _SHELL["text"] and time.time() - _SHELL["at"] < SHELL_KEPT:
+        return _SHELL["text"]
+    try:
+        asked = urllib.request.Request(site_url() + "/index.html", headers={"User-Agent": "lokmangal-page/1"})
+        with urllib.request.urlopen(asked, timeout=5) as res:
+            text = res.read().decode("utf-8")
+        if "<!--seo:start-->" in text and "<!--ssr:start-->" in text:
+            _SHELL.update(text=text, at=time.time())
+            return text
+    except Exception:                                             # (the website did not answer: an older copy is better than none)
+        pass
+    return _SHELL["text"] or None
+
+
+def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
+    esc = lambda text: html.escape(str(text), quote=True)       # noqa: E731
+    name = SITE_NAME[lang]
+    parts = [
+        f"<title>{esc(story['title'])} | {esc(name)}</title>",
+        f'<meta name="description" content="{esc(story["summary"])}" />',
+        f'<link rel="canonical" href="{esc(story["canonical"])}" />',
+        '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />',
+        '<meta property="og:type" content="article" />',
+        f'<meta property="og:site_name" content="{esc(name)}" />',
+        f'<meta property="og:locale" content="{"mr_IN" if lang == "mr" else "en_IN"}" />',
+        f'<meta property="og:url" content="{esc(story["canonical"])}" />',
+        f'<meta property="og:title" content="{esc(story["title"])}" />',
+        f'<meta property="og:description" content="{esc(story["summary"])}" />',
+        f'<meta property="og:image" content="{esc(story["image"])}" />',
+        f'<meta property="og:image:alt" content="{esc(story["title"])}" />',
+    ]
+    if story["published_iso"]:
+        parts.append(f'<meta property="article:published_time" content="{esc(story["published_iso"])}" />')
+    if story["modified_iso"]:
+        parts.append(f'<meta property="article:modified_time" content="{esc(story["modified_iso"])}" />')
+    parts += [
+        '<meta name="twitter:card" content="summary_large_image" />',
+        f'<meta name="twitter:title" content="{esc(story["title"])}" />',
+        f'<meta name="twitter:description" content="{esc(story["summary"])}" />',
+        f'<meta name="twitter:image" content="{esc(story["image"])}" />',
+    ]
+    breadcrumb = {"@context": "https://schema.org", "@type": "BreadcrumbList",
+                  "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": u} for i, (n, u) in enumerate(crumbs)]}
+    parts.append(f'<script type="application/ld+json" id="ld-view">{_json_for_script([story["jsonld"], breadcrumb])}</script>')
+    return "\n  ".join(parts)
+
+
+def _ssr_body(story: Dict[str, Any]) -> str:
+    esc = lambda text: html.escape(str(text), quote=True)       # noqa: E731
+    meta = " · ".join(p for p in (story["section"], story["author"], story["published"].isoformat() if story["published"] else "") if p)
+    return (f'<h1 class="single-post-headline">{esc(story["title"])}</h1>\n'
+            f'<p class="ssr-meta">{esc(meta)}</p>\n'
+            f'<div class="single-post-media"><img src="{esc(story["image"])}" alt="{esc(story["title"])}"></div>\n'
+            f'<div class="single-article-content">{story["body"]}</div>')
+
+
+def render_page(template: str, head: str, body: str, lang: str) -> str:
+    out = re.sub(r"<!--seo:start-->.*?<!--seo:end-->", lambda m: head, template, count=1, flags=re.S)
+    out = re.sub(r"<!--ssr:start-->.*?<!--ssr:end-->", lambda m: body, out, count=1, flags=re.S)
+    return re.sub(r'<html lang="[a-zA-Z-]+"', f'<html lang="{lang}"', out, count=1)       # (index.html has <base href="/">: its files are found from the root)
+
+
+def page_response(kind: str, slug: str) -> Response:
+    lang, site = _lang(), site_url()
+    template = shell_html()
+    story = None
+    crumbs: List[Any] = []
+    if kind == "weekly":
+        row = database.get_weekly_edition(int(slug)) if slug.isdigit() else None
+        if row:
+            story = issue_story(row, lang, site)
+            crumbs = [(SITE_NAME[story["lang"]], site + "/"), (story["section"], f"{site}/{section_path('weekly')}"), (story["title"], story["canonical"])]
+    elif kind in PAGE_KINDS:
+        row = database.get_article_by_slug(slug)
+        if row and SECTION_PATH.get(str(row.get("category"))) != kind:                 # the right section's address for it
+            return redirect(with_lang(f"{site}/{story_path(row)}", lang), code=301)
+        if row:
+            story = article_story(row, lang, site)
+            crumbs = [(SITE_NAME[story["lang"]], site + "/"), (story["section"], f"{site}/{section_path(str(row['category']))}"),
+                      (story["title"], story["canonical"])]
+    if story is None:                                                                  # an address that is nobody's: the website itself, not listed
+        if template is None:
+            return _not_found(lang)
+        head = f'<title>{html.escape(SITE_NAME[lang])}</title>\n  <meta name="robots" content="noindex" />'
+        response = Response(render_page(template, head, "", lang), 404, mimetype="text/html")
+        response.headers["Cache-Control"] = "public, max-age=60"
+        return response
+    if template is None:                                                               # the website did not answer: the plain page that sends people on
+        return _html(share_page(story))
+    return _html(render_page(template, _seo_head(story, story["lang"], crumbs), _ssr_body(story), story["lang"]))
+
+
+@seo.get("/page/<kind>/<slug>")
+def page(kind, slug):
+    return page_response(kind, slug)
+
+
 # ---------------------------------------------------------------------------------------------------- sitemap.xml
 def _day(value: Any) -> str:
     stamp = _stamp(value)
@@ -352,16 +492,16 @@ def sitemap():
     for row in articles:
         day = _day(row.get("updated_at")) or _day(row.get("created_at"))
         touch(str(row.get("category")), day)
-        entries.append(_url_entry(f"{site}/?post={row['id']}", day, [absolute(row.get("image"), site)]))
+        entries.append(_url_entry(f"{site}/{story_path(row)}", day, [absolute(row.get("image"), site)]))
     for row in sorted(issues, key=lambda r: -int(r["issue_no"])):
         day = _day(row.get("updated_at")) or _day(row.get("created_at"))
         touch("weekly", day)
-        entries.append(_url_entry(f"{site}/?issue={row['issue_no']}", day, [absolute(row.get("image"), site)]))
+        entries.append(_url_entry(f"{site}/{issue_path(row['issue_no'])}", day, [absolute(row.get("image"), site)]))
 
     top = [_url_entry(site + "/", max(newest.values(), default=""))]
     for section in (*STORY_SECTIONS, "weekly"):
         if section in present:
-            top.append(_url_entry(f"{site}/?cat={section}", newest.get(section, "")))
+            top.append(_url_entry(f"{site}/{section_path(section)}", newest.get(section, "")))
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
            + "\n".join(top + entries) + "\n</urlset>\n")
