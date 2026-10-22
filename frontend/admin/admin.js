@@ -957,7 +957,7 @@ function plainTextToParagraphs(text) {
   if (!text || /<[a-z!\/][^>]*>/i.test(text)) return text;
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return text.split(/\r?\n\s*\r?\n/).map((p) => p.trim()).filter(Boolean)
-    .map((p) => `<p>${esc(p).replace(/\r?\n/g, '<br>')}</p>`).join('\n');
+    .map((p) => `<p>${esc(p).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>').replace(/\r?\n/g, '<br>')}</p>`).join('\n');   // (**bold** = Ctrl+B in the story box)
 }
 
 // HTML for a preview: parsed in an inert document, then scripts / frames / event handlers / javascript: addresses are taken out.
@@ -990,6 +990,13 @@ function htmlToPlainText(html) {
       if (n.nodeType === 3) line += n.nodeValue.replace(/\s+/g, ' ');
       else if (n.nodeType === 1) {
         if (n.tagName === 'BR') line += '\n';
+        else if (n.tagName === 'STRONG' || n.tagName === 'B') {      // bold text is shown between ** ** (what Ctrl+B writes), so editing a story keeps its bold
+          const at = line.length;
+          line += '**';
+          walk(n);
+          if (line.slice(at, at + 2) === '**' && line.slice(at + 2).trim()) line += '**';
+          else if (line.slice(at, at + 2) === '**') line = line.slice(0, at) + line.slice(at + 2);
+        }
         else if (/^(P|DIV|H[1-6]|BLOCKQUOTE|UL|OL|LI|TABLE|TR|HR|FIGURE)$/.test(n.tagName)) { flush(); walk(n); flush(); }
         else walk(n);
       }
@@ -1590,6 +1597,41 @@ function showToast(message, type = 'info') {
 }
 
 // Text for HTML (element content and attribute values): & < > " ' become entities, so a title like  'लोकमंगल' & "विवाह" <b>  shows as typed
+// ---- Ctrl + B in a story box: the selected words (or lines) become bold ---------------------------------------------------------------------
+// The story boxes are plain text; bold is written between ** **. Ctrl+B puts them around the selection (every line of it on its own), or takes them
+// off again when the selection is already bold; with nothing selected the word at the cursor is used. The ** become <strong> when the story is saved.
+function toggleBoldInStoryBox(box) {
+  let start = box.selectionStart, end = box.selectionEnd;
+  const text = box.value;
+  if (start === end) {                                            // nothing selected: the word under the cursor
+    while (start > 0 && !/\s/.test(text[start - 1])) start--;
+    while (end < text.length && !/\s/.test(text[end])) end++;
+    if (start === end) return;
+  }
+  if (text.slice(start - 2, start) === '**' && text.slice(end, end + 2) === '**') { start -= 2; end += 2; }   // the ** right around the selection belong to it
+  const lines = text.slice(start, end).split('\n');
+  const filled = lines.filter((l) => l.trim());
+  const allBold = filled.length > 0 && filled.every((l) => /^\s*\*\*[^*]+\*\*\s*$/.test(l));
+  const changed = lines.map((l) => {
+    if (!l.trim()) return l;
+    const m = l.match(/^(\s*)([\s\S]*?)(\s*)$/);                  // the spaces stay outside the **
+    return allBold ? m[1] + m[2].replace(/^\*\*|\*\*$/g, '') + m[3] : m[1] + '**' + m[2].replace(/\*\*/g, '') + '**' + m[3];
+  }).join('\n');
+  box.focus();
+  box.setSelectionRange(start, end);
+  if (!document.execCommand || !document.execCommand('insertText', false, changed)) box.setRangeText(changed, start, end, 'select');   // (insertText keeps Ctrl+Z working)
+  box.setSelectionRange(start, start + changed.length);
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+document.addEventListener('keydown', (e) => {
+  const isB = (e.key || '').toLowerCase() === 'b' || e.code === 'KeyB';                    // (a Marathi keyboard layout sends another letter as e.key)
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && isB && /^form-article-content(-en)?$/.test((e.target && e.target.id) || '')) {
+    e.preventDefault();
+    toggleBoldInStoryBox(e.target);
+  }
+});
+
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
