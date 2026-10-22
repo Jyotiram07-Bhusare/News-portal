@@ -10,16 +10,26 @@
   <meta name="description"
     content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
 
-  <!-- Search engines and link previews. This is the Home page; js/seo.js writes the same tags again for every other view (a story, a section,
-       a weekly issue), because each has its own address (?post=12, ?cat=rajkiy, ?issue=42). The address below is the one Google should list
-       (also in js/seo.js, robots.txt, sitemap.xml and backend/config.py SITE_URL). -->
-  <link rel="canonical" href="https://www.lokmangal.info/" />
+  <!-- Search engines and link previews. These are the tags of the Home page; js/seo.js writes them again for every other view (a story, a section,
+       a weekly issue), because each has its own address (?post=12, ?cat=rajkiy, ?issue=42). The address that Google should list is
+       https://www.lokmangal.info (also in js/seo.js, robots.txt, sitemap.xml and backend/config.py SITE_URL).
+       There is deliberately NO <link rel="canonical"> written here: this file is the same for every address, so a canonical in it would name the
+       Home page for every story and Google may trust it over the one set by JavaScript. The script below sets the right one at once, from the
+       address bar, before anything else loads (js/seo.js keeps it right afterwards). -->
+  <script>
+    (function () {
+      var m = /[?&](post|issue)=(\d+)(?:&|$)/.exec(location.search) || /[?&](cat)=(rajkiy|samajik|blogs|review|weekly)(?:&|$)/.exec(location.search);
+      var link = document.createElement("link");
+      link.rel = "canonical";
+      link.href = "https://www.lokmangal.info/" + (m ? "?" + m[1] + "=" + m[2] : "");
+      document.head.appendChild(link);
+    })();
+  </script>
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="लोकमंगल न्यूज पोर्टल" />
   <meta property="og:locale" content="mr_IN" />
   <meta property="og:locale:alternate" content="en_IN" />
-  <meta property="og:url" content="https://www.lokmangal.info/" />
   <meta property="og:title" content="लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी" />
   <meta property="og:description"
     content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
