@@ -1965,3 +1965,85 @@ button:focus-visible,
     padding: 0 8px;
   }
 }
+
+
+/* ===========================================================================================================================
+   Phones: the lead headline ABOVE the photo, bigger headings, smaller story text.
+   (Later in the file than the rules above, so these win.)
+   =========================================================================================================================== */
+@media (max-width: 980px) {
+  /* lines that are balanced leave an empty strip at the right of a headline: let them fill the width */
+  .main-post-headline,
+  .single-post-headline {
+    text-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  /* ---- headlines: the lead headline comes first (above the photo) and is bigger ---- */
+  .view-home .main-post-headline {
+    order: 0;
+    margin: 16px 0 14px;
+    font-size: clamp(20px, 5.7vw, 23px);
+    line-height: 1.38;
+    font-weight: 700;
+  }
+
+  .single-post-headline {
+    font-size: clamp(20px, 5.7vw, 23px);
+    line-height: 1.38;
+  }
+
+  .more-posts-title {
+    font-size: 19px;
+  }
+
+  .popular-card-title {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .secondary-post-title {
+    font-size: 15.5px;
+    line-height: 1.45;
+  }
+
+  .popular-sub-title {
+    font-size: 14.5px;
+    line-height: 1.45;
+  }
+
+  .random-grid-title {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .related-post-title {
+    font-size: 15.5px;
+    line-height: 1.45;
+  }
+
+  .weekly-latest-title {
+    font-size: 19px;
+    line-height: 1.4;
+  }
+
+  /* ---- the news text: a little smaller, so the headings stand out ---- */
+  .main-article-body {
+    font-size: 14.5px;
+    line-height: 1.7;
+  }
+
+  .single-article-content {
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  .single-article-content > p:first-child {
+    font-size: 15px !important;                 /* (the summary line has its own inline size) */
+  }
+
+  .single-article-content blockquote {
+    font-size: 14.5px;
+  }
+}
