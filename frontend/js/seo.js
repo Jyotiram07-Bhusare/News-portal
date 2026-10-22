@@ -275,5 +275,12 @@
     } catch (e) { /* leave it as it is */ }
   }
 
-  window.LokmangalSEO = { ORIGIN: ORIGIN, apply: apply, setContact: setContact, isoDay: isoDay };
+  // The page's own h1 (a visually hidden line on Home and in the sections, see pageHeading in app.js): Home = the site, a section = its name.
+  function heading(kind, section) {
+    const lang = language();
+    if (kind === "section" && SECTIONS[section]) return SECTIONS[section][lang][0];
+    return lang === "en" ? "Lokmangal News Portal - Latest Marathi News" : "लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या";
+  }
+
+  window.LokmangalSEO = { ORIGIN: ORIGIN, apply: apply, setContact: setContact, isoDay: isoDay, heading: heading };
 })();

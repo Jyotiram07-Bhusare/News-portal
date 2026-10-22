@@ -2029,6 +2029,15 @@ window.renderMainStory = function(articleId) {
   if (currentView === "home") renderHomeFeed();
 };
 
+// Every view has exactly ONE h1 (search engines use it to understand the page). Home and the sections name themselves in a visually hidden h1 -
+// the breadcrumb already shows the same words - and the lead story's headline under it is an h2, so the story is not "the h1" of three addresses.
+const pageHeading = (kind, section) => {
+  const text = window.LokmangalSEO && window.LokmangalSEO.heading
+    ? window.LokmangalSEO.heading(kind, section)
+    : (kind === "home" ? "लोकमंगल न्यूज पोर्टल" : getMarathiCategory(section));
+  return `<h1 class="visually-hidden">${text}</h1>`;
+};
+
 // (an item with a `route` key is a real link: "" = Home, "cat-rajkiy" ...)
 const hrefForKey = (key) => (key ? "?" + queryForKey(key) : "./");
 const crumbHTML = (items) => items.map((it, i) => {
@@ -2057,7 +2066,8 @@ function renderHomeView(container) {
       ])}
     </div>
 
-    ${leadStoryHTML(article, { label: `ताज्या घडामोडी • ${article.categoryLabel}` })}
+    ${pageHeading("home")}
+    ${leadStoryHTML(article, { label: `ताज्या घडामोडी • ${article.categoryLabel}`, heading: "h2" })}
 
     <!-- News section: Samajik + Rajkiy -->
     ${newsHeadHTML()}
@@ -2146,7 +2156,8 @@ function renderCategorySection(container, cat) {
       ])}
     </div>
 
-    ${leadStoryHTML(article)}
+    ${pageHeading("section", cat)}
+    ${leadStoryHTML(article, { heading: "h2" })}
 
     <div class="more-posts-header">
       <h2 class="more-posts-title"><i class="fa-solid ${cat === "blogs" ? "fa-pen-nib" : "fa-newspaper"}" style="color:var(--main-color); margin-right:6px"></i> ${cat === "blogs" ? "इतर ब्लॉग्स" : "इतर ताज्या बातम्या"}</h2>
@@ -2159,13 +2170,13 @@ function renderCategorySection(container, cat) {
 }
 
 // the big first story (Home, Weekly lead and category sections share it)
-function leadStoryHTML(article, { pdf = false, label = "" } = {}) {
+function leadStoryHTML(article, { pdf = false, label = "", heading = "h1" } = {}) {
   const open = `openArticlePage(${article.id})`;
   const isIssue = article.category === "weekly" && article.issue;
   return `
-    <h1 class="main-post-headline" id="main-headline-text" onclick="${open}" style="cursor:pointer">
+    <${heading} class="main-post-headline" id="main-headline-text" onclick="${open}" style="cursor:pointer">
       ${titleLink(article)}
-    </h1>
+    </${heading}>
 
     <div class="main-featured-media" id="main-featured-img-wrap" onclick="${open}">
       ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", `${HERO_IMG_ATTRS} id="main-story-image"`)}
