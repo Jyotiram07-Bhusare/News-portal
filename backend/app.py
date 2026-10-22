@@ -715,6 +715,7 @@ def create_app():
         app.logger.warning("Setting: %s", line)
     try:
         database.ensure_latest_column()      # an older database gets articles.is_latest (the Latest News placement) once, here
+        database.ensure_order_column()       # ... and articles.sort_order (the place number set in the Admin Panel)
     except pymysql.MySQLError:
         pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:

@@ -77,6 +77,12 @@ UPDATED_COLUMNS = {
 LATEST_COLUMNS = {
     "articles": (("is_latest", "TINYINT(1) NOT NULL DEFAULT 1"),),
 }
+# The place a news / blog is given in the Admin Panel ("क्रम क्रमांक", 1 = first). NULL = not placed by hand: it is listed by recency as before. The
+# numbers are kept 1..K inside a group by _renumber_articles; the website lists the numbered ones first, in number order (newerFirst in app.js).
+ORDER_COLUMNS = {
+    "articles": (("sort_order", "INT NULL"),),
+}
+ORDER_GROUPS = {"rajkiy": ("rajkiy", "samajik"), "samajik": ("rajkiy", "samajik")}     # the two news sections are one list; every other section is its own
 
 
 # -------------------------------------------------------------
@@ -267,6 +273,7 @@ def ensure_ads_table() -> None:
 _english_state = {"ok": False, "checked": 0.0}
 _updated_state = {"ok": False, "checked": 0.0}
 _latest_state = {"ok": False, "checked": 0.0}
+_order_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -314,6 +321,25 @@ def ensure_latest_column() -> bool:
             raise
     _latest_state.update(ok=False, checked=0.0)
     return has_latest()
+
+
+def has_order() -> bool:
+    """True when `articles` has sort_order (the place number)."""
+    return _has_columns(ORDER_COLUMNS, _order_state)
+
+
+def ensure_order_column() -> bool:
+    """An older database gets articles.sort_order here (once, at start-up; every existing news = NULL: listed by recency as before)."""
+    if has_order():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN sort_order INT NULL")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _order_state.update(ok=False, checked=0.0)
+    return has_order()
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:
@@ -394,6 +420,27 @@ def get_article(article_id: int) -> Optional[Dict[str, Any]]:
         return _row(cur.fetchone())
 
 
+def _order_group(category: Any) -> tuple:
+    return ORDER_GROUPS.get(str(category), (str(category),))
+
+
+def _renumber_articles(cur, categories: tuple, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
+    """Keep the place numbers of one group (blogs / news / reviews) 1..K without gaps or doubles. `move_id` takes `position` (1 = the very top; a number
+    beyond the end = the last place) and the others move over; with `position` None it is taken out of the numbering (listed by recency again)."""
+    marks = ", ".join(["%s"] * len(categories))
+    cur.execute(f"SELECT id FROM articles WHERE category IN ({marks}) AND sort_order IS NOT NULL ORDER BY sort_order, id DESC", tuple(categories))
+    ids = [r["id"] for r in cur.fetchall()]
+    if move_id is not None:
+        if move_id in ids:
+            ids.remove(move_id)
+        if position is None:
+            cur.execute("UPDATE articles SET sort_order = NULL WHERE id = %s", (move_id,))
+        else:
+            ids.insert(max(0, min(len(ids), int(position) - 1)), move_id)
+    for number, row_id in enumerate(ids, start=1):
+        cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, row_id, number))
+
+
 def create_article(data: Dict[str, Any]) -> int:
     category = _text(data, "category", "rajkiy")
     category_label = _text(data, "categoryLabel") or CATEGORY_LABELS.get(category, DEFAULT_CATEGORY_LABEL)
@@ -427,7 +474,10 @@ def create_article(data: Dict[str, Any]) -> int:
                 *((_flag(data.get("is_latest", 1)),) if latest else ()),        # (listed in Latest News unless the form says no)
             ),
         )
-        return cur.lastrowid
+        new_id = cur.lastrowid
+        if data.get("sort_order") is not None and has_order():
+            _renumber_articles(cur, _order_group(category), new_id, data["sort_order"])      # given a place by hand: the others move over
+        return new_id
 
 
 def update_article(article_id: int, data: Dict[str, Any]) -> bool:
@@ -442,19 +492,29 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
         if key in data:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest") else data[key])
-    if not fields:
+    place = has_order() and "sort_order" in data                # the place number came with the request (a number, or None = not placed by hand)
+    if not fields and not place:
         return False
-    if has_updated():
-        fields.append("`updated_at` = CURRENT_TIMESTAMP")       # saved = the newest: the website lists it first
+    if fields and has_updated():
+        fields.append("`updated_at` = CURRENT_TIMESTAMP")       # saved = the newest: the website lists it first (unless it has a place number)
 
     with connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM articles WHERE id = %s", (article_id,))
-        if cur.fetchone() is None:
+        cur.execute("SELECT id, category" + (", sort_order" if place else "") + " FROM articles WHERE id = %s", (article_id,))
+        before = cur.fetchone()
+        if before is None:
             return False                                        # nothing is touched for an unknown id
         if _flag(data.get("is_lead", "")):
             cur.execute("UPDATE articles SET is_lead = 0 WHERE id != %s", (article_id,))
-        cur.execute(f"UPDATE articles SET {', '.join(fields)} WHERE id = %s", values + [article_id])
+        if fields:
+            cur.execute(f"UPDATE articles SET {', '.join(fields)} WHERE id = %s", values + [article_id])
+        if place:
+            group = _order_group(data.get("category") or before["category"])
+            position = data.get("sort_order")
+            if position is not None or before.get("sort_order") is not None:
+                _renumber_articles(cur, group, article_id, position)
+            if _order_group(before["category"]) != group:       # moved to another section: the place it leaves behind is closed up
+                _renumber_articles(cur, _order_group(before["category"]))
         return True
 
 
@@ -536,8 +596,15 @@ def settle_if_unplaced(article_id: int, before: Optional[Dict[str, Any]]) -> boo
 def delete_article(article_id: int) -> bool:
     with connection() as conn:
         cur = conn.cursor()
+        before = None
+        if has_order():
+            cur.execute("SELECT category, sort_order FROM articles WHERE id = %s", (article_id,))
+            before = cur.fetchone()
         cur.execute("DELETE FROM articles WHERE id = %s", (article_id,))
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+        if deleted and before and before.get("sort_order") is not None:
+            _renumber_articles(cur, _order_group(before["category"]))       # the place it leaves is closed up
+        return deleted
 
 
 # -------------------------------------------------------------

@@ -39,6 +39,7 @@ config.ADMIN_PASSWORD_HASH = generate_password_hash(PASSWORD, method="pbkdf2:sha
 import database  # noqa: E402
 
 database.ensure_latest_column = lambda: True          # no MySQL in the tests
+database.ensure_order_column = lambda: True
 
 import app as app_module  # noqa: E402
 import auth  # noqa: E402

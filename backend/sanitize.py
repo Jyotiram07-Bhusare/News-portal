@@ -173,6 +173,12 @@ def article(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
     for key in FLAG_FIELDS:
         if key in data:
             out[key] = 1 if str(data.get(key)) in ("1", "true", "True", "on") else 0
+    if "sort_order" in data:                                    # the place on the website (1 = first); empty = not placed by hand
+        raw = data.get("sort_order")
+        text = "" if raw is None else str(raw).strip()
+        if text and not re.fullmatch(r"\d{1,4}", text):
+            raise ValidationError("The place number must be a whole number from 1 to 9999.")
+        out["sort_order"] = whole_number(text, "The place number", minimum=1, maximum=9999) if text else None
     return out
 
 

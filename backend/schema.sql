@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS articles (
   is_popular    TINYINT(1)    NOT NULL DEFAULT 0,
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
   is_latest     TINYINT(1)    NOT NULL DEFAULT 1,                   -- 1 = listed in the Home page's Latest News section
+  sort_order    INT           NULL,                                 -- the place set by hand in the Admin Panel (1 = first), NULL = listed by recency
   PRIMARY KEY (id),
   KEY idx_articles_category (category)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

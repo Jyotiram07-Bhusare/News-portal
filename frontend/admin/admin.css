@@ -2086,6 +2086,17 @@ body:has(.admin-modal-backdrop.open) {
 }
 
 /* the place of the video on the website (1 = first) */
+.article-order-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .video-order-badge {
   position: absolute;
   left: 5px;

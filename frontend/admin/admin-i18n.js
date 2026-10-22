@@ -272,6 +272,7 @@
     E("व्हिडिओ अपलोड होत आहे...", "Uploading the video..."),
     E("व्हिडिओ तपासत आहे...", "Checking the video..."),
     E("क्रम क्रमांक (१ = सर्वात वर)", "Order number (1 = at the very top)"),
+    E("आपोआप", "Automatic"),
     E("क्रम क्रमांक", "Order number"),
     E("व्हिडिओ (फाईल अपलोड करा किंवा लिंक द्या)", "Video (upload a file or give a link)"),
     E("किंवा YouTube / .mp4 लिंक येथे paste करा (https://...)", "Or paste a YouTube / .mp4 link here (https://...)"),

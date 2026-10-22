@@ -508,7 +508,18 @@ fillBuiltInEnglish();
 // change (updated_at). Stories with the same stamp - or none (built-in data / a static host without a backend) - keep their order,
 // because Array.sort is stable.
 const stampOf = (a) => String((a && a.updated_at) || "");
-const newerFirst = (a, b) => (stampOf(a) < stampOf(b) ? 1 : stampOf(a) > stampOf(b) ? -1 : 0);
+// Order of every list: a news / blog the owner gave a place number (Admin Panel, "क्रम क्रमांक") comes first, in number order; the rest follow, the most
+// recently updated first. (Popular, Random, Latest, the sections and Blogs all use this.)
+const placeOf = (a) => { const n = Number(a.sort_order); return Number.isFinite(n) && n > 0 ? n : null; };
+const newerFirst = (a, b) => {
+  const pa = placeOf(a), pb = placeOf(b);
+  if (pa !== null || pb !== null) {
+    if (pa === null) return 1;
+    if (pb === null) return -1;
+    if (pa !== pb) return pa - pb;
+  }
+  return stampOf(a) < stampOf(b) ? 1 : stampOf(a) > stampOf(b) ? -1 : 0;
+};
 
 // --- Weekly issues -----------------------------------------------------------------------------------
 // Devanagari digits <-> plain numbers

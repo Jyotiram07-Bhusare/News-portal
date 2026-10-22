@@ -738,7 +738,7 @@ function renderArticlesTable() {
 
   tbody.innerHTML = list.map(a => `
     <tr>
-      <td style="font-weight: 700; color: var(--text-muted);">${a.id}</td>
+      <td style="font-weight: 700; color: var(--text-muted);">${a.id}${a.sort_order ? `<div class="article-order-badge" title="क्रम क्रमांक">#${a.sort_order}</div>` : ''}</td>
       <td>
         <img src="${attrUrl(a.image)}" class="table-thumb" alt="${escapeHtml(a.title)}" data-no-i18n>
       </td>
@@ -853,6 +853,7 @@ function openNewArticleModal() {
 
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
   document.getElementById('form-article-views').value = '1.8K';
+  document.getElementById('form-article-order').value = '';               // (no number: listed by recency; a number puts it at that place of its list)
   document.getElementById('form-article-image').value = '';                 // (no photo is suggested: the editor chooses one)
   updateArticleImgPreview('');
   document.getElementById('form-article-excerpt').value = '';
@@ -889,6 +890,7 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-author').value = a.author || 'प्रतिनिधी';
   document.getElementById('form-article-date').value = a.date || '';
   document.getElementById('form-article-views').value = a.views || '1.5K';
+  document.getElementById('form-article-order').value = a.sort_order || '';
   document.getElementById('form-article-image').value = a.image || '';
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
@@ -1059,6 +1061,7 @@ async function handleArticleFormSubmit(e) {
     is_popular,
     is_random,
     is_latest,
+    sort_order: parseInt(document.getElementById('form-article-order').value, 10) || null,     // (empty = not placed by hand)
     author,
     date,
     views,
