@@ -11,6 +11,7 @@ card for every story, and a crawler that does not run JavaScript would find no s
     /api/page/<kind>/<words> the PAGE of one story under its pretty address (/blog/<words>): the website's index.html with that story's title, description,
                              preview tags, structured data and text put in. The website passes /blog/... on to it (deploy.yml adds the Amplify rules), so a
                              link preview and a crawler see the story; the page then starts the website, which opens the same story.
+    /api/page/<kind>         the same for a section's address (/blog, /rajkiy ...): the section's own name and description in the preview, not Home's.
 
 They live under /api/ because that is the only part of this server the production nginx lets through (deploy/docker/nginx.conf).
 Nothing here writes anything and nothing needs a login. The website's own addresses are ?post=12, ?issue=42 and ?cat=rajkiy (see app.js).
@@ -47,7 +48,30 @@ SECTIONS = {   # key -> (Marathi, English): the same names the website shows
     "review": ("रिव्ह्यू", "Reviews"),
     "weekly": ("साप्ताहिक आवृत्ती", "Weekly Edition"),
 }
+SECTION_PAGES = {   # key -> {language: (name, description)} of a section's own page: the same texts as SECTIONS in js/seo.js
+    "rajkiy": {
+        "mr": ("राजकीय बातम्या", "महाराष्ट्रातील ताज्या राजकीय बातम्या, निवडणूक व विकासकामांच्या घडामोडी - लोकमंगल न्यूज पोर्टल."),
+        "en": ("Political News", "Latest political news from Maharashtra - elections, governance and development works - on Lokmangal News Portal."),
+    },
+    "samajik": {
+        "mr": ("सामाजिक बातम्या", "समाजोपयोगी उपक्रम, शिक्षण, आरोग्य, जलसंधारण व महिला सक्षमीकरण - लोकमंगल फाउंडेशनच्या सामाजिक कार्याच्या ताज्या बातम्या."),
+        "en": ("Social News", "Latest news of social work: education, health, water conservation and women's empowerment - from Lokmangal News Portal."),
+    },
+    "blogs": {
+        "mr": ("ब्लॉग्स", "लोकमंगल फाउंडेशनचे ब्लॉग्स: अन्नपूर्णा योजना, जलसंधारण, विद्यादान, सामुदायिक विवाह आणि शिक्षकरत्न पुरस्कार यांबद्दल सविस्तर लेख."),
+        "en": ("Blogs", "Blogs of the Lokmangal Foundation: in-depth articles on the Annapurna Yojana, water conservation, scholarships, community weddings and the Shikshak Ratna Award."),
+    },
+    "review": {
+        "mr": ("रिव्ह्यू", "लोकमंगल न्यूज पोर्टलवरील ताजे रिव्ह्यू."),
+        "en": ("Reviews", "Latest reviews on Lokmangal News Portal."),
+    },
+    "weekly": {
+        "mr": ("लोकमंगल साप्ताहिक आवृत्ती - PDF ई-पेपर", "लोकमंगल साप्ताहिकाचे सर्व अंक ऑनलाइन वाचा आणि PDF म्हणून मोफत डाउनलोड करा."),
+        "en": ("Lokmangal Weekly Edition - PDF E-Paper", "Read every issue of the Lokmangal weekly online and download it free as a PDF."),
+    },
+}
 SECTION_PATH = {"rajkiy": "rajkiy", "samajik": "samajik", "blogs": "blog", "review": "review", "weekly": "weekly"}    # the first word of a pretty address
+SECTION_OF_PATH = {path: key for key, path in SECTION_PATH.items()}
 PAGE_KINDS = {"blog": "blogs", "rajkiy": "rajkiy", "samajik": "samajik", "review": "review"}                         # ... and the section it stands for
 STORY_SECTIONS = ("rajkiy", "samajik", "blogs", "review")      # sections whose items are stories (the weekly issues are listed on their own)
 DEFAULT_IMAGE = "assets/og-default.jpg"                        # the card shown when a story has no picture a preview can use
@@ -385,15 +409,17 @@ def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
         f'<meta name="description" content="{esc(story["summary"])}" />',
         f'<link rel="canonical" href="{esc(story["canonical"])}" />',
         '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />',
-        '<meta property="og:type" content="article" />',
+        f'<meta property="og:type" content="{esc(story.get("type", "article"))}" />',
         f'<meta property="og:site_name" content="{esc(name)}" />',
         f'<meta property="og:locale" content="{"mr_IN" if lang == "mr" else "en_IN"}" />',
         f'<meta property="og:url" content="{esc(story["canonical"])}" />',
         f'<meta property="og:title" content="{esc(story["title"])}" />',
         f'<meta property="og:description" content="{esc(story["summary"])}" />',
         f'<meta property="og:image" content="{esc(story["image"])}" />',
-        f'<meta property="og:image:alt" content="{esc(story["title"])}" />',
     ]
+    if story.get("image_size"):                                           # (known for the card of the website itself, not for a story's own picture)
+        parts += [f'<meta property="og:image:width" content="{story["image_size"][0]}" />', f'<meta property="og:image:height" content="{story["image_size"][1]}" />']
+    parts.append(f'<meta property="og:image:alt" content="{esc(story["title"])}" />')
     if story["published_iso"]:
         parts.append(f'<meta property="article:published_time" content="{esc(story["published_iso"])}" />')
     if story["modified_iso"]:
@@ -419,9 +445,11 @@ def _ssr_body(story: Dict[str, Any]) -> str:
             f'<div class="single-article-content">{story["body"]}</div>')
 
 
-def render_page(template: str, head: str, body: str, lang: str) -> str:
+def render_page(template: str, head: str, body: Optional[str], lang: str) -> str:
+    """The website's index.html with `head` in place of its seo region and `body` (None: the website's own) in place of its ssr region."""
     out = re.sub(r"<!--seo:start-->.*?<!--seo:end-->", lambda m: head, template, count=1, flags=re.S)
-    out = re.sub(r"<!--ssr:start-->.*?<!--ssr:end-->", lambda m: body, out, count=1, flags=re.S)
+    if body is not None:
+        out = re.sub(r"<!--ssr:start-->.*?<!--ssr:end-->", lambda m: body, out, count=1, flags=re.S)
     return re.sub(r'<html lang="[a-zA-Z-]+"', f'<html lang="{lang}"', out, count=1)       # (index.html has <base href="/">: its files are found from the root)
 
 
@@ -458,6 +486,35 @@ def page_response(kind: str, slug: str) -> Response:
 @seo.get("/page/<kind>/<slug>")
 def page(kind, slug):
     return page_response(kind, slug)
+
+
+def section_story(section: str, lang: str, site: str) -> Dict[str, Any]:
+    """A section's own page (/blog, /rajkiy ...) described like a story, so the same head / preview code serves it."""
+    name, description = SECTION_PAGES[section][lang]
+    canonical = f"{site}/{section_path(section)}"
+    data = {"@context": "https://schema.org", "@type": "CollectionPage", "name": name, "description": description, "url": canonical,
+            "inLanguage": lang, "isPartOf": {"@id": f"{site}/#website"}}
+    return {"lang": lang, "type": "website", "title": name, "summary": description, "image": f"{site}/{DEFAULT_IMAGE}", "image_size": (1200, 630), "body": "",
+            "author": "", "section": name, "published": None, "published_iso": "", "modified_iso": "", "canonical": canonical,
+            "target": with_lang(canonical, lang), "jsonld": data}
+
+
+def section_response(kind: str) -> Response:
+    section = SECTION_OF_PATH.get(kind)
+    if not section:
+        return _not_found(_lang())
+    lang, site = _lang(), site_url()
+    story = section_story(section, lang, site)
+    template = shell_html()
+    if template is None:
+        return _html(share_page(story))
+    crumbs = [(SITE_NAME[lang], site + "/"), (story["title"], story["canonical"])]
+    return _html(render_page(template, _seo_head(story, lang, crumbs), None, lang))      # (the rest of the page is the website's own)
+
+
+@seo.get("/page/<kind>")
+def section_page(kind):
+    return section_response(kind)
 
 
 # ---------------------------------------------------------------------------------------------------- sitemap.xml

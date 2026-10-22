@@ -95,7 +95,7 @@ jobs:
 
       # The addresses of the stories (/blog/<words of the title>, /rajkiy/<words>, /samajik/<words>, /review/<words>, /weekly/68) are answered by Amplify rules: a
       # story's address is passed on to the API, which answers with the website's index.html that has that story in it (backend/seo.py, /api/page/...); a
-      # section's address (/blog, /weekly ...) is the website's index.html. The rules the Amplify app already has (the /admin one ...) are read first and kept
+      # section's address (/blog, /weekly ...) is passed on likewise (the section's own name in the link preview). The rules the Amplify app already has (the /admin one ...) are read first and kept
       # exactly as they are: only rules with the sources below are added / replaced, at the end of the list. Nothing is changed when the rules cannot be read
       # or are already as wanted, and a failure here never fails the deploy. (The previous list is printed in the log, to put back by hand if ever needed.)
       # Whether the website USES these addresses is decided by LOKMANGAL_PRETTY_URLS above, not by this step.
@@ -110,11 +110,11 @@ jobs:
             {"source": "/samajik/<*>", "target": "$LOKMANGAL_API_BASE/api/page/samajik/<*>", "status": "200"},
             {"source": "/review/<*>",  "target": "$LOKMANGAL_API_BASE/api/page/review/<*>",  "status": "200"},
             {"source": "/weekly/<*>",  "target": "$LOKMANGAL_API_BASE/api/page/weekly/<*>",  "status": "200"},
-            {"source": "/blog",        "target": "/index.html", "status": "200"},
-            {"source": "/rajkiy",      "target": "/index.html", "status": "200"},
-            {"source": "/samajik",     "target": "/index.html", "status": "200"},
-            {"source": "/review",      "target": "/index.html", "status": "200"},
-            {"source": "/weekly",      "target": "/index.html", "status": "200"}
+            {"source": "/blog",        "target": "$LOKMANGAL_API_BASE/api/page/blog",    "status": "200"},
+            {"source": "/rajkiy",      "target": "$LOKMANGAL_API_BASE/api/page/rajkiy",  "status": "200"},
+            {"source": "/samajik",     "target": "$LOKMANGAL_API_BASE/api/page/samajik", "status": "200"},
+            {"source": "/review",      "target": "$LOKMANGAL_API_BASE/api/page/review",  "status": "200"},
+            {"source": "/weekly",      "target": "$LOKMANGAL_API_BASE/api/page/weekly",  "status": "200"}
           ]
           EOF
           aws amplify get-app --app-id "$AMPLIFY_APP_ID" --query 'app.customRules' --output json > current.json \

@@ -653,9 +653,12 @@ def register_frontend(app):
     def story_page(kind):
         return lambda slug: seo.page_response(kind, slug)
 
+    def section_page(kind):
+        return lambda: seo.section_response(kind)
+
     for kind in ("blog", "rajkiy", "samajik", "review", "weekly"):
         app.add_url_rule(f"/{kind}/<slug>", f"story_page_{kind}", story_page(kind), strict_slashes=False)
-        app.add_url_rule(f"/{kind}", f"section_page_{kind}", site_home, strict_slashes=False)
+        app.add_url_rule(f"/{kind}", f"section_page_{kind}", section_page(kind), strict_slashes=False)
 
     @app.get("/<path:filename>")
     def site_file(filename):              # css/, js/, assets/, admin/... : plain files of the frontend folder

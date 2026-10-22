@@ -197,3 +197,30 @@ def test_backfill_puts_the_apostrophe_words_right(monkeypatch):
     assert database.backfill_slugs() == 3
     assert [r["slug"] for r in rows] == ["one-familys-joy", "one-familys-joy-2", "my-own-words", "नवी-बातमी"]
     assert database.backfill_slugs() == 0
+
+
+def test_page_of_a_section_has_its_own_preview(client, db):
+    reply = client.get("/api/page/blog")
+    page = reply.get_data(as_text=True)
+    assert reply.status_code == 200
+    assert "<title>ब्लॉग्स | लोकमंगल न्यूज पोर्टल</title>" in page and "Home title" not in page
+    assert f'<link rel="canonical" href="{SITE}/blog" />' in page and f'<meta property="og:url" content="{SITE}/blog" />' in page
+    assert '<meta property="og:title" content="ब्लॉग्स" />' in page and '<meta property="og:type" content="website" />' in page
+    assert f'<meta property="og:image" content="{SITE}/assets/og-default.jpg" />' in page and 'og:image:width" content="1200"' in page
+    assert '"@type": "CollectionPage"' in page and '"@type": "BreadcrumbList"' in page
+    assert "css/style.css" in page and "seed story" in page and '<base href="/"' in page          # (the rest is the website's own, it draws the section)
+    for kind, name in (("rajkiy", "राजकीय बातम्या"), ("samajik", "सामाजिक बातम्या"), ("review", "रिव्ह्यू"), ("weekly", "लोकमंगल साप्ताहिक आवृत्ती - PDF ई-पेपर")):
+        page = client.get(f"/api/page/{kind}").get_data(as_text=True)
+        assert f"<title>{name} | " in page and f'rel="canonical" href="{SITE}/{kind}"' in page
+    assert client.get("/api/page/nonsense").status_code == 404
+
+
+def test_section_page_in_english(client, db):
+    page = client.get("/api/page/rajkiy?lang=en").get_data(as_text=True)
+    assert '<html lang="en"' in page and "<title>Political News | Lokmangal News Portal</title>" in page and "Latest political news from Maharashtra" in page
+
+
+def test_section_page_without_the_website_is_the_plain_preview_page(client, db, monkeypatch):
+    monkeypatch.setattr(seo, "shell_html", lambda: None)
+    page = client.get("/api/page/blog").get_data(as_text=True)
+    assert "og:title" in page and "ब्लॉग्स" in page and f"url={SITE}/blog" in page
