@@ -3465,6 +3465,16 @@ const emptySiteSettings = { office_address: "", office_address_en: "", office_ph
 let siteSettings = !staticDataAllowed ? emptySiteSettings
   : window.SITE_SETTINGS && typeof window.SITE_SETTINGS === "object" ? { ...defaultSiteSettings, ...window.SITE_SETTINGS } : defaultSiteSettings;
 
+// The address as Google Maps should look for it: without the label an owner may have typed in front of it ("कार्यालयाचा पत्ता:", "Office address:") and
+// the word "पिनकोड:", with the digits as 0-9 (the PIN code is the part that places the pin in the right town).
+const mapQueryOf = (address) => String(address)
+  .replace(/^\s*(कार्यालयाचा\s+पत्ता|कार्यालय\s+पत्ता|पत्ता|office\s+address|address)\s*[:：-]\s*/i, "")
+  .replace(/पिन\s*कोड\s*[:：-]?/g, "")
+  .replace(/pin\s*code\s*[:：-]?/ig, "")
+  .replace(/[०-९]/g, (d) => "०१२३४५६७८९".indexOf(d))
+  .replace(/\s+/g, " ")
+  .trim();
+
 function renderFooterContact() {
   const s = siteSettings;
   const text = (v) => String(v == null ? "" : v).trim();
@@ -3481,6 +3491,19 @@ function renderFooterContact() {
   };
   if (window.LokmangalSEO) window.LokmangalSEO.setContact({ address, phone, email });
   show("footer-row-address", "footer-address", address);
+  // the address is a link to Google Maps (the whole row: icon, label and text - see .footer-map-link in style.css)
+  const addressEl = document.getElementById("footer-address");
+  if (addressEl && address) {
+    const link = document.createElement("a");
+    link.className = "footer-map-link";
+    link.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapQueryOf(address));
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.title = getLang() === "en" ? "View on Google Maps" : "Google Maps वर पाहा";
+    link.textContent = address;
+    addressEl.textContent = "";
+    addressEl.appendChild(link);
+  }
   show("footer-row-phone", "footer-phone", phone, "tel:" + (phone.startsWith("+") ? "+" : "") + phone.replace(/\D/g, ""));
   show("footer-row-email", "footer-email", email, "mailto:" + email);
   const box = document.getElementById("footer-contact");

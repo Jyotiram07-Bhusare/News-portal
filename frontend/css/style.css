@@ -2246,6 +2246,28 @@ a.footer-contact-value:hover {
   color: var(--orange, #EE7B30);
 }
 
+/* The address is a link to Google Maps; its ::after covers the whole row (the icon, the label and the text), so a tap anywhere on it opens the map */
+.footer-contact-item {
+  position: relative;
+}
+
+a.footer-map-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.footer-map-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+a.footer-map-link:hover,
+a.footer-map-link:focus-visible {
+  color: var(--orange, #EE7B30);
+  text-decoration: underline;
+}
+
 @media (max-width: 760px) {
   .footer-top {
     grid-template-columns: minmax(0, 1fr);
