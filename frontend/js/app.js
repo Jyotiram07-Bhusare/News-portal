@@ -673,29 +673,8 @@ function fluidImg(url, alt, widths, sizes, attrs = LAZY_IMG) {
 
 // The large card (Popular, Latest Reviews, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
 // it - a headline, label or date never sits on a photo. `mediaExtra` is for icons only (the play button of a video).
-// ---- Soft hyphens ------------------------------------------------------------------------------------------------------------------------
-// A long word may be split at the end of a line: an invisible soft hyphen shows a hyphen only where the line really breaks (and only on phones, see the
-// hyphens rules in responsive.css), so a justified heading does not have to stretch its spaces so far. Devanagari: between syllables (2+ on each side);
-// English: between a vowel and the consonant after it (3+ letters on each side). The text itself is not changed.
-const SHY = "\u00AD";
-const DEV_CLUSTER = /(?:[\u0915-\u0939\u0958-\u095F]\u093C?\u094D)*[\u0915-\u0939\u0958-\u095F]\u093C?[\u093E-\u094C\u0955-\u0957\u0962\u0963]?[\u0900-\u0903\u094D]?|[\u0904-\u0914\u0960\u0961][\u0900-\u0903]?|[\u0900-\u097F]/g;
-function softHyphens(text) {
-  return String(text == null ? "" : text).replace(/[\u0900-\u097F]{5,}|[A-Za-z]{6,}/g, (word) => {
-    if (/[\u0900-\u097F]/.test(word)) {
-      const syllables = word.match(DEV_CLUSTER) || [word];
-      return syllables.length < 4 ? word : syllables.map((s, i) => (i >= 2 && i <= syllables.length - 2 ? SHY + s : s)).join("");
-    }
-    const parts = word.replace(/([aeiouy])(?=[^aeiouy][aeiouy])/gi, "$1" + SHY).replace(/([aeiouy][^aeiouy])(?=[^aeiouy][aeiouy])/gi, "$1" + SHY).split(SHY);
-    let out = parts[0];
-    for (let i = 1; i < parts.length; i++) {
-      out += (out.replace(/\u00AD/g, "").length >= 3 && parts.slice(i).join("").length >= 3 ? SHY : "") + parts[i];
-    }
-    return out;
-  });
-}
-
 // the title of a story as a real link (crawlers follow it, "open in a new tab" works); a plain click is taken over by the listener in the router
-const titleLink = (a, text = a.title) => `<a class="title-link" ${linkTo(a)}>${softHyphens(text)}</a>`;
+const titleLink = (a, text = a.title) => `<a class="title-link" ${linkTo(a)}>${text}</a>`;
 
 function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = "", title, titleTag = "h4", byline = "", link = "" }) {
   return `
@@ -705,7 +684,7 @@ function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = ""
       </div>
       <div class="popular-card-caption">
         ${badge}
-        <${titleTag} class="popular-card-title">${link ? `<a class="title-link" ${link}>${softHyphens(title)}</a>` : title}</${titleTag}>
+        <${titleTag} class="popular-card-title">${link ? `<a class="title-link" ${link}>${title}</a>` : title}</${titleTag}>
         <div class="popular-card-byline">${byline}</div>
       </div>
     </div>`;
@@ -2737,7 +2716,7 @@ function renderArticleView(article) {
     </div>
 
     <h1 class="single-post-headline">
-      ${softHyphens(article.title)}
+      ${article.title}
     </h1>
 
     ${isIssue && WEEKLY_PDF ? `
