@@ -57,7 +57,9 @@ jobs:
           if curl --fail --silent --show-error --max-time 40 --retry 2 --retry-delay 3 -o api-sitemap.xml "$LOKMANGAL_API_BASE/api/sitemap.xml" \
              && grep -q '<urlset' api-sitemap.xml && grep -q "<loc>$SITE_BASE/</loc>" api-sitemap.xml; then
             cp api-sitemap.xml frontend/sitemap.xml
-            echo "sitemap.xml: $(grep -o '<loc>' frontend/sitemap.xml | wc -l) addresses from the API"
+            # the same addresses as a plain text sitemap (one address per line): the simplest format, a second way for Google to read them
+            grep -o '<loc>[^<]*</loc>' frontend/sitemap.xml | sed -e 's#<loc>##' -e 's#</loc>##' > frontend/sitemap.txt
+            echo "sitemap.xml: $(grep -o '<loc>' frontend/sitemap.xml | wc -l) addresses from the API; sitemap.txt: $(wc -l < frontend/sitemap.txt) lines"
           else
             echo "::warning::The API sitemap could not be read; the sitemap.xml of the repository (Home and the sections) is deployed instead."
           fi
