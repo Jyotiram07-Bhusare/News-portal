@@ -1,5 +1,5 @@
 https://www.lokmangal.info/
-https://www.lokmangal.info/?cat=rajkiy
-https://www.lokmangal.info/?cat=samajik
-https://www.lokmangal.info/?cat=blogs
-https://www.lokmangal.info/?cat=weekly
+https://www.lokmangal.info/rajkiy
+https://www.lokmangal.info/samajik
+https://www.lokmangal.info/blog
+https://www.lokmangal.info/weekly

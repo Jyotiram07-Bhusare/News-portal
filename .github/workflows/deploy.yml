@@ -31,7 +31,7 @@ env:
   LOKMANGAL_API_BASE: https://api.lokmangal.info
   # "1" = the website names a story by the words of its title (/blog/<words>, /rajkiy/<words> ...) instead of ?post=12. Needs the Amplify rules of the step
   # "Addresses of the stories" below (they are set whatever this says) and a backend that has /api/page/ (backend/seo.py). Back to "0" = the old addresses again.
-  LOKMANGAL_PRETTY_URLS: "0"
+  LOKMANGAL_PRETTY_URLS: "1"
   SITE_BASE: https://www.lokmangal.info
   SERVER_HOST: 13.205.79.72
 
