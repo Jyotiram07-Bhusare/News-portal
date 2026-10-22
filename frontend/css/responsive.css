@@ -1971,6 +1971,20 @@ button:focus-visible,
    Phones: the lead headline ABOVE the photo, bigger headings, smaller story text.
    (Later in the file than the rules above, so these win.)
    =========================================================================================================================== */
+/* A soft hyphen inside a heading (see softHyphens in app.js) is used on phones only; on bigger screens the headings wrap as they always did. */
+.main-post-headline,
+.single-post-headline,
+.popular-card-title,
+.popular-sub-title,
+.secondary-post-title,
+.random-grid-title,
+.related-post-title,
+.weekly-latest-title,
+.nav-title {
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
 @media (max-width: 980px) {
   /* lines that are balanced leave an empty strip at the right of a headline: let them fill the width */
   .main-post-headline,
@@ -2030,21 +2044,21 @@ button:focus-visible,
 
   /* ---- the news text: a little smaller, so the headings stand out ---- */
   .main-article-body {
-    font-size: 15.5px;
-    line-height: 1.72;
+    font-size: 16.5px;
+    line-height: 1.75;
   }
 
   .single-article-content {
-    font-size: 16px;
-    line-height: 1.82;
+    font-size: 17px;
+    line-height: 1.85;
   }
 
   .single-article-content > p:first-child {
-    font-size: 16px !important;                 /* (the summary line has its own inline size) */
+    font-size: 17px !important;                 /* (the summary line has its own inline size) */
   }
 
   .single-article-content blockquote {
-    font-size: 15.5px;
+    font-size: 16.5px;
   }
 
   /* ---- every heading fills its lines to the right edge (no gap at the end of a line); the last line stays on the left ---- */
@@ -2061,5 +2075,7 @@ button:focus-visible,
     text-align: justify;
     text-justify: inter-word;
     text-align-last: left;
+    hyphens: manual;                        /* a long word may be split at its soft hyphens (invisible; shown as a hyphen only where the line breaks) */
+    -webkit-hyphens: manual;
   }
 }
