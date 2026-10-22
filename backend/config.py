@@ -67,6 +67,10 @@ SITE_URL = _text("SITE_URL", "" if not IS_PRODUCTION else "https://www.lokmangal
 # true = the sitemap, the feed and the link-preview pages name a story by the words of its title (/blog/<words>) instead of ?post=12. It needs the
 # website to answer such addresses (the Amplify rules that deploy.yml adds; a development PC answers them itself). PRETTY_URLS=0 goes back to ?post=12.
 PRETTY_URLS = _flag("PRETTY_URLS", True)
+# true = the picture of a link preview (og:image) of a news / blog is a small copy of its photo (1200 px wide, under 300 KB, made by /api/og-image/<id>.jpg):
+# WhatsApp draws no picture when the photo is several MB. PUBLIC_API_URL = where crawlers reach this API (a development PC: the address of the request).
+PREVIEW_IMAGES = _flag("PREVIEW_IMAGES", IS_PRODUCTION)
+PUBLIC_API_URL = _text("PUBLIC_API_URL", "https://api.lokmangal.info" if IS_PRODUCTION else "").rstrip("/")
 MAX_UPLOAD_MB = _int("MAX_UPLOAD_MB", 50)       # images and weekly PDFs
 MAX_VIDEO_MB = _int("MAX_VIDEO_MB", 200)        # videos (Admin Panel > Videos)
 # How many reverse proxies (nginx, a load balancer) stand in front of the app: their X-Forwarded-* headers are then trusted.

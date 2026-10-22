@@ -12,11 +12,14 @@ card for every story, and a crawler that does not run JavaScript would find no s
                              preview tags, structured data and text put in. The website passes /blog/... on to it (deploy.yml adds the Amplify rules), so a
                              link preview and a crawler see the story; the page then starts the website, which opens the same story.
     /api/page/<kind>         the same for a section's address (/blog, /rajkiy ...): the section's own name and description in the preview, not Home's.
+    /api/og-image/<id>.jpg   the photo of a news / blog as a small JPEG (1200 px, under 300 KB) for the preview card (WhatsApp skips photos of several MB)
 
 They live under /api/ because that is the only part of this server the production nginx lets through (deploy/docker/nginx.conf).
 Nothing here writes anything and nothing needs a login. The website's own addresses are ?post=12, ?issue=42 and ?cat=rajkiy (see app.js).
 """
+import hashlib
 import html
+import io
 import json
 import re
 import time
@@ -160,6 +163,14 @@ def preview_image(src: Any, site: str) -> str:
     return url
 
 
+def card_image(row: Dict[str, Any], image: str) -> str:
+    """The picture a link preview shows: a small copy of the story's photo (/api/og-image/<id>.jpg) when PREVIEW_IMAGES is on, else the photo itself."""
+    if not config.PREVIEW_IMAGES or not row.get("id") or image.endswith("/" + DEFAULT_IMAGE):
+        return image
+    base = config.PUBLIC_API_URL or request.host_url.rstrip("/")
+    return f"{base}/api/og-image/{row['id']}.jpg?v={hashlib.md5(image.encode()).hexdigest()[:8]}"
+
+
 def plain_text(markup: Any) -> str:
     text = re.sub(r"<(script|style)\b.*?</\1>", " ", str(markup or ""), flags=re.S | re.I)
     text = html.unescape(re.sub(r"<[^>]+>", " ", text))
@@ -238,6 +249,7 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     author = _pick(row, "author", lang)
     canonical = f"{site}/{story_path(row)}"
     image = preview_image(row.get("image"), site)
+    card = card_image(row, image)
     summary = summary_of(_pick(row, "excerpt", lang), content)
     data: Dict[str, Any] = {
         "@context": "https://schema.org",
@@ -255,7 +267,7 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
         data["dateModified"] = _modified_iso(row, published)
     if author:
         data["author"] = {"@type": "Organization" if _ORGANISATION.search(author) else "Person", "name": author}
-    return {"lang": lang, "title": title, "summary": summary, "image": image, "body": body,
+    return {"lang": lang, "title": title, "summary": summary, "image": image, "card": card, "body": body,
             "author": author, "section": section_name, "published": published, "published_iso": data.get("datePublished", ""),
             "modified_iso": data.get("dateModified", ""), "canonical": canonical,
             "target": with_lang(canonical, lang), "jsonld": data}
@@ -320,12 +332,12 @@ def share_page(story: Dict[str, Any]) -> str:
 <meta property="og:locale" content="{"mr_IN" if lang == "mr" else "en_IN"}">
 <meta property="og:title" content="{esc(story["title"])}">
 <meta property="og:description" content="{esc(story["summary"])}">
-<meta property="og:image" content="{esc(story["image"])}">
+<meta property="og:image" content="{esc(story.get("card") or story["image"])}">
 <meta property="og:image:alt" content="{esc(story["title"])}">
 {published}{modified}<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{esc(story["title"])}">
 <meta name="twitter:description" content="{esc(story["summary"])}">
-<meta name="twitter:image" content="{esc(story["image"])}">
+<meta name="twitter:image" content="{esc(story.get("card") or story["image"])}">
 <script type="application/ld+json">{_json_for_script(story["jsonld"])}</script>
 <style>body{{margin:0;padding:24px 16px;font:17px/1.7 system-ui,"Noto Sans Devanagari",sans-serif;color:#222;background:#fff}}article{{max-width:720px;margin:0 auto}}img{{max-width:100%;height:auto}}h1{{font-size:26px;line-height:1.35}}.meta{{color:#666;font-size:14px}}table{{border-collapse:collapse}}td,th{{border:1px solid #ccc;padding:4px 8px}}</style>
 </head>
@@ -415,7 +427,7 @@ def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
         f'<meta property="og:url" content="{esc(story["canonical"])}" />',
         f'<meta property="og:title" content="{esc(story["title"])}" />',
         f'<meta property="og:description" content="{esc(story["summary"])}" />',
-        f'<meta property="og:image" content="{esc(story["image"])}" />',
+        f'<meta property="og:image" content="{esc(story.get("card") or story["image"])}" />',
     ]
     if story.get("image_size"):                                           # (known for the card of the website itself, not for a story's own picture)
         parts += [f'<meta property="og:image:width" content="{story["image_size"][0]}" />', f'<meta property="og:image:height" content="{story["image_size"][1]}" />']
@@ -428,7 +440,7 @@ def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
         '<meta name="twitter:card" content="summary_large_image" />',
         f'<meta name="twitter:title" content="{esc(story["title"])}" />',
         f'<meta name="twitter:description" content="{esc(story["summary"])}" />',
-        f'<meta name="twitter:image" content="{esc(story["image"])}" />',
+        f'<meta name="twitter:image" content="{esc(story.get("card") or story["image"])}" />',
     ]
     breadcrumb = {"@context": "https://schema.org", "@type": "BreadcrumbList",
                   "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": u} for i, (n, u) in enumerate(crumbs)]}
@@ -515,6 +527,79 @@ def section_response(kind: str) -> Response:
 @seo.get("/page/<kind>")
 def section_page(kind):
     return section_response(kind)
+
+
+# ---------------------------------------------------------------------------------------------------- the small photo of a preview card
+CARD_WIDTH = 1200
+CARD_BYTES = 300 * 1024
+CARD_SOURCE_MAX = 40 * 1024 * 1024
+_CARDS: Dict[int, Any] = {}          # article id -> (source address, JPEG bytes or None = the original is fine)
+_CARDS_KEPT = 64
+
+
+def _read_photo(src: str, site: str) -> bytes:
+    """The bytes of a photo: a file of the frontend folder, or whatever address (http / https) the photo has."""
+    text = str(src or "").strip()
+    if text and not re.match(r"(https?:)?//", text, re.I):
+        local = (config.FRONTEND_DIR / text.lstrip("/")).resolve()
+        if local.is_file() and config.FRONTEND_DIR.resolve() in local.parents:
+            return local.read_bytes()
+    with urllib.request.urlopen(urllib.request.Request(absolute(src, site), headers={"User-Agent": "lokmangal-card/1"}), timeout=15) as res:
+        data = res.read(CARD_SOURCE_MAX + 1)
+    if len(data) > CARD_SOURCE_MAX:
+        raise ValueError("photo too big")
+    return data
+
+
+def make_card(data: bytes) -> Optional[bytes]:
+    """A JPEG of at most 1200 px width and CARD_BYTES; None when the photo is small enough already (or Pillow / the photo is not usable)."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        return None
+    with Image.open(io.BytesIO(data)) as opened:
+        kind = opened.format                                           # (the turned copy below no longer knows it)
+        img = ImageOps.exif_transpose(opened)
+        if len(data) <= CARD_BYTES and img.width <= CARD_WIDTH and kind in ("JPEG", "PNG"):
+            return None
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGBA")
+            flat = Image.new("RGB", img.size, (255, 255, 255))
+            flat.paste(img, mask=img.getchannel("A"))
+            img = flat
+        else:
+            img = img.convert("RGB")
+        if img.width > CARD_WIDTH:
+            img = img.resize((CARD_WIDTH, max(1, round(img.height * CARD_WIDTH / img.width))), Image.LANCZOS)
+        for quality in (85, 78, 70, 62, 54, 46):
+            out = io.BytesIO()
+            img.save(out, "JPEG", quality=quality, optimize=True, progressive=True)
+            if out.tell() <= CARD_BYTES:
+                break
+        return out.getvalue()
+
+
+@seo.get("/og-image/<int:article_id>.jpg")
+def og_image(article_id):
+    row = database.get_article(article_id)
+    if not row:
+        return _not_found("mr")
+    site = site_url()
+    original = preview_image(row.get("image"), site)
+    cached = _CARDS.get(article_id)
+    if not cached or cached[0] != original:
+        try:
+            cached = (original, make_card(_read_photo(row.get("image"), site)))
+        except Exception:                                              # (a photo that cannot be read or drawn: the preview uses it as it is; tried again next time)
+            return redirect(original, code=302)
+        if len(_CARDS) >= _CARDS_KEPT:
+            _CARDS.pop(next(iter(_CARDS)))
+        _CARDS[article_id] = cached
+    if cached[1] is None:
+        return redirect(original, code=302)
+    response = Response(cached[1], mimetype="image/jpeg")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 # ---------------------------------------------------------------------------------------------------- sitemap.xml

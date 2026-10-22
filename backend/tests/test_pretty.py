@@ -224,3 +224,66 @@ def test_section_page_without_the_website_is_the_plain_preview_page(client, db, 
     monkeypatch.setattr(seo, "shell_html", lambda: None)
     page = client.get("/api/page/blog").get_data(as_text=True)
     assert "og:title" in page and "ब्लॉग्स" in page and f"url={SITE}/blog" in page
+
+
+# ---------------------------------------------------------------------------------------------------- the small photo of a preview card
+def _photo(width, height, fmt="PNG"):
+    import os
+    from PIL import Image
+    img = Image.frombytes("RGB", (width, height), os.urandom(width * height * 3))              # (noise: the biggest file for its size)
+    out = __import__("io").BytesIO()
+    img.save(out, fmt)
+    return out.getvalue()
+
+
+@pytest.fixture
+def cards(monkeypatch):
+    pytest.importorskip("PIL")
+    seo._CARDS.clear()
+    monkeypatch.setattr(config, "PREVIEW_IMAGES", True)
+    monkeypatch.setattr(config, "PUBLIC_API_URL", "https://api.example.org")
+
+
+def test_a_big_photo_is_given_to_the_preview_as_a_small_jpeg(client, db, cards, monkeypatch):
+    from PIL import Image
+    import io
+    story(db, 7, "big-photo", image="https://media.example.org/images/big.png")
+    big = _photo(3000, 2000)
+    assert len(big) > 5_000_000
+    monkeypatch.setattr(seo, "_read_photo", lambda src, site: big)
+    page = client.get("/api/page/blog/big-photo").get_data(as_text=True)
+    assert re.search(r'<meta property="og:image" content="https://api\.example\.org/api/og-image/7\.jpg\?v=[0-9a-f]{8}" />', page)
+    assert re.search(r'<meta name="twitter:image" content="https://api\.example\.org/api/og-image/7\.jpg\?v=', page)
+    assert '"image": ["https://media.example.org/images/big.png"]' in page                       # (the structured data keeps the full photo)
+    reply = client.get("/api/og-image/7.jpg")
+    assert reply.status_code == 200 and reply.mimetype == "image/jpeg" and len(reply.data) <= 300 * 1024
+    img = Image.open(io.BytesIO(reply.data))
+    assert img.format == "JPEG" and img.width == 1200 and img.height == 800
+    assert "max-age" in reply.headers["Cache-Control"]
+    monkeypatch.setattr(seo, "_read_photo", lambda src, site: (_ for _ in ()).throw(AssertionError("read again")))
+    assert client.get("/api/og-image/7.jpg").status_code == 200                                    # (kept: the photo is not fetched a second time)
+
+
+def test_a_small_photo_or_a_failure_sends_the_preview_to_the_original(client, db, cards, monkeypatch):
+    story(db, 8, "small-photo", image="https://media.example.org/images/small.png")
+    monkeypatch.setattr(seo, "_read_photo", lambda src, site: _photo(300, 200))
+    reply = client.get("/api/og-image/8.jpg")
+    assert reply.status_code == 302 and reply.headers["Location"] == "https://media.example.org/images/small.png"
+    seo._CARDS.clear()
+
+    def broken(src, site):
+        raise OSError("down")
+    monkeypatch.setattr(seo, "_read_photo", broken)
+    reply = client.get("/api/og-image/8.jpg")
+    assert reply.status_code == 302 and reply.headers["Location"] == "https://media.example.org/images/small.png"
+    assert 8 not in seo._CARDS                                                                    # (a failure is not remembered)
+    assert client.get("/api/og-image/999.jpg").status_code == 404
+
+
+def test_the_default_card_and_the_setting_off_keep_the_photo_as_it_is(client, db, monkeypatch):
+    story(db, 9, "plain", image="https://media.example.org/images/x.jpg")
+    page = client.get("/api/page/blog/plain").get_data(as_text=True)
+    assert '<meta property="og:image" content="https://media.example.org/images/x.jpg" />' in page             # (PREVIEW_IMAGES is off in the tests)
+    monkeypatch.setattr(config, "PREVIEW_IMAGES", True)
+    story(db, 10, "none", image="")
+    assert f'<meta property="og:image" content="{SITE}/assets/og-default.jpg" />' in client.get("/api/page/blog/none").get_data(as_text=True)
