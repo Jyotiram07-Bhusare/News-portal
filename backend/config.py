@@ -61,6 +61,9 @@ HOST = _text("HOST", "0.0.0.0")
 PORT = _int("PORT", 5000)
 SERVE_FRONTEND = _flag("SERVE_FRONTEND", not IS_PRODUCTION)
 CORS_ORIGINS = [o.strip().rstrip("/") for o in _text("CORS_ORIGINS", "*").split(",") if o.strip()]
+# The public website's address: the sitemap, the RSS feed and the link-preview pages (seo.py) point to it. Production: the live website
+# unless SITE_URL says otherwise. A development PC leaves it empty: those pages then point to the address they were asked on.
+SITE_URL = _text("SITE_URL", "" if not IS_PRODUCTION else "https://www.lokmangal.info").rstrip("/")
 MAX_UPLOAD_MB = _int("MAX_UPLOAD_MB", 50)       # images and weekly PDFs
 MAX_VIDEO_MB = _int("MAX_VIDEO_MB", 200)        # videos (Admin Panel > Videos)
 # How many reverse proxies (nginx, a load balancer) stand in front of the app: their X-Forwarded-* headers are then trusted.

@@ -28,6 +28,7 @@ import auth
 import config
 import database
 import sanitize
+import seo
 import storage
 
 ALLOWED_IMG_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
@@ -695,6 +696,7 @@ def create_app():
     app.json.ensure_ascii = False         # Marathi text stays readable (and half the size) in API answers
     CORS(app, resources={r"/api/*": {"origins": config.CORS_ORIGINS}}, max_age=600)
     app.register_blueprint(api)
+    app.register_blueprint(seo.seo)       # sitemap.xml, rss.xml and the link-preview pages (under /api/: the only part nginx lets through)
     register_errors(app)
 
     @app.after_request
@@ -703,6 +705,8 @@ def create_app():
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         if request.path.startswith("/api/"):
             response.headers.setdefault("X-Frame-Options", "DENY")
+            if response.mimetype == "application/json":      # (search engines still read it to draw the page, but never list it)
+                response.headers.setdefault("X-Robots-Tag", "noindex")
         if config.IS_PRODUCTION:              # (the production API is only reachable over https)
             response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response

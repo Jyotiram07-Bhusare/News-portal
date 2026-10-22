@@ -662,7 +662,10 @@ function fluidImg(url, alt, widths, sizes, attrs = LAZY_IMG) {
 
 // The large card (Popular, Latest Reviews, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
 // it - a headline, label or date never sits on a photo. `mediaExtra` is for icons only (the play button of a video).
-function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = "", title, titleTag = "h4", byline = "" }) {
+// the title of a story as a real link (crawlers follow it, "open in a new tab" works); a plain click is taken over by the listener in the router
+const titleLink = (a, text = a.title) => `<a class="title-link" ${linkTo(a)}>${text}</a>`;
+
+function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = "", title, titleTag = "h4", byline = "", link = "" }) {
   return `
     <div class="popular-card-large${cls ? " " + cls : ""}" onclick="${onclick}">
       <div class="popular-card-media">
@@ -670,7 +673,7 @@ function largeCardHTML({ cls = "", onclick, imgHTML, mediaExtra = "", badge = ""
       </div>
       <div class="popular-card-caption">
         ${badge}
-        <${titleTag} class="popular-card-title">${title}</${titleTag}>
+        <${titleTag} class="popular-card-title">${link ? `<a class="title-link" ${link}>${title}</a>` : title}</${titleTag}>
         <div class="popular-card-byline">${byline}</div>
       </div>
     </div>`;
@@ -1288,6 +1291,7 @@ function renderLeftSidebar() {
     <!-- Item 0 Large Card: photo, then the text below it -->
     ${largeCardHTML({
       onclick: `openArticlePage(${item0.id})`,
+      link: linkTo(item0),
       imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
       badge: `<span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>`,
       title: item0.title,
@@ -1301,7 +1305,7 @@ function renderLeftSidebar() {
         ${thumbImg(item.image, item.title, 240)}
       </div>
       <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item.title}</h5>
+        <h5 class="popular-sub-title">${titleLink(item)}</h5>
         <span class="popular-sub-date">${item.date}</span>
       </div>
     </div>`).join("")}
@@ -1329,7 +1333,7 @@ function renderRightSidebar() {
       <div class="random-grid-thumb">
         ${thumbImg(item.image, item.title, 400)}
       </div>
-      <h5 class="random-grid-title">${item.title}</h5>
+      <h5 class="random-grid-title">${titleLink(item)}</h5>
       <span class="random-grid-date">${item.date}</span>
     </div>
   `).join("") + moreButtonHTML("random", total, RANDOM_SHOWN, randomExpanded);
@@ -1354,6 +1358,7 @@ function renderLatestReviews() {
     <!-- Item 0 Large Card: photo, then the text below it -->
     ${largeCardHTML({
       onclick: `openArticleModal(${item0.id})`,
+      link: linkTo(item0),
       imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
       badge: `<span class="category-tag-badge">${item0.categoryLabel}</span>`,
       title: item0.title,
@@ -1366,7 +1371,7 @@ function renderLatestReviews() {
         ${thumbImg(item1.image, item1.title, 240)}
       </div>
       <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item1.title}</h5>
+        <h5 class="popular-sub-title">${titleLink(item1)}</h5>
         <div class="popular-sub-date">
           ${item1.date}
           ${stars(item1)}
@@ -1380,7 +1385,7 @@ function renderLatestReviews() {
         ${thumbImg(item2.image, item2.title, 240)}
       </div>
       <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item2.title}</h5>
+        <h5 class="popular-sub-title">${titleLink(item2)}</h5>
         <div class="popular-sub-date">
           ${item2.date}
           ${stars(item2)}
@@ -1394,7 +1399,7 @@ function renderLatestReviews() {
         ${thumbImg(item3.image, item3.title, 240)}
       </div>
       <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${item3.title}</h5>
+        <h5 class="popular-sub-title">${titleLink(item3)}</h5>
         <div class="popular-sub-date">
           ${item3.date}
           ${stars(item3)}
@@ -1676,6 +1681,7 @@ function renderDrawerPopularItems() {
     ${largeCardHTML({
       cls: "drawer-popular-card",
       onclick: `openArticlePage(${item0.id})`,
+      link: linkTo(item0),
       imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
       badge: `<span class="category-tag-badge cat-${item0.category}">${item0.categoryLabel}</span>`,
       title: item0.title,
@@ -1689,7 +1695,7 @@ function renderDrawerPopularItems() {
           ${thumbImg(item.image, item.title, 240)}
         </div>
         <div class="popular-sub-content">
-          <h5 class="popular-sub-title">${item.title}</h5>
+          <h5 class="popular-sub-title">${titleLink(item)}</h5>
           <span class="popular-sub-date">${item.date}</span>
         </div>
       </div>
@@ -1762,19 +1768,20 @@ function initSearch() {
 }
 
 // =====================================================================================================
-// ROUTER — one address (#hash) per view, so the browser's Back / Forward buttons, refresh and shared
-// links all land exactly where you expect:
+// ROUTER — one address per view, so the browser's Back / Forward buttons, refresh, shared links and search
+// engines all land exactly where you expect (the address is the "?" form; see urlForKey. The route KEY, on the left, is what the code uses):
 //
-//   (no hash)      Home                 the lead story + the News section
-//   #weekly        Weekly Edition   all issues (an empty card until the first issue is published)
-//   #issue-42      one weekly issue     (previous / next issue; the PDF reader when WEEKLY_PDF is on)
-//   #cat-rajkiy  #cat-samajik  #cat-blogs  #cat-review      category sections
-//   #post-12       one news / blog / review article
+//   (nothing)      Home                 the lead story + the News section
+//   weekly         ?cat=weekly          Weekly Edition   all issues (an empty card until the first issue is published)
+//   issue-42       ?issue=42            one weekly issue     (previous / next issue; the PDF reader when WEEKLY_PDF is on)
+//   cat-rajkiy  cat-samajik  cat-blogs  cat-review      ?cat=rajkiy ...      category sections
+//   post-12        ?post=12             one news / blog / review article
 //
 // Everything that navigates (menu, chips, labels, footer, cards, breadcrumbs, search ...) calls navigate().
+// The old "#post-12" style addresses (already shared in chats) still open the same view and are turned into the "?" form.
 // =====================================================================================================
 let renderedRoute = null;      // canonical key of the view that is on screen
-// The backend (Admin Panel data) has not answered yet. Until it does, an address such as #post-10000 or #issue-43 may simply
+// The backend (Admin Panel data) has not answered yet. Until it does, an address such as ?post=10000 or ?issue=43 may simply
 // belong to something the Admin Panel added, so it is not thrown away ("unknown address -> Home") too early.
 let apiSyncPending = true;
 let routeWaitingForApi = false;
@@ -1784,7 +1791,40 @@ let currentArticleId = null;
 
 const routeForArticle = (a) => (a.category === "weekly" && a.issue ? "issue-" + a.issue : "post-" + a.id);
 const routeForCategory = (cat) => (cat === "all" ? "" : cat === "weekly" ? "weekly" : "cat-" + cat);
-const shareUrlFor = (a) => window.location.origin + window.location.pathname + "#" + routeForArticle(a);
+
+// The ADDRESS of a view:   Home  /        ?cat=weekly  ?cat=rajkiy  ?cat=samajik  ?cat=blogs  ?cat=review        ?post=12        ?issue=42
+// Search engines ignore everything after a "#", so a story with a "#post-12" address could never be found in a search; with "?post=12" it is a
+// page of its own (listed in the sitemap, see backend/seo.py). An old "#post-12" link still works: it becomes "?post=12" when it is opened.
+function queryForKey(key) {
+  let m;
+  if (!key) return "";
+  if (key === "weekly") return "cat=weekly";
+  if ((m = key.match(/^(post|issue)-(\d+)$/))) return m[1] + "=" + m[2];
+  if ((m = key.match(/^cat-(rajkiy|samajik|blogs|review)$/))) return "cat=" + m[1];
+  return "";
+}
+
+// (the chosen language stays in the address when it came in it: ?lang=en)
+function urlForKey(key) {
+  const parts = [];
+  const query = queryForKey(key);
+  if (query) parts.push(query);
+  if (new URLSearchParams(window.location.search).has("lang")) parts.push("lang=" + getLang());
+  return window.location.pathname + (parts.length ? "?" + parts.join("&") : "");
+}
+
+// What a visitor shares or copies. With a backend (the live site) it is the PREVIEW page of the story (backend/seo.py): WhatsApp, Facebook, X and
+// Telegram show the story's own title and picture for it, and it sends people on to the website. Without a backend (a static host, a PC) it is
+// the website's own address of the story.
+const shareUrlFor = (a) => {
+  const english = getLang() === "en";
+  const api = window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.API_BASE;
+  if (api) return api + "/api/share/" + (a.category === "weekly" && a.issue ? "issue/" + a.issue : a.id) + (english ? "?lang=en" : "");
+  return window.location.origin + window.location.pathname + "?" + queryForKey(routeForArticle(a)) + (english ? "&lang=en" : "");
+};
+
+// a real, crawlable link to a story / issue (a plain click is taken over by the listener below)
+const linkTo = (a) => `href="?${queryForKey(routeForArticle(a))}" data-route="${routeForArticle(a)}"`;
 
 function parseRoute(hash) {
   const h = String(hash || "").replace(/^#/, "");
@@ -1804,10 +1844,26 @@ const routeKeyOf = (r) =>
         : r.type === "post" ? "post-" + r.id
           : "";
 
-const currentRouteKey = () => routeKeyOf(parseRoute(window.location.hash));
+// the view named in the address: "?post=12" (or ?issue= / ?cat=); null when the query names none
+function routeFromQuery(search) {
+  const q = new URLSearchParams(search);
+  const unknown = { type: "home", unknown: true };
+  if (q.has("post")) return /^\d+$/.test(q.get("post")) ? { type: "post", id: parseInt(q.get("post"), 10) } : unknown;
+  if (q.has("issue")) return /^\d+$/.test(q.get("issue")) ? { type: "issue", no: parseInt(q.get("issue"), 10) } : unknown;
+  if (q.has("cat")) {
+    const cat = q.get("cat");
+    return cat === "weekly" ? { type: "weekly" } : /^(rajkiy|samajik|blogs|review)$/.test(cat) ? { type: "cat", cat } : unknown;
+  }
+  return null;
+}
+
+// (an old "#post-12" address is understood too)
+const routeFromLocation = () => routeFromQuery(window.location.search) || parseRoute(window.location.hash);
+
+const currentRouteKey = () => routeKeyOf(routeFromLocation());
 
 function replaceUrl(key) {
-  try { history.replaceState(history.state, "", key ? "#" + key : window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
+  try { history.replaceState(history.state, "", urlForKey(key)); } catch (e) { /* ignore */ }
 }
 
 // remember how far the page was scrolled, so Back lands on the same spot of the list
@@ -1836,10 +1892,24 @@ window.navigate = function(route) {
       return;
     }
     rememberScroll();
-    history.pushState({ route: key }, "", key ? "#" + key : window.location.pathname + window.location.search);
+    history.pushState({ route: key }, "", urlForKey(key));
     renderRoute({ scroll: true });
   });
 };
+
+// Every link to a view of the site has a real address (it can be found, opened in a new tab, copied). A plain click is taken over here so the
+// page does not reload: a link with its own onclick (the menu) goes on to it, any other (a story's title inside a card) navigates here.
+// A click with Ctrl / Cmd / Shift / Alt or the middle button is left to the browser (a new tab) - and the card around the link must not react to it.
+document.addEventListener("click", (e) => {
+  const link = e.target.closest ? e.target.closest("a[data-route]") : null;
+  if (!link || e.defaultPrevented) return;
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { e.stopPropagation(); return; }
+  e.preventDefault();
+  if (!link.hasAttribute("onclick")) {
+    e.stopPropagation();
+    navigate(link.getAttribute("data-route"));
+  }
+}, true);
 
 // A short note while we wait for the backend's first answer (only for addresses we do not know yet)
 function showRouteLoading() {
@@ -1859,7 +1929,7 @@ function showRouteLoading() {
 
 // Draw the view that belongs to the current address
 function renderRoute({ scroll = true, restoreY = null } = {}) {
-  const r = parseRoute(window.location.hash);
+  const r = routeFromLocation();
   let article = null;
   if (r.type === "issue") article = issueByNo(r.no);
   if (r.type === "post") article = articlesData.find((a) => a.id === r.id);
@@ -1889,6 +1959,7 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     renderArticleView(article);
     updateNavActiveStates(article.category);
     setDocTitle(article.issue ? `${issueLabel(article) || article.title} • साप्ताहिक आवृत्ती` : article.title);
+    seoForView(article.issue ? "issue" : "post", renderedRoute, { article });
   } else {
     currentCategory = r.type === "weekly" ? "weekly" : r.type === "cat" ? r.cat : "all";
     const first = articlesData.find((a) => a.category === currentCategory);
@@ -1903,19 +1974,35 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     renderHomeFeed();
     updateNavActiveStates(currentCategory);
     setDocTitle(currentCategory === "all" ? "" : getMarathiCategory(currentCategory));
+    seoForView(currentCategory === "all" ? "home" : "section", renderedRoute, { section: currentCategory });
   }
 
   if (restoreY !== null) window.scrollTo(0, restoreY);
   else if (scroll) window.scrollTo({ top: 0, behavior: "auto" });
 }
 
+// What search engines and a pasted link read for the view that is on the screen (js/seo.js): title, description, canonical address, preview
+// tags, structured data. The page works without it.
+function seoForView(kind, key, { article = null, section = "" } = {}) {
+  if (!window.LokmangalSEO) return;
+  const query = queryForKey(key);
+  window.LokmangalSEO.apply({ kind, section, article, path: query ? "?" + query : "" });
+}
+
 function initRouter() {
   try { history.scrollRestoration = "manual"; } catch (e) { /* ignore */ }
+  // an old "#post-12" / "#cat-blogs" / "#weekly" address (shared before the views had real addresses) becomes "?post=12" ... before the first draw
+  if (!routeFromQuery(window.location.search)) {
+    const old = parseRoute(window.location.hash);
+    if (!old.unknown && routeKeyOf(old)) replaceUrl(routeKeyOf(old));
+  }
   // the first entry gets a state object too, so coming Back to it can restore the scroll position
   try { history.replaceState({ ...(history.state || {}), route: currentRouteKey() }, ""); } catch (e) { /* ignore */ }
   renderRoute({ scroll: false });
-  window.addEventListener("hashchange", () => {     // address edited by hand / a plain #link was clicked
-    if (parseRoute(window.location.hash).unknown) replaceUrl("");   // "#whatever" -> clean address
+  window.addEventListener("hashchange", () => {     // an old-style "#post-12" typed into the address bar / clicked inside the open page
+    if (!window.location.hash) return;                                     // (the "#" went away: Back / Forward is handled by popstate)
+    const old = parseRoute(window.location.hash);
+    replaceUrl(old.unknown ? "" : routeKeyOf(old));                        // "#post-12" -> "?post=12"; "#whatever" -> the clean address of Home
     if (currentRouteKey() !== renderedRoute) renderRoute({ scroll: true });
   });
 }
@@ -1942,10 +2029,12 @@ window.renderMainStory = function(articleId) {
   if (currentView === "home") renderHomeFeed();
 };
 
+// (an item with a `route` key is a real link: "" = Home, "cat-rajkiy" ...)
+const hrefForKey = (key) => (key ? "?" + queryForKey(key) : "./");
 const crumbHTML = (items) => items.map((it, i) => {
   const sep = i ? `<i class="fa-solid fa-chevron-right"></i>` : "";
   return sep + (it.onclick
-    ? `<a href="javascript:void(0)" onclick="${it.onclick}">${it.label}</a>`
+    ? `<a href="${it.route === undefined ? "javascript:void(0)" : hrefForKey(it.route)}"${it.route === undefined ? "" : ` data-route="${it.route}"`} onclick="${it.onclick}">${it.label}</a>`
     : `<span class="crumb-current">${it.label}</span>`);
 }).join("");
 
@@ -1962,8 +2051,8 @@ function renderHomeView(container) {
   container.innerHTML = `
     <div class="breadcrumb-bar" id="main-breadcrumb">
       ${crumbHTML([
-        { label: "Home", onclick: "returnToHomeFeed()" },
-        { label: article.categoryLabel, onclick: `setCategoryFilter('${article.category}')` },
+        { label: "Home", onclick: "returnToHomeFeed()", route: "" },
+        { label: article.categoryLabel, onclick: `setCategoryFilter('${article.category}')`, route: routeForCategory(article.category) },
         { label: "प्रमुख बातमी (Lead Story)" },
       ])}
     </div>
@@ -1986,7 +2075,7 @@ function renderWeeklySection(container) {
   container.innerHTML = `
     <div class="breadcrumb-bar" id="main-breadcrumb">
       ${crumbHTML([
-        { label: "Home", onclick: "returnToHomeFeed()" },
+        { label: "Home", onclick: "returnToHomeFeed()", route: "" },
         { label: "साप्ताहिक आवृत्ती (Weekly Edition)" },
       ])}
     </div>
@@ -2027,7 +2116,7 @@ function weeklyLatestHTML(a) {
       </div>
       <div class="weekly-latest-info">
         <span class="latest-chip"><i class="fa-solid fa-bolt"></i> नवीनतम अंक</span>
-        <h2 class="weekly-latest-title" onclick="openArticlePage(${a.id})">${a.title}</h2>
+        <h2 class="weekly-latest-title" onclick="openArticlePage(${a.id})">${titleLink(a)}</h2>
         <div class="weekly-latest-meta">
           <span><i class="fa-regular fa-calendar"></i> ${a.date}</span>
           ${hasViews(a.views) ? `<span><i class="fa-regular fa-eye"></i> ${a.views} वाचक</span>` : ""}
@@ -2052,7 +2141,7 @@ function renderCategorySection(container, cat) {
   container.innerHTML = `
     <div class="breadcrumb-bar" id="main-breadcrumb">
       ${crumbHTML([
-        { label: "Home", onclick: "returnToHomeFeed()" },
+        { label: "Home", onclick: "returnToHomeFeed()", route: "" },
         { label: getMarathiCategory(cat) },
       ])}
     </div>
@@ -2075,7 +2164,7 @@ function leadStoryHTML(article, { pdf = false, label = "" } = {}) {
   const isIssue = article.category === "weekly" && article.issue;
   return `
     <h1 class="main-post-headline" id="main-headline-text" onclick="${open}" style="cursor:pointer">
-      ${article.title}
+      ${titleLink(article)}
     </h1>
 
     <div class="main-featured-media" id="main-featured-img-wrap" onclick="${open}">
@@ -2218,7 +2307,7 @@ function postRowHTML(item) {
         ${thumbImg(item.image, item.title, 320)}
       </div>
       <div class="secondary-post-details">
-        <h4 class="secondary-post-title">${item.title}</h4>
+        <h4 class="secondary-post-title">${titleLink(item)}</h4>
         <div class="secondary-post-meta">
           <span class="cat-chip cat-${item.category}">${item.categoryLabel}</span>
           <span class="meta-dot">•</span>
@@ -2267,6 +2356,7 @@ function newsListHTML(filter) {
     ${largeCardHTML({
       cls: "news-featured",
       onclick: `openArticlePage(${first.id})`,
+      link: linkTo(first),
       imgHTML: fluidImg(first.image, first.title, [480, 800, 1200], "(max-width: 980px) 100vw, 640px"),
       badge: `<span class="category-tag-badge cat-${first.category}">${first.categoryLabel}</span>`,
       title: first.title,
@@ -2299,7 +2389,7 @@ function weeklyRowHTML(item, folded) {
         ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
       </div>
       <div class="secondary-post-details">
-        <h4 class="secondary-post-title">${item.title}</h4>
+        <h4 class="secondary-post-title">${titleLink(item)}</h4>
         <div class="secondary-post-meta">
           <span style="color:var(--accent-red); font-weight:700"><i class="fa-regular fa-newspaper"></i> ${WEEKLY_PDF ? "ई-पेपर" : "साप्ताहिक"}</span>
           <span class="meta-dot">•</span>
@@ -2596,9 +2686,9 @@ function renderArticleView(article) {
   container.innerHTML = `
     <!-- Breadcrumb: Home > section > this page. Every part is a link that does what it says. -->
     <div class="breadcrumb-bar" id="main-breadcrumb">
-      <a href="javascript:void(0)" onclick="returnToHomeFeed()">Home</a>
+      <a href="./" data-route="" onclick="returnToHomeFeed()">Home</a>
       <i class="fa-solid fa-chevron-right"></i>
-      <a href="javascript:void(0)" onclick="${sectionOnclick}">${isIssue ? "साप्ताहिक आवृत्ती" : article.categoryLabel}</a>
+      <a href="${hrefForKey(routeForCategory(article.category))}" data-route="${routeForCategory(article.category)}" onclick="${sectionOnclick}">${isIssue ? "साप्ताहिक आवृत्ती" : article.categoryLabel}</a>
       <i class="fa-solid fa-chevron-right crumb-sep-title"></i>
       <span class="crumb-title">${isIssue ? (issueLabel(article) || article.title) : article.title}</span>
     </div>
@@ -2666,13 +2756,13 @@ function renderArticleView(article) {
       ${prevItem ? `
         <div class="post-nav-item prev" onclick="openArticlePage(${prevItem.id})">
           <span class="nav-dir"><i class="fa-solid fa-arrow-left"></i> ${prevText}${prevItem.issue && issueLabel(prevItem) ? " (" + issueLabel(prevItem) + ")" : ""}</span>
-          <span class="nav-title">${prevItem.title}</span>
+          <span class="nav-title">${titleLink(prevItem)}</span>
         </div>
       ` : `<div></div>`}
       ${nextItem ? `
         <div class="post-nav-item next" onclick="openArticlePage(${nextItem.id})">
           <span class="nav-dir">${nextText}${nextItem.issue && issueLabel(nextItem) ? " (" + issueLabel(nextItem) + ")" : ""} <i class="fa-solid fa-arrow-right"></i></span>
-          <span class="nav-title">${nextItem.title}</span>
+          <span class="nav-title">${titleLink(nextItem)}</span>
         </div>
       ` : `<div></div>`}
     </div>
@@ -2687,7 +2777,7 @@ function renderArticleView(article) {
           <div class="related-post-thumb">
             ${thumbImg(rel.image, rel.title, 520)}
           </div>
-          <h4 class="related-post-title">${rel.title}</h4>
+          <h4 class="related-post-title">${titleLink(rel)}</h4>
         </div>
       `).join("")}
     </div>
@@ -3378,6 +3468,7 @@ function renderFooterContact() {
     el.textContent = value;
     if (href) el.setAttribute("href", href);
   };
+  if (window.LokmangalSEO) window.LokmangalSEO.setContact({ address, phone, email });
   show("footer-row-address", "footer-address", address);
   show("footer-row-phone", "footer-phone", phone, "tel:" + (phone.startsWith("+") ? "+" : "") + phone.replace(/\D/g, ""));
   show("footer-row-email", "footer-email", email, "mailto:" + email);

@@ -5,10 +5,60 @@
   <meta charset="UTF-8" />
   <!-- viewport-fit=cover lets the page use the full screen on notched phones (safe-area insets are handled in css/responsive.css) -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
-  <title>लोकमंगल न्यूज पोर्टल</title>
+  <title>लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी</title>
 
   <meta name="description"
-    content="लोकमंगल न्यूज पोर्टल - राजकीय, सामाजिक घडामोडी, साप्ताहिक आवृत्ती आणि ब्लॉग्ससाठी विश्वासार्ह डिजिटल व्यासपीठ." />
+    content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
+
+  <!-- Search engines and link previews. This is the Home page; js/seo.js writes the same tags again for every other view (a story, a section,
+       a weekly issue), because each has its own address (?post=12, ?cat=rajkiy, ?issue=42). The address below is the one Google should list
+       (also in js/seo.js, robots.txt, sitemap.xml and backend/config.py SITE_URL). -->
+  <link rel="canonical" href="https://www.lokmangal.info/" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="लोकमंगल न्यूज पोर्टल" />
+  <meta property="og:locale" content="mr_IN" />
+  <meta property="og:locale:alternate" content="en_IN" />
+  <meta property="og:url" content="https://www.lokmangal.info/" />
+  <meta property="og:title" content="लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी" />
+  <meta property="og:description"
+    content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
+  <meta property="og:image" content="https://www.lokmangal.info/assets/og-default.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="लोकमंगल वृत्तांत - अखंड गतीतून सार्थकता" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="लोकमंगल न्यूज पोर्टल - ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी" />
+  <meta name="twitter:description"
+    content="लोकमंगल न्यूज पोर्टल: महाराष्ट्रातील ताज्या मराठी बातम्या, राजकीय व सामाजिक घडामोडी, लोकमंगल साप्ताहिक आवृत्ती (PDF ई-पेपर) आणि फाउंडेशनचे ब्लॉग्स - एकाच ठिकाणी." />
+  <meta name="twitter:image" content="https://www.lokmangal.info/assets/og-default.jpg" />
+  <link rel="alternate" type="application/rss+xml" title="लोकमंगल न्यूज पोर्टल - RSS" href="https://api.lokmangal.info/api/rss.xml" />
+  <script type="application/ld+json" id="ld-site">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "NewsMediaOrganization",
+          "@id": "https://www.lokmangal.info/#organization",
+          "name": "लोकमंगल न्यूज पोर्टल",
+          "alternateName": ["Lokmangal News Portal", "लोकमंगल वृत्तांत"],
+          "url": "https://www.lokmangal.info/",
+          "logo": { "@type": "ImageObject", "url": "https://www.lokmangal.info/assets/logo-192.jpg", "width": 192, "height": 192 },
+          "slogan": "अखंड गतीतून सार्थकता"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.lokmangal.info/#website",
+          "url": "https://www.lokmangal.info/",
+          "name": "लोकमंगल न्यूज पोर्टल",
+          "alternateName": "Lokmangal News Portal",
+          "inLanguage": ["mr", "en"],
+          "publisher": { "@id": "https://www.lokmangal.info/#organization" }
+        }
+      ]
+    }
+  </script>
+
   <!-- Browser bar colour on phones: matches the header (white / dark). app.js switches it with the theme. -->
   <meta name="theme-color" content="#ffffff" id="meta-theme-color" />
   <script>
@@ -47,6 +97,22 @@
 
 <body>
 
+  <!-- For a reader (or a crawler) that does not run JavaScript: the sections, the feed and the sitemap -->
+  <noscript>
+    <nav class="noscript-nav" aria-label="विभाग">
+      <p>लोकमंगल न्यूज पोर्टल - बातम्या पाहण्यासाठी JavaScript चालू करा. | Please turn on JavaScript to read the news.</p>
+      <p>
+        <a href="./">होम</a> |
+        <a href="?cat=rajkiy">राजकीय</a> |
+        <a href="?cat=samajik">सामाजिक</a> |
+        <a href="?cat=blogs">ब्लॉग्स</a> |
+        <a href="?cat=weekly">साप्ताहिक आवृत्ती</a> |
+        <a href="https://api.lokmangal.info/api/rss.xml">RSS</a> |
+        <a href="https://api.lokmangal.info/api/sitemap.xml">Sitemap</a>
+      </p>
+    </nav>
+  </noscript>
+
   <!-- ==========================================================================
        1. STREAMLINED UNIFIED HEADER (Sticky Auto-Hide/Show Wrapper)
        ☰  लोकमंगल.    Home  Weekly Edition  News ˅  Blogs       🌙  🔍
@@ -62,7 +128,7 @@
             <i class="fa-solid fa-bars"></i>
           </button>
 
-          <a href="javascript:void(0)" class="brand-logo" onclick="setCategoryFilter('all')" title="लोकमंगल वृत्तांत">
+          <a href="./" data-route="" class="brand-logo" onclick="setCategoryFilter('all')" title="लोकमंगल वृत्तांत">
             <img src="assets/logo.png" alt="लोकमंगल वृत्तांत" class="brand-logo-img" />
           </a>
         </div>
@@ -71,12 +137,12 @@
         <nav class="header-nav">
           <!-- 1. Home -->
           <div class="nav-item active" data-nav="home">
-            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('all')">होम</a>
+            <a href="./" data-route="" class="nav-link" onclick="setCategoryFilter('all')">होम</a>
           </div>
 
           <!-- 2. Weekly Edition -->
           <div class="nav-item" data-nav="weekly">
-            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('weekly')">
+            <a href="?cat=weekly" data-route="weekly" class="nav-link" onclick="setCategoryFilter('weekly')">
               साप्ताहिक आवृत्ती
             </a>
           </div>
@@ -87,11 +153,11 @@
               बातम्या <i class="fa-solid fa-chevron-down dropdown-caret"></i>
             </a>
             <div class="dropdown-menu">
-              <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('samajik')">
+              <a href="?cat=samajik" data-route="cat-samajik" class="dropdown-link" onclick="setCategoryFilter('samajik')">
                 <i class="fa-solid fa-users" style="color:var(--accent-green)"></i> सामाजिक
                 <span class="dropdown-badge">अपडेट्स</span>
               </a>
-              <a href="javascript:void(0)" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
+              <a href="?cat=rajkiy" data-route="cat-rajkiy" class="dropdown-link" onclick="setCategoryFilter('rajkiy')">
                 <i class="fa-solid fa-landmark" style="color:var(--main-color)"></i> राजकीय
                 <span class="dropdown-badge">विशेष</span>
               </a>
@@ -100,7 +166,7 @@
 
           <!-- 4. Blogs -->
           <div class="nav-item" data-nav="blogs">
-            <a href="javascript:void(0)" class="nav-link" onclick="setCategoryFilter('blogs')">ब्लॉग्स</a>
+            <a href="?cat=blogs" data-route="cat-blogs" class="nav-link" onclick="setCategoryFilter('blogs')">ब्लॉग्स</a>
           </div>
         </nav>
 
@@ -223,9 +289,9 @@
 
             <!-- Breadcrumb Line -->
             <div class="breadcrumb-bar" id="main-breadcrumb">
-              <a href="javascript:void(0)" onclick="returnToHomeFeed()">होम</a>
+              <a href="./" data-route="" onclick="returnToHomeFeed()">होम</a>
               <i class="fa-solid fa-chevron-right"></i>
-              <a href="javascript:void(0)" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
+              <a href="?cat=rajkiy" data-route="cat-rajkiy" onclick="setCategoryFilter('rajkiy')">राजकीय</a>
               <i class="fa-solid fa-chevron-right"></i>
               <span id="breadcrumb-current-cat" class="crumb-current">प्रमुख बातमी</span>
             </div>
@@ -609,6 +675,7 @@
   <script src="js/env-config.js"></script>
   <script src="js/config.js"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/seo.js"></script>
   <script src="js/weekly-data.js"></script>
   <script src="js/content-en.js"></script>
   <script src="js/videos-data.js"></script>
