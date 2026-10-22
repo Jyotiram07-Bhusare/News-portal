@@ -369,10 +369,12 @@ def ensure_slug_column() -> bool:
     return has_slug()
 
 
-def slugify(text: Any, limit: int = SLUG_LIMIT) -> str:
-    """'Solapur South: MLA wins!' -> 'solapur-south-mla-wins'. English letters and digits and Marathi letters stay, everything else becomes one hyphen;
-    at most `limit` characters, cut between words. Never empty."""
+def slugify(text: Any, limit: int = SLUG_LIMIT, _apostrophes: bool = False) -> str:
+    """'Solapur South: MLA wins!' -> 'solapur-south-mla-wins'. English letters and digits and Marathi letters stay, everything else becomes one hyphen
+    (an apostrophe just vanishes: "family's" -> 'familys'); at most `limit` characters, cut between words. Never empty."""
     s = unicodedata.normalize("NFC", str(text or "")).lower()
+    if not _apostrophes:
+        s = re.sub(r"['\u2018\u2019]", "", s)
     s = re.sub(r"[^a-z0-9\u0900-\u0963\u0966-\u097f]+", "-", s).strip("-")
     if len(s) > limit:
         s = s[:limit].rsplit("-", 1)[0] or s[:limit]
@@ -401,7 +403,16 @@ def backfill_slugs() -> int:
         for row in rows:
             slug = _free_slug(cur, slugify(row["title_en"] if str(row["title_en"] or "").strip() else row["title"]), row["id"])
             cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (slug, row["id"]))
-        return len(rows)
+        done = len(rows)
+        if has_english():
+            # the first version turned an apostrophe into a hyphen ('family-s-joy'): put the words right, only for the slugs made exactly that way
+            cur.execute("SELECT id, slug, title_en FROM articles WHERE slug IS NOT NULL AND slug != '' AND (title_en LIKE %s OR title_en LIKE %s)", ("%'%", "%’%"))
+            for row in cur.fetchall():
+                old, new = slugify(row["title_en"], _apostrophes=True), slugify(row["title_en"])
+                if old != new and (row["slug"] == old or re.fullmatch(re.escape(old) + r"-\d+", row["slug"])):
+                    cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, new, row["id"]), row["id"]))
+                    done += 1
+        return done
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:

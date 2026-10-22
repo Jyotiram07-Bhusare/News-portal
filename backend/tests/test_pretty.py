@@ -54,6 +54,8 @@ def test_slugify():
     assert database.slugify("एक पाऊल, एका कुटुंबाचा आनंद!") == "एक-पाऊल-एका-कुटुंबाचा-आनंद"
     assert database.slugify("लोकमंगल Annapurna योजना") == "लोकमंगल-annapurna-योजना"
     assert database.slugify("१९ ते २५ ऑगस्ट २०२६") == "१९-ते-२५-ऑगस्ट-२०२६"
+    assert database.slugify("One Step, One Family's Joy") == "one-step-one-familys-joy"
+    assert database.slugify("Don’t wait") == "dont-wait"
     assert database.slugify("!!!") == "story" and database.slugify("") == "story" and database.slugify(None) == "story"
     assert database.slugify("<script>alert(1)</script>") == "script-alert-1-script"
     long = database.slugify("word " * 60)
@@ -152,3 +154,46 @@ def test_without_the_website_the_plain_preview_page_is_given(client, db, monkeyp
     page = client.get("/api/page/blog/first-blog").get_data(as_text=True)
     assert "og:title" in page and "Text 7" not in page and "मजकूर 7" in page and f'url={SITE}/blog/first-blog' in page
     assert client.get("/api/page/blog/nothing").status_code == 404
+
+
+class _Cur:
+    """A cursor over a few news rows: just enough SQL for backfill_slugs."""
+
+    def __init__(self, rows):
+        self.rows, self.result = rows, []
+
+    def execute(self, sql, params=()):
+        if sql.startswith("SELECT id, title,"):
+            self.result = [r for r in self.rows if not r["slug"]]
+        elif sql.startswith("SELECT id, slug, title_en"):
+            self.result = [r for r in self.rows if r["slug"] and ("'" in r["title_en"] or "\u2019" in r["title_en"])]
+        elif sql.startswith("SELECT id FROM articles WHERE slug"):
+            self.result = [r for r in self.rows if r["slug"] == params[0] and r["id"] != params[1]][:1]
+        elif sql.startswith("UPDATE articles SET slug"):
+            next(r for r in self.rows if r["id"] == params[1])["slug"] = params[0]
+
+    def fetchall(self):
+        return self.result
+
+    def fetchone(self):
+        return self.result[0] if self.result else None
+
+
+def test_backfill_puts_the_apostrophe_words_right(monkeypatch):
+    from contextlib import contextmanager
+    rows = [{"id": 1, "title": "x", "title_en": "One Family's Joy", "slug": "one-family-s-joy"},          # made by the first version -> repaired
+            {"id": 2, "title": "x", "title_en": "One Family's Joy", "slug": "one-family-s-joy-2"},        # same, with a number -> repaired (-2 is free after id 1 moved)
+            {"id": 3, "title": "x", "title_en": "Don't wait", "slug": "my-own-words"},                    # an address that is not made from the headline stays
+            {"id": 4, "title": "नवी बातमी", "title_en": "", "slug": ""}]                                   # no address yet -> given one
+    cur = _Cur(rows)
+
+    @contextmanager
+    def fake_connection():
+        yield type("Conn", (), {"cursor": lambda self: cur})()
+
+    monkeypatch.setattr(database, "connection", fake_connection)
+    monkeypatch.setattr(database, "has_slug", lambda: True)
+    monkeypatch.setattr(database, "has_english", lambda: True)
+    assert database.backfill_slugs() == 3
+    assert [r["slug"] for r in rows] == ["one-familys-joy", "one-familys-joy-2", "my-own-words", "नवी-बातमी"]
+    assert database.backfill_slugs() == 0
