@@ -138,7 +138,7 @@ CATEGORY_LABELS = {
     "reviews": "रिव्ह्यू",       # older spelling, still accepted
     "weekly": "साप्ताहिक आवृत्ती",
 }
-FLAG_FIELDS = ("is_lead", "is_popular", "is_random", "is_latest")
+FLAG_FIELDS = ("is_lead", "is_popular", "is_random", "is_latest", "is_review")
 
 
 def article(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:

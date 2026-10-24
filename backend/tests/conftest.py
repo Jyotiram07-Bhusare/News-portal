@@ -41,6 +41,8 @@ import database  # noqa: E402
 database.ensure_latest_column = lambda: True          # no MySQL in the tests
 database.ensure_order_column = lambda: True
 database.ensure_slug_column = lambda: False          # (no MySQL: nothing to fill in)
+database.ensure_clicks_column = lambda: True
+database.ensure_review_column = lambda: True
 
 import app as app_module  # noqa: E402
 import auth  # noqa: E402
@@ -74,7 +76,7 @@ class FakeDB:
         return True
 
     def toggle_placement(self, article_id, field, value=None):
-        if field not in ("is_lead", "is_popular", "is_random", "is_latest") or article_id not in self.articles:
+        if field not in ("is_lead", "is_popular", "is_random", "is_latest", "is_review") or article_id not in self.articles:
             return None
         self.articles[article_id][field] = 0 if self.articles[article_id].get(field) else 1
         return self.articles[article_id]
@@ -84,6 +86,12 @@ class FakeDB:
 
     def get_article_by_slug(self, slug):
         return next((r for r in self.articles.values() if r.get("slug") == slug), None)
+
+    def count_click(self, article_id):
+        if article_id not in self.articles:
+            return False
+        self.articles[article_id]["clicks"] = self.articles[article_id].get("clicks", 0) + 1
+        return True
 
     # ---- weekly
     def get_weekly_editions(self, limit=None):
@@ -151,7 +159,7 @@ class FakeDB:
 @pytest.fixture
 def db(monkeypatch):
     fake = FakeDB()
-    for name in ("get_articles", "get_article", "get_article_by_slug", "create_article", "update_article", "toggle_placement", "delete_article",
+    for name in ("get_articles", "get_article", "get_article_by_slug", "create_article", "update_article", "toggle_placement", "delete_article", "count_click",
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
                  "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
                  "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad"):

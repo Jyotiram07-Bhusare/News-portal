@@ -78,18 +78,32 @@ UPDATED_COLUMNS = {
 LATEST_COLUMNS = {
     "articles": (("is_latest", "TINYINT(1) NOT NULL DEFAULT 1"),),
 }
+# The 5th placement: is_review = 1 -> the news / blog is listed in the website's Review section (रिव्ह्यू), before the most viewed news and
+# blogs that fill the section up. Every news is 0 until the Admin Panel ticks it.
+REVIEW_COLUMNS = {
+    "articles": (("is_review", "TINYINT(1) NOT NULL DEFAULT 0"),),
+}
 # The place a news / blog is given in the Admin Panel ("क्रम क्रमांक", 1 = first). NULL = not placed by hand: it is listed by recency as before. The
 # numbers are kept 1..K inside a group by _renumber_articles; the website lists the numbered ones first, in number order (newerFirst in app.js).
 ORDER_COLUMNS = {
     "articles": (("sort_order", "INT NULL"),),
 }
 ORDER_GROUPS = {"rajkiy": ("rajkiy", "samajik"), "samajik": ("rajkiy", "samajik")}     # the two news sections are one list; every other section is its own
+# Sections whose stories always carry a place number: a NEW blog becomes number 1 of the Blogs section and the others move down one place
+# (the newest blog first, the one before it second ...). A number typed in the Admin Panel still puts a blog at that place.
+AUTO_NUMBERED = ("blogs",)
 # The words of a news / blog's address (/blog/<slug>). Made once when it is created (the English headline when there is one, else the Marathi one) and never
 # changed by an edit, so a link that was shared keeps working. NULL only until backfill_slugs() has run (at start-up).
 SLUG_COLUMNS = {
     "articles": (("slug", "VARCHAR(190) NULL"),),
 }
 SLUG_LIMIT = 90
+# How often readers opened a news / blog (the website calls POST /api/articles/<id>/read). The website adds it to the views typed in the Admin
+# Panel; its Review section (रिव्ह्यू) lists the most viewed news and blogs. Only the counter changes: updated_at stays, so no other list is
+# reordered by a click.
+CLICK_COLUMNS = {
+    "articles": (("clicks", "INT UNSIGNED NOT NULL DEFAULT 0"),),
+}
 
 
 # -------------------------------------------------------------
@@ -280,8 +294,10 @@ def ensure_ads_table() -> None:
 _english_state = {"ok": False, "checked": 0.0}
 _updated_state = {"ok": False, "checked": 0.0}
 _latest_state = {"ok": False, "checked": 0.0}
+_review_state = {"ok": False, "checked": 0.0}
 _order_state = {"ok": False, "checked": 0.0}
 _slug_state = {"ok": False, "checked": 0.0}
+_clicks_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -331,6 +347,30 @@ def ensure_latest_column() -> bool:
     return has_latest()
 
 
+def has_review() -> bool:
+    """True when `articles` has is_review."""
+    return _has_columns(REVIEW_COLUMNS, _review_state)
+
+
+def ensure_review_column() -> bool:
+    """An older database gets articles.is_review here (once, at start-up; every existing news = 0). Returns whether the column is there."""
+    if has_review():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN is_review TINYINT(1) NOT NULL DEFAULT 0")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _review_state.update(ok=False, checked=0.0)
+    return has_review()
+
+
+def _optional_flags() -> tuple:
+    """The placements that came after Lead / Popular / Random (is_latest, is_review), as far as this database has their columns."""
+    return (*(("is_latest",) if has_latest() else ()), *(("is_review",) if has_review() else ()))
+
+
 def has_order() -> bool:
     """True when `articles` has sort_order (the place number)."""
     return _has_columns(ORDER_COLUMNS, _order_state)
@@ -367,6 +407,25 @@ def ensure_slug_column() -> bool:
             raise
     _slug_state.update(ok=False, checked=0.0)
     return has_slug()
+
+
+def has_clicks() -> bool:
+    """True when `articles` has clicks (how often readers opened a news / blog)."""
+    return _has_columns(CLICK_COLUMNS, _clicks_state)
+
+
+def ensure_clicks_column() -> bool:
+    """An older database gets articles.clicks here (once, at start-up; every existing news starts at 0). Returns whether the column is there."""
+    if has_clicks():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN clicks INT UNSIGNED NOT NULL DEFAULT 0")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _clicks_state.update(ok=False, checked=0.0)
+    return has_clicks()
 
 
 def slugify(text: Any, limit: int = SLUG_LIMIT, _apostrophes: bool = False) -> str:
@@ -457,7 +516,8 @@ def get_articles(category: Optional[str] = None, search: Optional[str] = None,
         sql += " AND category = %s"
         params.append(category)
 
-    column = {"lead": "is_lead", "popular": "is_popular", "random": "is_random", "latest": "is_latest" if has_latest() else None}.get(placement or "")
+    column = {"lead": "is_lead", "popular": "is_popular", "random": "is_random", "latest": "is_latest" if has_latest() else None,
+              "review": "is_review" if has_review() else None}.get(placement or "")
     if column:
         sql += f" AND {column} = 1"
 
@@ -523,12 +583,34 @@ def _renumber_articles(cur, categories: tuple, move_id: Optional[int] = None, po
         cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, row_id, number))
 
 
+def _place_for(category: Any, given: Optional[int], current: Optional[int] = None, arriving: bool = True) -> Optional[int]:
+    """The place number a story takes: the one typed in the Admin Panel; without one, in an AUTO_NUMBERED section a story that arrives there
+    (new, or moved in from another section) is number 1 and one that was there already keeps its number. Elsewhere none (listed by recency)."""
+    if given is not None:
+        return given
+    if str(category) not in AUTO_NUMBERED:
+        return None
+    return 1 if arriving else current
+
+
+def _number_unplaced(cur, categories: tuple, except_id: Optional[int] = None) -> None:
+    """Every story of the group without a place number gets one, after the numbered ones, the newest (highest id) first."""
+    marks = ", ".join(["%s"] * len(categories))
+    cur.execute(f"SELECT id, sort_order FROM articles WHERE category IN ({marks}) AND id != %s ORDER BY id DESC", (*categories, except_id or 0))
+    rows = cur.fetchall()
+    number = max((r["sort_order"] for r in rows if r["sort_order"] is not None), default=0)
+    for row in rows:
+        if row["sort_order"] is None:
+            number += 1
+            cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s", (number, row["id"]))
+
+
 def create_article(data: Dict[str, Any]) -> int:
     category = _text(data, "category", "rajkiy")
     category_label = _text(data, "categoryLabel") or CATEGORY_LABELS.get(category, DEFAULT_CATEGORY_LABEL)
     is_lead, is_popular, is_random = (_flag(data.get(f, 0)) for f in PLACEMENT_FIELDS)
     english = ARTICLE_EN if has_english() else ()
-    latest = ("is_latest",) if has_latest() else ()
+    flags = _optional_flags()
 
     with connection() as conn:
         cur = conn.cursor()
@@ -537,8 +619,8 @@ def create_article(data: Dict[str, Any]) -> int:
         cur.execute(
             f"""INSERT INTO articles
                    (title, category, categoryLabel, author, `date`, image, excerpt, content, views,
-                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *latest))})
-               VALUES ({", ".join(["%s"] * (12 + len(english) + len(latest)))})""",
+                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *flags))})
+               VALUES ({", ".join(["%s"] * (12 + len(english) + len(flags)))})""",
             (
                 _text(data, "title"),
                 category,
@@ -553,15 +635,18 @@ def create_article(data: Dict[str, Any]) -> int:
                 is_popular,
                 is_random,
                 *(_text(data, c) for c in english),
-                *((_flag(data.get("is_latest", 1)),) if latest else ()),        # (listed in Latest News unless the form says no)
+                *(_flag(data.get(f, 1 if f == "is_latest" else 0)) for f in flags),     # (listed in Latest News unless the form says no)
             ),
         )
         new_id = cur.lastrowid
         if has_slug():
             english = str(data.get("title_en") or "").strip()
             cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, slugify(english or data.get("title")), new_id), new_id))
-        if data.get("sort_order") is not None and has_order():
-            _renumber_articles(cur, _order_group(category), new_id, data["sort_order"])      # given a place by hand: the others move over
+        position = _place_for(category, data.get("sort_order"))            # (a new blog: number 1)
+        if position is not None and has_order():
+            if category in AUTO_NUMBERED:
+                _number_unplaced(cur, _order_group(category), new_id)          # every blog has its number; the older ones keep their order
+            _renumber_articles(cur, _order_group(category), new_id, position)  # placed: the others move over
         return new_id
 
 
@@ -573,10 +658,10 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
     fields: List[str] = []
     values: List[Any] = []
     for key in ("title", "category", "categoryLabel", "author", "date", "image", "excerpt", "content", "views",
-                *PLACEMENT_FIELDS, *(("is_latest",) if has_latest() else ()), *(ARTICLE_EN if has_english() else ())):
+                *PLACEMENT_FIELDS, *_optional_flags(), *(ARTICLE_EN if has_english() else ())):
         if key in data:
             fields.append(f"`{key}` = %s")
-            values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest") else data[key])
+            values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest", "is_review") else data[key])
     place = has_order() and "sort_order" in data                # the place number came with the request (a number, or None = not placed by hand)
     if not fields and not place:
         return False
@@ -594,18 +679,23 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
         if fields:
             cur.execute(f"UPDATE articles SET {', '.join(fields)} WHERE id = %s", values + [article_id])
         if place:
-            group = _order_group(data.get("category") or before["category"])
-            position = data.get("sort_order")
+            category = data.get("category") or before["category"]
+            group = _order_group(category)
+            moved = _order_group(before["category"]) != group
+            # (a blog keeps its number when the field is left empty; one moved into Blogs without a number becomes number 1)
+            position = _place_for(category, data.get("sort_order"), before.get("sort_order"), arriving=moved)
             if position is not None or before.get("sort_order") is not None:
+                if position is not None and category in AUTO_NUMBERED:
+                    _number_unplaced(cur, group, article_id)
                 _renumber_articles(cur, group, article_id, position)
-            if _order_group(before["category"]) != group:       # moved to another section: the place it leaves behind is closed up
+            if moved:                                           # moved to another section: the place it leaves behind is closed up
                 _renumber_articles(cur, _order_group(before["category"]))
         return True
 
 
 def toggle_placement(article_id: int, field: str, value: Any = None) -> Optional[Dict[str, Any]]:
-    """Turn one placement flag (is_lead / is_popular / is_random) on or off; returns the updated article."""
-    if field not in (*PLACEMENT_FIELDS, *(("is_latest",) if has_latest() else ())):
+    """Turn one placement flag (is_lead / is_popular / is_random / is_latest / is_review) on or off; returns the updated article."""
+    if field not in (*PLACEMENT_FIELDS, *_optional_flags()):
         return None
     with connection() as conn:
         cur = conn.cursor()
@@ -636,7 +726,7 @@ LATEST_SLOT = 8
 
 
 def settle_if_unplaced(article_id: int, before: Optional[Dict[str, Any]]) -> bool:
-    """A news taken out of Popular / Random (`before` = how it was just before) that is now in NO placement (not Lead, Popular or Random) is not
+    """A news taken out of Popular / Random (`before` = how it was just before) that is now in NO placement (not Lead, Popular, Random or Review) is not
     left in no section: it is ticked under "ताज्या बातम्या" and goes to the LATEST_SLOT-th place of that list (the last row of its first page),
     whatever its stamp was. Returns True when it was moved. Only the stamps `updated_at` decide the order of the website's lists, so the news gets
     the stamp that has exactly LATEST_SLOT - 1 news above it; when two stamps are too close to fit it in, the news below are moved down 2 seconds
@@ -645,9 +735,10 @@ def settle_if_unplaced(article_id: int, before: Optional[Dict[str, Any]]) -> boo
         return False
     with connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, category, is_lead, is_popular, is_random FROM articles WHERE id = %s", (article_id,))
+        review_column = ", is_review" if has_review() else ""
+        cur.execute(f"SELECT id, category, is_lead, is_popular, is_random{review_column} FROM articles WHERE id = %s", (article_id,))
         me = cur.fetchone()
-        if not me or me["category"] not in LATEST_CATEGORIES or me["is_lead"] or me["is_popular"] or me["is_random"]:
+        if not me or me["category"] not in LATEST_CATEGORIES or me["is_lead"] or me["is_popular"] or me["is_random"] or me.get("is_review"):
             return False
         marks = ", ".join(["%s"] * len(LATEST_CATEGORIES))
         latest_column = ", is_latest" if has_latest() else ", 1 AS is_latest"
@@ -690,6 +781,17 @@ def delete_article(article_id: int) -> bool:
         if deleted and before and before.get("sort_order") is not None:
             _renumber_articles(cur, _order_group(before["category"]))       # the place it leaves is closed up
         return deleted
+
+
+def count_click(article_id: int) -> bool:
+    """A reader opened this news / blog: one more click (one more view on the website, which ranks its Review section by views). Nothing else of the
+    row changes. Returns whether a news was counted (False: no such news, or a database without the clicks column yet)."""
+    if not has_clicks():
+        return False
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE articles SET clicks = clicks + 1 WHERE id = %s", (article_id,))
+        return cur.rowcount > 0
 
 
 # -------------------------------------------------------------

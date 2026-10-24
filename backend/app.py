@@ -14,6 +14,7 @@ import secrets
 import socket
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -63,7 +64,7 @@ def _english_warning(ignored):
 # -------------------------------------------------------------
 # Login: nothing that writes works without it
 # -------------------------------------------------------------
-PUBLIC_WRITE_ENDPOINTS = {"api.login"}
+PUBLIC_WRITE_ENDPOINTS = {"api.login", "api.count_article_read"}
 
 
 @api.before_request
@@ -184,6 +185,42 @@ def delete_article(article_id):
         return fail("Article not found", 404)
     database.publish_articles_file()
     return ok(message="बातमी यशस्वीरीत्या हटवली!")
+
+
+# The clicks of a news / blog (the website adds them to its typed views; its Review section lists the most viewed). The website counts a reader
+# once per story and tab; here one address
+# counts at most READ_LIMIT times per story in READ_WINDOW seconds (not once: many readers can share an address on a mobile network), and
+# crawlers are not counted.
+READ_WINDOW = 3600
+READ_LIMIT = 30
+NOT_A_READER = re.compile(r"bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse", re.I)
+_reads = {}                          # (client address, article id) -> (start of its window, clicks counted in it)
+_reads_lock = threading.Lock()
+
+
+def _counts_as_read(article_id):
+    if NOT_A_READER.search(request.headers.get("User-Agent", "")):
+        return False
+    key, now = (auth.client_address(), article_id), time.time()
+    with _reads_lock:
+        start, counted = _reads.get(key, (now, 0))
+        if now - start >= READ_WINDOW:
+            start, counted = now, 0
+        if counted >= READ_LIMIT:
+            return False
+        _reads[key] = (start, counted + 1)
+        if len(_reads) > 20000:          # never grow without a limit: the oldest windows are forgotten
+            for old in sorted(_reads, key=lambda k: _reads[k][0])[:5000]:
+                _reads.pop(old, None)
+    return True
+
+
+@api.post("/articles/<int:article_id>/read")
+def count_article_read(article_id):
+    """A reader opened this news / blog (public: the website calls it without a login). The answer is the same whether it was counted or not."""
+    if _counts_as_read(article_id):
+        database.count_click(article_id)
+    return ok()
 
 
 # -------------------------------------------------------------
@@ -730,6 +767,8 @@ def create_app():
         database.ensure_order_column()       # ... and articles.sort_order (the place number set in the Admin Panel)
         if database.ensure_slug_column():    # ... and articles.slug (the words of the address, /blog/<words>), filled in for the news that has none
             database.backfill_slugs()
+        database.ensure_clicks_column()      # ... and articles.clicks (how often readers opened a news / blog: the Review section)
+        database.ensure_review_column()      # ... and articles.is_review (the Review placement ticked in the Admin Panel)
     except pymysql.MySQLError:
         pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:

@@ -36,10 +36,12 @@ function fillSettingsForm() {
   updateLangDots(settingsEl('footer-settings-card'));
 }
 
-// the dot on the English tab is green when an English address was typed (the form is not a modal, so admin.js does not watch it)
+// the dot on the English tab is green when an English address was typed (the form is not a modal, so admin.js does not watch it);
+// the form starts on the tab of the sidebar's language (and follows the sidebar when it changes: onAdminLanguageChange in admin.js)
 (function initSettingsForm() {
   const card = settingsEl('footer-settings-card');
   if (card) card.addEventListener('input', () => updateLangDots(card));
+  if (card) setFormLang('footer-settings-card', sidebarLang());
 })();
 
 async function handleSettingsSubmit(e) {

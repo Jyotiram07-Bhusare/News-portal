@@ -293,6 +293,7 @@ function initNavigation() {
 
 // ---- Marathi / English tabs of the news form and the weekly form ----------------------------------------------------
 // Fields that belong to one language carry data-lang-field="mr" | "en"; the rest (category, date, photo ...) is shared.
+// The tab is the language of the whole form: its labels, buttons and hints follow it too (setUiLang, admin-i18n.js), whatever the sidebar says.
 function setFormLang(modalId, lang) {
   const modal = document.getElementById(modalId);
   if (!modal) return;
@@ -303,7 +304,13 @@ function setFormLang(modalId, lang) {
     b.classList.toggle('active', on);
     b.setAttribute('aria-selected', String(on));
   });
+  if (typeof window.setUiLang === 'function') window.setUiLang(modal, lang);
   updateLangDots(modal);
+}
+
+// a form opens on the tab of the language chosen in the sidebar
+function sidebarLang() {
+  return typeof window.getLang === 'function' && window.getLang() === 'en' ? 'en' : 'mr';
 }
 
 // the dot on the English tab is green when some English text has been typed
@@ -381,18 +388,8 @@ function switchTab(tabId) {
 }
 
 function initDateDisplay() {
-  const marathiMonths = [
-    "जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून",
-    "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"
-  ];
-  const devDigits = ["०","१","२","३","४","५","६","७","८","९"];
-  const toDev = (n) => String(n).replace(/\d/g, d => devDigits[d]);
-
   const now = new Date();
-  const d = toDev(now.getDate());
-  const m = marathiMonths[now.getMonth()];
-  const y = toDev(now.getFullYear());
-  const formatted = `${d} ${m} ${y}`;
+  const formatted = marathiDateText(now.getDate(), now.getMonth(), now.getFullYear());
 
   const el = document.getElementById('current-date-text');
   if (el) el.textContent = formatted;
@@ -403,6 +400,50 @@ function initDateDisplay() {
 
   const formWeeklyDate = document.getElementById('form-weekly-date');
   if (formWeeklyDate && !formWeeklyDate.value) formWeeklyDate.value = formatted;
+}
+
+// ---- dates are written the way the website shows them ("०९ ऑक्टोबर २०२६"); a date field has a calendar button next to it ----------
+const toDevDigits = (n) => String(n).replace(/\d/g, (d) => '०१२३४५६७८९'[d]);
+
+// day (1-31), month (0-11), year -> "०९ ऑक्टोबर २०२६"
+function marathiDateText(day, month, year) {
+  return `${toDevDigits(String(day).padStart(2, '0'))} ${WEEKLY_MONTHS_MR[month]} ${toDevDigits(year)}`;
+}
+
+// "२४ ऑक्टोबर २०२६", "24 October 2026", "24-10-2026" or "2026-10-24" -> "2026-10-24" (what the calendar needs); '' when it is no date
+function isoFromDateText(text) {
+  const t = String(text || '').replace(/[०-९]/g, (d) => '०१२३४५६७८९'.indexOf(d)).trim();
+  let k, year, month, day;
+  if ((k = t.match(/(\d{4})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{1,2})/))) [year, month, day] = [+k[1], +k[2] - 1, +k[3]];
+  else if ((k = t.match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{4})/))) [year, month, day] = [+k[3], +k[2] - 1, +k[1]];
+  else if ((k = t.match(/(\d{1,2})\s+([^\s\d,.]+)[.,]?\s+(\d{4})/))) {
+    month = WEEKLY_MONTHS_MR.indexOf(k[2]);
+    if (month < 0) month = WEEKLY_MONTHS_EN.indexOf(k[2].slice(0, 3).toLowerCase());
+    [year, day] = [+k[3], +k[1]];
+  } else return '';
+  const date = new Date(year, month, day);
+  if (month < 0 || date.getMonth() !== month || date.getDate() !== day) return '';      // (31 February is not a date)
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// the calendar button: it opens on the date the field holds; the date picked is written into the field (see pickDate)
+function openDatePicker(fieldId) {
+  const picker = document.getElementById(fieldId + '-pick');
+  if (!picker) return;
+  picker.value = isoFromDateText(document.getElementById(fieldId).value);
+  if (typeof picker.showPicker === 'function') {
+    try { picker.showPicker(); return; } catch (e) { /* not allowed here: the plain way below */ }
+  }
+  picker.focus();
+  picker.click();
+}
+
+function pickDate(fieldId, iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return;
+  const field = document.getElementById(fieldId);
+  field.value = marathiDateText(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  field.dispatchEvent(new Event('input', { bubbles: true }));     // (the weekly form: a date chosen by hand is not replaced from the PDF's name)
 }
 
 // -------------------------------------------------------------
@@ -535,8 +576,9 @@ function showBackendBanner(state) {
 }
 
 // admin-i18n.js calls this after the language was switched: the backend banner is made of messages (not page text), so it is drawn again
-window.onAdminLanguageChange = function () {
+window.onAdminLanguageChange = function (lang) {
   if (appState.bannerState && appState.bannerState !== 'online') showBackendBanner(appState.bannerState);
+  setFormLang('footer-settings-card', lang);       // (the footer form is on the page, not in a window: it follows the sidebar at once)
 };
 
 async function refreshDashboardData() {
@@ -711,6 +753,8 @@ function renderArticlesTable() {
       list = list.filter(a => Number(a.is_random) === 1);
     } else if (appState.placementFilter === 'latest') {
       list = list.filter(a => a.is_latest === undefined || Number(a.is_latest) === 1);
+    } else if (appState.placementFilter === 'review') {
+      list = list.filter(a => Number(a.is_review) === 1 || a.category === 'review');      // (both show in the website's Review section)
     }
   }
 
@@ -770,6 +814,11 @@ function renderArticlesTable() {
                   onclick="toggleArticlePlacement(${a.id}, 'is_latest')" 
                   title="${a.is_latest === undefined || Number(a.is_latest) === 1 ? 'ताज्या बातम्यांमधून काढा' : 'ताज्या बातम्यांमध्ये जोडा'}">
             <i class="fa-regular fa-newspaper"></i> Latest
+          </button>
+          <button type="button" class="placement-btn ${Number(a.is_review) === 1 ? 'is-active-review' : ''}"
+                  onclick="toggleArticlePlacement(${a.id}, 'is_review')"
+                  title="${Number(a.is_review) === 1 ? 'रिव्ह्यूमधून काढा' : 'रिव्ह्यूमध्ये जोडा'}">
+            <i class="fa-solid fa-award"></i> Review
           </button>
         </div>
       </td>
@@ -850,8 +899,11 @@ function openNewArticleModal() {
   if (rndChk) rndChk.checked = false;
   const latestChk = document.getElementById('form-article-is-latest');
   if (latestChk) latestChk.checked = true;                 // a new news is listed in Latest News unless it is un-ticked
+  const reviewChk = document.getElementById('form-article-is-review');
+  if (reviewChk) reviewChk.checked = false;
 
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
+  document.getElementById('form-article-date').value = '';                 // (initDateDisplay below puts today's date: never what the form held before)
   document.getElementById('form-article-views').value = '1.8K';
   document.getElementById('form-article-order').value = '';               // (no number: listed by recency; a number puts it at that place of its list)
   document.getElementById('form-article-image').value = '';                 // (no photo is suggested: the editor chooses one)
@@ -860,7 +912,7 @@ function openNewArticleModal() {
   document.getElementById('form-article-content').value = '';
   appState.storyOnOpen = null;
   ['title', 'author', 'excerpt', 'content'].forEach((f) => { document.getElementById('form-article-' + f + '-en').value = ''; });
-  setFormLang('article-modal', 'mr');
+  setFormLang('article-modal', sidebarLang());
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बातमी प्रकाशित करा';
 
   initDateDisplay();
@@ -886,6 +938,8 @@ function openEditArticleModal(articleId) {
   if (rndChk) rndChk.checked = Number(a.is_random) === 1;
   const latestChk = document.getElementById('form-article-is-latest');
   if (latestChk) latestChk.checked = a.is_latest === undefined || Number(a.is_latest) === 1;
+  const reviewChk = document.getElementById('form-article-is-review');
+  if (reviewChk) reviewChk.checked = Number(a.is_review) === 1;
 
   document.getElementById('form-article-author').value = a.author || 'प्रतिनिधी';
   document.getElementById('form-article-date').value = a.date || '';
@@ -902,7 +956,7 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-author-en').value = a.author_en || '';
   document.getElementById('form-article-excerpt-en').value = a.excerpt_en || '';
   document.getElementById('form-article-content-en').value = plainEn;
-  setFormLang('article-modal', 'mr');
+  setFormLang('article-modal', sidebarLang());
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बदल जतन करा';
 
   document.getElementById('article-modal').classList.add('open');
@@ -1045,6 +1099,7 @@ async function handleArticleFormSubmit(e) {
   const is_popular = document.getElementById('form-article-is-popular')?.checked ? 1 : 0;
   const is_random = document.getElementById('form-article-is-random')?.checked ? 1 : 0;
   const is_latest = document.getElementById('form-article-is-latest')?.checked ? 1 : 0;
+  const is_review = document.getElementById('form-article-is-review')?.checked ? 1 : 0;
 
   const labels = {
     rajkiy: 'राजकीय',
@@ -1061,6 +1116,7 @@ async function handleArticleFormSubmit(e) {
     is_popular,
     is_random,
     is_latest,
+    is_review,
     sort_order: parseInt(document.getElementById('form-article-order').value, 10) || null,     // (empty = not placed by hand)
     author,
     date,
@@ -1243,7 +1299,7 @@ function setWeeklyFormMode(issueNo) {
   appState.editingWeeklyNo = issueNo;
   const editing = issueNo !== null;
   appState.weeklyPdfChosen = editing;
-  setFormLang('weekly-modal', 'mr');
+  setFormLang('weekly-modal', sidebarLang());
   document.getElementById('weekly-modal-title').innerHTML = editing
     ? `<i class="fa-solid fa-pen-to-square"></i> साप्ताहिक अंक संपादित करा (क्र. ${issueNo})`
     : '<i class="fa-solid fa-file-pdf"></i> साप्ताहिक ई-पेपर व PDF अपलोड';
@@ -1332,8 +1388,7 @@ function weeklyDateFromFileName(fileName) {
   const day = Number(m[1]), year = Number(m[3]);
   if (month < 0 || day < 1 || day > 31) return '';
   if (new Date(year, month, day).getMonth() !== month) return '';          // 31 February is not a date
-  const dev = (n) => String(n).replace(/\d/g, (d) => '०१२३४५६७८९'[d]);
-  return `${dev(String(day).padStart(2, '0'))} ${WEEKLY_MONTHS_MR[month]} ${dev(year)}`;
+  return marathiDateText(day, month, year);
 }
 
 function loadAdminPdfjs() {

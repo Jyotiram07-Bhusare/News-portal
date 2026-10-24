@@ -115,7 +115,7 @@ function renderAdsTable() {
 // ------------------------------------------------------------------------------------------------ the form
 function setAdFormMode(id) {
   appState.editingAdId = id;
-  setFormLang('ad-modal', 'mr');
+  setFormLang('ad-modal', sidebarLang());
   adEl('ad-modal-title').innerHTML = id !== null
     ? '<i class="fa-solid fa-pen-to-square"></i> जाहिरात संपादित करा'
     : '<i class="fa-solid fa-rectangle-ad"></i> नवीन जाहिरात अपलोड करा';

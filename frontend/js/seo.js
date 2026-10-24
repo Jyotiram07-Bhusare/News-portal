@@ -55,8 +55,8 @@
       en: ["Blogs", "Blogs of the Lokmangal Foundation: in-depth articles on the Annapurna Yojana, water conservation, scholarships, community weddings and the Shikshak Ratna Award."],
     },
     review: {
-      mr: ["रिव्ह्यू", "लोकमंगल न्यूज पोर्टलवरील ताजे रिव्ह्यू."],
-      en: ["Reviews", "Latest reviews on Lokmangal News Portal."],
+      mr: ["रिव्ह्यू", "लोकमंगल न्यूज पोर्टलवरील वाचकांनी सर्वाधिक वाचलेल्या बातम्या व ब्लॉग्स."],
+      en: ["Reviews", "The news and blogs readers open the most on Lokmangal News Portal."],
     },
     weekly: {
       mr: ["लोकमंगल साप्ताहिक आवृत्ती - PDF ई-पेपर", "लोकमंगल साप्ताहिकाचे सर्व अंक ऑनलाइन वाचा आणि PDF म्हणून मोफत डाउनलोड करा."],

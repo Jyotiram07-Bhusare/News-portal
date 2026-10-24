@@ -130,7 +130,7 @@ function renderVideosTable() {
 function setVideoFormMode(id) {
   appState.editingVideoId = id;
   const editing = id !== null;
-  setFormLang('video-modal', 'mr');
+  setFormLang('video-modal', sidebarLang());
   videoEl('video-modal-title').innerHTML = editing
     ? '<i class="fa-solid fa-pen-to-square"></i> व्हिडिओ संपादित करा'
     : '<i class="fa-solid fa-film"></i> नवीन व्हिडिओ अपलोड करा';

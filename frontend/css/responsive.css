@@ -797,6 +797,7 @@ button:focus-visible,
     letter-spacing: 0;
   }
 
+  .view-home .headline-date       { order: 2; }       /* (right under the headline; the later 600px rule moves both above the photo) */
   .view-home .author-meta-bar     { order: 3; }
   .view-home .main-article-body   { order: 4; }
   .view-home .home-post-footer-bar { order: 5; }
@@ -1987,6 +1988,10 @@ button:focus-visible,
     font-size: clamp(18px, 5vw, 20px);
     line-height: 1.4;
     font-weight: 700;
+  }
+
+  .view-home .headline-date {
+    order: 0;                          /* (its date stays right under it, above the photo) */
   }
 
   .single-post-headline {

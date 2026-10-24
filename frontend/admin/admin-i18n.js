@@ -8,7 +8,9 @@
  *   - a translator that goes through the page text (text, placeholder, title, aria-label, alt) and replaces what the dictionary knows,
  *     once at load and again whenever the page changes (MutationObserver);
  *   - dates ("२६ ऑगस्ट २०२६" <-> "26 August 2026") and digits;
- *   - the choice (the मराठी | English buttons in the sidebar) is kept in localStorage ("lokmangal-admin-lang").
+ *   - the choice (the मराठी | English buttons in the sidebar) is kept in localStorage ("lokmangal-admin-lang");
+ *   - one part of the page can show its own language: an element with data-ui-lang="mr" | "en" (setUiLang). A form with मराठी | English
+ *     tabs (news, weekly issue, video, ad, footer) shows the language of its tab that way, whatever the sidebar says.
  * The news / issue texts themselves are DATA and are never translated here: mark such elements with data-no-i18n.
  * (Confirm dialogs and the backend banner are not page text: admin.js picks their language with tx(marathi, english).)
  *
@@ -42,12 +44,12 @@
     return -1;
   }
 
-  // every "26 ऑगस्ट 2026" / "26 Aug 2026" inside a text -> the current language
-  function localizeDates(text) {
+  // every "26 ऑगस्ट 2026" / "26 Aug 2026" inside a text -> the language `lang`
+  function localizeDates(text, lang) {
     return String(text).replace(MONTH_RE, function (all, d, m, y) {
       var i = monthIndex(m);
       if (i < 0) return all;
-      return LANG === "en" ? toLatin(d) + " " + MONTHS_EN[i] + " " + toLatin(y) : toDev(d) + " " + MONTHS_MR[i] + " " + toDev(y);
+      return lang === "en" ? toLatin(d) + " " + MONTHS_EN[i] + " " + toLatin(y) : toDev(d) + " " + MONTHS_MR[i] + " " + toDev(y);
     });
   }
 
@@ -113,8 +115,7 @@
     E("सामाजिक", "Social", "Samajik"),
     E("ब्लॉग्स", "Blogs", "Blogs"),
     E("परीक्षण", "Reviews", "Reviews"),
-    E("रिव्ह्यू", "Review"),
-    E("परीक्षण / रिव्ह्यू", "Review"),
+    E("रिव्ह्यू", "Review", "Review", ["परीक्षण / रिव्ह्यू"]),
     E("सर्व विभाग स्थान", "All placements", "All Placements"),
     E("⭐ मुख्य बातमी", "⭐ Lead story", "Lead Story"),
     E("🔥 लोकप्रिय", "🔥 Popular posts", "Popular Posts"),
@@ -135,6 +136,9 @@
     E("📰 ताज्या बातम्या", "📰 Latest news", "Latest News"),
     E("ताज्या बातम्यांमधून काढा", "Remove from Latest news"),
     E("ताज्या बातम्यांमध्ये जोडा", "Add to Latest news"),
+    E("🏅 रिव्ह्यू", "🏅 Review", "Review"),
+    E("रिव्ह्यूमधून काढा", "Remove from Review"),
+    E("रिव्ह्यूमध्ये जोडा", "Add to Review"),
     E("मुख्य बातमी म्हणून सेट आहे (काढण्यासाठी क्लिक करा)", "Set as the lead story (click to remove)"),
     E("या बातमीला मुख्य बातमी बनवा", "Make this the lead story", "", ["या बातमीला मुख्य बातमी (Lead Story) बनवा"]),
     E("लोकप्रिय मधून काढा", "Remove from Popular"),
@@ -167,6 +171,7 @@
     E("बातमीचे मुख्य शीर्षक", "Main headline", "Headline"),
     E("बातमीचे शीर्षक (इंग्रजी)", "News headline (English)"),
     E("बातमीची श्रेणी", "Category", "Category"),
+    E("कॅलेंडरमधून तारीख निवडा", "Pick the date from the calendar"),
     E("पोर्टलवरील स्थान व विभाग व्यवस्थापन", "Section placements", "Section Placements"),
     E("बातमीदार / प्रतिनिधी", "Reporter / author"),
     E("बातमीदार / प्रतिनिधी (इंग्रजी)", "Reporter / author (English)"),
@@ -425,18 +430,19 @@
   }
   var patterns = PATTERNS.map(function (p) { return { mr: compile(p[0]), en: compile(p[1]), tpl: p }; });
 
-  function fill(tpl, names, caps) {
+  function fill(tpl, names, caps, lang) {
     var vars = {};
     names.forEach(function (n, i) { vars[n] = caps[i + 1]; });
     return tpl.replace(/\{([nvx]\d*)\}/g, function (all, n) {
       var v = vars[n];
       if (v === undefined) return all;
-      return n.charAt(0) === "x" ? translateText(v) : (LANG === "en" ? toLatin(v) : v);
+      return n.charAt(0) === "x" ? translateText(v, lang) : (lang === "en" ? toLatin(v) : v);
     });
   }
 
-  // one piece of text -> the current language (text the dictionary does not know stays as it is)
-  function translateText(text) {
+  // one piece of text -> the language `lang` (the sidebar's when not given); text the dictionary does not know stays as it is
+  function translateText(text, lang) {
+    lang = lang || LANG;
     var raw = String(text);
     var n = norm(raw);
     if (!n) return raw;
@@ -444,18 +450,18 @@
     var out = null;
     var hit = exact[n];
     if (hit) {
-      out = hit[LANG === "en" ? 1 : 0];
+      out = hit[lang === "en" ? 1 : 0];
     } else {
       for (var i = 0; i < patterns.length && out === null; i++) {
         var p = patterns[i];
         var side = p.mr, m = side.re.exec(n);
         if (!m) { side = p.en; m = side.re.exec(n); }
-        if (m) out = fill(p.tpl[LANG === "en" ? 1 : 0], side.names, m);
+        if (m) out = fill(p.tpl[lang === "en" ? 1 : 0], side.names, m, lang);
       }
     }
     if (out === null) out = n;
-    out = localizeDates(out);
-    if (LANG === "en" && !/[ऀ-ॿ]/.test(out.replace(/[०-९]/g, ""))) out = toLatin(out);   // fully English text: 0-9 digits
+    out = localizeDates(out, lang);
+    if (lang === "en" && !/[ऀ-ॿ]/.test(out.replace(/[०-९]/g, ""))) out = toLatin(out);   // fully English text: 0-9 digits
     return out === n ? raw : lead + out + tail;
   }
 
@@ -470,19 +476,27 @@
     return false;
   }
 
+  // the language of one part of the page: inside an element with data-ui-lang (a form on its English tab ...) that one, else the sidebar's
+  function langOf(node) {
+    var el = node.nodeType === 1 ? node : node.parentElement;
+    var part = el && el.closest("[data-ui-lang]");
+    return part ? part.getAttribute("data-ui-lang") : LANG;
+  }
+
   function doTextNode(node) {
     var v = node.nodeValue;
     if (!v || v.length > 700 || !/\S/.test(v) || skipped(node)) return;
-    var t = translateText(v);
+    var t = translateText(v, langOf(node));
     if (t !== v) node.nodeValue = t;
   }
 
   function doAttrs(el) {
     if (el.nodeType !== 1 || el.hasAttribute("data-no-i18n")) return;
+    var lang = langOf(el);
     for (var i = 0; i < ATTRS.length; i++) {
       var a = ATTRS[i], v = el.getAttribute(a);
       if (v && v.length <= 700) {
-        var t = translateText(v);
+        var t = translateText(v, lang);
         if (t !== v) el.setAttribute(a, t);
       }
     }
@@ -540,6 +554,15 @@
     } finally { watch(); }
   }
 
+  // one part of the page in its own language ("mr" | "en"), or (null) in the sidebar's language again
+  function setUiLang(el, lang) {
+    if (!el) return;
+    if (lang === "en" || lang === "mr") el.setAttribute("data-ui-lang", lang);
+    else el.removeAttribute("data-ui-lang");
+    observer.disconnect();
+    try { doTree(el); } finally { watch(); }
+  }
+
   function init() {
     syncSwitch();
     doHead();
@@ -552,6 +575,7 @@
   window.LOKMANGAL_ADMIN_I18N = { entries: ENTRIES, patterns: PATTERNS };      // for the test / coverage tools
   window.getLang = function () { return LANG; };
   window.setLanguage = setLanguage;
-  window.trUI = translateText;
+  window.setUiLang = setUiLang;
+  window.trUI = function (text) { return translateText(text); };              // (the sidebar's language)
   window.tx = function (mr, en) { return LANG === "en" ? en : mr; };            // a message that is not page text (confirm dialogs ...)
 })();

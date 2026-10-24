@@ -956,6 +956,49 @@ body.dark-theme .stat-icon-wrap {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* A date field (प्रकाशन तारीख) with a calendar button at its right end. The browser's own date picker stays invisible: it only
+   opens the calendar, and the date picked is written into the field (openDatePicker / pickDate in admin.js). */
+.date-field {
+  position: relative;
+}
+
+.date-field .form-control {
+  padding-right: 42px;
+}
+
+.date-field-btn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.date-field-btn:hover,
+.date-field-btn:focus-visible {
+  background: var(--bg-body);
+  color: var(--brand-primary);
+}
+
+.date-field-picker {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .form-control:focus {
   border-color: var(--brand-primary);
   box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
@@ -1340,6 +1383,20 @@ body.dark-theme .placement-btn.is-active-latest {
   color: #bae6fd;
 }
 
+.placement-btn.is-active-review {
+  background: #f3e8ff;
+  border-color: #a855f7;
+  color: #6b21a8;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(168, 85, 247, 0.25);
+}
+
+body.dark-theme .placement-btn.is-active-review {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: #c084fc;
+  color: #e9d5ff;
+}
+
 /* Modal Placement Selection Cards */
 /* compact: three small tiles (icon + name + tick box), no description line */
 .placement-box-group {
@@ -1357,7 +1414,7 @@ body.dark-theme .placement-btn.is-active-latest {
 
 .placement-cards-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));      /* Lead, Popular, Random, Latest, Review: one row */
   gap: 8px;
   margin-top: 8px;
 }

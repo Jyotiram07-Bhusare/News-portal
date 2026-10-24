@@ -25,8 +25,10 @@ CREATE TABLE IF NOT EXISTS articles (
   is_popular    TINYINT(1)    NOT NULL DEFAULT 0,
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
   is_latest     TINYINT(1)    NOT NULL DEFAULT 1,                   -- 1 = listed in the Home page's Latest News section
+  is_review     TINYINT(1)    NOT NULL DEFAULT 0,                   -- 1 = listed in the website's Review section (रिव्ह्यू), before the most viewed
   sort_order    INT           NULL,                                 -- the place set by hand in the Admin Panel (1 = first), NULL = listed by recency
   slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>): made when the news is created, never changed by an edit
+  clicks        INT UNSIGNED  NOT NULL DEFAULT 0,                   -- how often readers opened it (POST /api/articles/<id>/read): the website shows views + clicks, its Review section lists the most viewed
   PRIMARY KEY (id),
   KEY idx_articles_category (category)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

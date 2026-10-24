@@ -307,7 +307,7 @@ let articlesData = [
     views: "15.2K"
   },
   // ==========================================
-  // Blogs & Reviews
+  // Blogs
   // ==========================================
   {
     id: 17,
@@ -336,100 +336,6 @@ let articlesData = [
       <p>स्थानिक स्वराज संस्था ही लोकशाहीची पहिली पायरी आहे. रस्ते, पाणी, स्वच्छता आणि आरोग्य या मूलभूत हक्कांसाठी नागरिकांनी सजग असणे अत्यंत आवश्यक आहे.</p>
     `,
     views: "6.3K"
-  },
-  {
-    id: 19,
-    title: "चित्रपट रिव्ह्यू: 'महाराष्ट्राची लोकसंस्कृती' - अस्सल मातीतील कलाकृती आणि दिग्दर्शनाची जादू",
-    category: "review",
-    categoryLabel: "रिव्ह्यू",
-    author: "समीर कुलकर्णी (सिने समीक्षक)",
-    date: "१२ ऑक्टोबर २०२६",
-    rating: "4.8",
-    title_en: "Film review: 'Maharashtrachi Loksanskruti' — an authentic work rooted in the soil, and the magic of its direction",
-    author_en: 'Sameer Kulkarni (film critic)',
-    excerpt_en: "The newly released film 'Maharashtrachi Loksanskruti' brings together rural reality and folk art beautifully. Read the detailed review.",
-    content_en: `
-      <p><strong>Film review:</strong> 'Maharashtrachi Loksanskruti' is not just entertainment; it is a mirror of our rich tradition. Excellent acting, realistic direction and wonderful music keep the audience hooked.</p>
-      <p><strong>Strengths:</strong> the lively performances, the authentic rural dialect and the captivating cinematography.</p>
-      <p><strong>Verdict:</strong> a quality, thought-provoking film worth watching with the family! Rating: 4.8/5 ★</p>
-    `,
-    image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80",
-    excerpt: "नुकताच प्रदर्शित झालेला 'महाराष्ट्राची लोकसंस्कृती' हा चित्रपट ग्रामीण वास्तव आणि लोककलेचा सुंदर संगम घडवून आणतो. वाचा सविस्तर परीक्षण.",
-    content: `
-      <p><strong>सिनेमा परीक्षण:</strong> 'महाराष्ट्राची लोकसंस्कृती' हा चित्रपट केवळ एक मनोरंजन नसून आपल्या समृद्ध परंपरेचा आरसा आहे. उत्कृष्ट अभिनय, वास्तववादी दिग्दर्शन आणि अप्रतिम संगीत यामुळे हा चित्रपट प्रेक्षकांना खिळवून ठेवतो.</p>
-      <p><strong>सकारात्मक बाजू:</strong> कलाकारांचा जिवंत अभिनय, अस्सल ग्रामीण बोलीभाषा आणि मनमोहक छायाचित्रण.</p>
-      <p><strong>अंतिम निकाल:</strong> कुटुंबासह पाहण्यासारखा एक दर्जेदार आणि विचार करायला लावणारा चित्रपट! रेटिंग: ४.८/५ ★</p>
-    `,
-    views: "16.8K"
-  },
-  {
-    id: 20,
-    title: "गॅजेट रिव्ह्यू: आधुनिक शेतीसाठी उपयुक्त 'अ‍ॅग्रोटेक स्मार्ट ड्रोन'चे सखोल परीक्षण",
-    category: "review",
-    categoryLabel: "रिव्ह्यू",
-    author: "टेक डेस्क",
-    date: "११ ऑक्टोबर २०२६",
-    rating: "4.6",
-    title_en: "Gadget review: an in-depth look at the 'Agrotech Smart Drone', useful for modern farming",
-    author_en: 'Tech Desk',
-    excerpt_en: 'How beneficial is this drone for farmers, which sprays pesticide in less time and gives accurate information about crop health? Find out.',
-    content_en: `
-      <p><strong>Technology review:</strong> the use of drone technology in Indian agriculture is growing fast. The 'Agrotech Smart Drone' comes with advanced sensors and a powerful battery.</p>
-      <p>On a single charge this drone can cover 15 acres. It will be extremely useful for small and medium farmers.</p>
-    `,
-    image: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80",
-    excerpt: "कमी वेळेत कीटकनाशक फवारणी आणि पिकांच्या आरोग्याची अचूक माहिती देणारे हे ड्रोन शेतकऱ्यांसाठी किती फायदेशीर ठरते? जाणून घ्या.",
-    content: `
-      <p><strong>तंत्रज्ञान परीक्षण:</strong> भारतीय कृषी क्षेत्रात ड्रोन तंत्रज्ञानाचा वापर झपाट्याने वाढत आहे. 'अ‍ॅग्रोटेक स्मार्ट ड्रोन' हे प्रगत सेन्सर्स आणि दमदार बॅटरी क्षमतेसह येते.</p>
-      <p>एका चार्जमध्ये १५ एकर क्षेत्र कव्हर करण्याची क्षमता या ड्रोनमध्ये आहे. लहान व मध्यम शेतकऱ्यांसाठी हे ड्रोन अत्यंत उपयुक्त ठरेल.</p>
-    `,
-    views: "12.3K"
-  },
-  {
-    id: 21,
-    title: "पुस्तक रिव्ह्यू: 'शिवकालीन अर्थव्यवस्था आणि प्रशासन' - अभ्यासकांसाठी अनमोल ठेवा",
-    category: "review",
-    categoryLabel: "रिव्ह्यू",
-    author: "डॉ. मुकुंद दातार",
-    date: "१० ऑक्टोबर २०२६",
-    rating: "5.0",
-    title_en: "Book review: 'Shivkalin Arthavyavastha ani Prashasan' — a priceless treasure for scholars",
-    author_en: 'Dr. Mukund Datar',
-    excerpt_en: "Why should everyone read this scholarly book that sheds light on Chhatrapati Shivaji Maharaj's advanced economic and agricultural policies?",
-    content_en: `
-      <p><strong>Book review:</strong> this book explains in detail how important Chhatrapati Shivaji Maharaj was not only for his military skill but also for his economic policy that took care of the people's welfare.</p>
-      <p>The layout of the book, its references and its fluent language keep the reader engaged.</p>
-    `,
-    image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80",
-    excerpt: "छत्रपती शिवाजी महाराजांच्या प्रगत आर्थिक व शेतीविषयक नीतीवर प्रकाश टाकणारे हे अभ्यासपूर्ण पुस्तक प्रत्येकाने का वाचले पाहिजे?",
-    content: `
-      <p><strong>ग्रंथ परीक्षण:</strong> छत्रपती शिवाजी महाराजांचे केवळ युद्धकौशल्यासाठीच नव्हे, तर रयतेचे कल्याण करणाऱ्या आर्थिक नीतीसाठीही महत्त्व किती मोठे होते, हे या पुस्तकातून सविस्तर स्पष्ट होते.</p>
-      <p>पुस्तकाची मांडणी, संदर्भ आणि ओघवती भाषा वाचकाला खिळवून ठेवते.</p>
-    `,
-    views: "9.5K"
-  },
-  {
-    id: 22,
-    title: "ऑटो रिव्ह्यू: ग्रामीण भागासाठी 'इलेक्ट्रिक कृषी ट्रॅक्टर' - बचत आणि दमदार ताकद",
-    category: "review",
-    categoryLabel: "रिव्ह्यू",
-    author: "रोहन सावंत (ऑटो तज्ज्ञ)",
-    date: "०९ ऑक्टोबर २०२६",
-    rating: "4.7",
-    title_en: "Auto review: the 'Electric Farm Tractor' for rural areas — savings and strong power",
-    author_en: 'Rohan Sawant (auto expert)',
-    excerpt_en: 'How is the new e-tractor, which beats rising diesel prices, proving effective in Indian fields? Read the detailed performance report.',
-    content_en: `
-      <p><strong>Automobile review:</strong> we tested in practice the new electric tractor that claims to save 70% of the fuel cost in rural areas.</p>
-      <p>Excellent torque and fast charging are making this tractor a favourite of farmers.</p>
-    `,
-    image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
-    excerpt: "डिझेलच्या वाढत्या दरांवर मात करणारा नवा ई-ट्रॅक्टर भारतीय शेतात कसा ठरतोय प्रभावी? वाचा सविस्तर परफॉर्मन्स रिपोर्ट.",
-    content: `
-      <p><strong>ऑटोमोबाईल परीक्षण:</strong> ग्रामीण भागात इंधन खर्चात ७०% बचत करण्याचा दावा करणाऱ्या नव्या इलेक्ट्रिक ट्रॅक्टरची आम्ही प्रत्यक्ष चाचणी घेतली.</p>
-      <p>उत्कृष्ट टॉर्क आणि जलद चार्जिंगच्या सुविधेमुळे हा ट्रॅक्टर शेतकऱ्यांच्या पसंतीस उतरत आहे.</p>
-    `,
-    views: "14.1K"
   }
 ];
 
@@ -504,7 +410,7 @@ function fillBuiltInEnglish() {
 fillBuiltInEnglish();
 
 // The most recently UPDATED news is listed first: a story that was edited in the Admin Panel, moved to another section or marked
-// Popular / Random / Lead jumps to the top of Latest (Home), Popular, Random, Reviews and its section. The backend stamps every
+// Popular / Random / Lead jumps to the top of Latest (Home), Popular, Random and its section. The backend stamps every
 // change (updated_at). Stories with the same stamp - or none (built-in data / a static host without a backend) - keep their order,
 // because Array.sort is stable.
 const stampOf = (a) => String((a && a.updated_at) || "");
@@ -520,6 +426,37 @@ const newerFirst = (a, b) => {
   }
   return stampOf(a) < stampOf(b) ? 1 : stampOf(a) > stampOf(b) ? -1 : 0;
 };
+
+// The views of a news / blog = the readers number typed in the Admin Panel ("वाचक संख्या", e.g. 34.8K) + the real clicks counted since
+// (the backend counts every opening, see countRead). The website shows that sum wherever a story's views appear.
+const clicksOf = (a) => Number(a.clicks) || 0;
+const typedViews = (text) => {
+  const m = /^(\d+(?:\.\d+)?)\s*([km])?/i.exec(devToAscii(String(text == null ? "" : text)).replace(/,/g, "").trim());
+  return m ? Math.round(parseFloat(m[1]) * ({ k: 1e3, m: 1e6 }[(m[2] || "").toLowerCase()] || 1)) : 0;
+};
+const viewsOf = (a) => typedViews(a.views) + clicksOf(a);
+// written like the typed text: the text itself until a click came in, then the sum in the same style (950, 1.2K, 34.8K, 1.2M)
+const viewsText = (a) => {
+  if (!clicksOf(a)) return a.views;
+  const n = viewsOf(a);
+  const short = (x, unit) => (Math.floor(x * 10) / 10).toFixed(1).replace(/\.0$/, "") + unit;
+  return n >= 1e6 ? short(n / 1e6, "M") : n >= 1e3 ? short(n / 1e3, "K") : String(n);
+};
+
+// The Review section (रिव्ह्यू): first what the Admin Panel put there - a story of the रिव्ह्यू category, or one with the रिव्ह्यू box ticked
+// (is_review) - in the usual order; then the news and blogs with the most views (equal views: the usual order), up to REVIEW_SHOWN in all.
+const REVIEW_SECTIONS = ["rajkiy", "samajik", "blogs"];
+const REVIEW_SHOWN = 10;
+const chosenForReview = (a) => a.category === "review" || Number(a.is_review) === 1;
+const reviewArticles = () => {
+  const chosen = articlesData.filter((a) => a.category !== "weekly" && chosenForReview(a)).sort(newerFirst);
+  const mostViewed = articlesData
+    .filter((a) => REVIEW_SECTIONS.includes(a.category) && !chosenForReview(a))
+    .sort((a, b) => viewsOf(b) - viewsOf(a) || newerFirst(a, b));
+  return chosen.concat(mostViewed.slice(0, Math.max(0, REVIEW_SHOWN - chosen.length)));
+};
+// The stories of a section: the Review section's own list, every other section its own news / blogs
+const sectionArticles = (cat) => (cat === "review" ? reviewArticles() : articlesData.filter((a) => a.category === cat));
 
 // --- Weekly issues -----------------------------------------------------------------------------------
 // Devanagari digits <-> plain numbers
@@ -671,7 +608,7 @@ function fluidImg(url, alt, widths, sizes, attrs = LAZY_IMG) {
   return `<img src="${imgW(url, mid)}" srcset="${srcset}" sizes="${sizes}" alt="${altText(alt)}" ${attrs} />`;
 }
 
-// The large card (Popular, Latest Reviews, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
+// The large card (Popular, Videos, the slide-out menu, the Home news list): the photo on top and ALL the text BELOW
 // it - a headline, label or date never sits on a photo. `mediaExtra` is for icons only (the play button of a video).
 // the title of a story as a real link (crawlers follow it, "open in a new tab" works); a plain click is taken over by the listener in the router
 const titleLink = (a, text = a.title) => `<a class="title-link" ${linkTo(a)}>${text}</a>`;
@@ -740,7 +677,6 @@ window.onLanguageChange = function () {
   renderLabelCounts();
   renderLeftSidebar();
   renderRightSidebar();
-  renderLatestReviews();
   renderFeaturedVideos();
   updateAdLanguage();
   renderFooterContact();
@@ -763,7 +699,6 @@ document.addEventListener("DOMContentLoaded", () => {
   renderLabelCounts();
   renderLeftSidebar();
   renderRightSidebar();
-  renderLatestReviews();
   renderFeaturedVideos();
   // (the slide-out "Popular Items" list is rendered the first time the menu opens - see openDrawer)
 
@@ -913,7 +848,7 @@ function initAdSlider() {
 
 // "सर्व बातम्या (१६)"-style counters in the Labels widget come from the data, not from typed numbers
 function renderLabelCounts() {
-  const count = (cat) => (cat === "all" ? articlesData.filter((a) => a.category !== "weekly").length : articlesData.filter((a) => a.category === cat).length);
+  const count = (cat) => (cat === "all" ? articlesData.filter((a) => a.category !== "weekly").length : sectionArticles(cat).length);
   document.querySelectorAll(".label-count[data-count]").forEach((el) => {
     el.textContent = `(${toDevanagari(count(el.dataset.count))})`;
   });
@@ -1350,76 +1285,6 @@ function renderRightSidebar() {
   `).join("") + moreButtonHTML("random", total, RANDOM_SHOWN, randomExpanded);
 }
 
-// --- Render Latest Reviews (Matching Popular Posts Exactly: 4 items) ---
-function renderLatestReviews() {
-  const container = document.getElementById("latest-reviews-container");
-  if (!container) return;
-
-  const reviewArticles = articlesData.filter(a => a.category === "review");
-  if (reviewArticles.length < 4) return;
-  // reviews added in the Admin Panel have no star rating: show the stars only when there is one
-  const stars = (it) => (it.rating ? `<span class="review-rating-stars"><i class="fa-solid fa-star"></i> ${it.rating}</span>` : "");
-
-  const item0 = reviewArticles[0]; // Cinema review (Large top card)
-  const item1 = reviewArticles[1]; // Tech drone review (Sub item 1)
-  const item2 = reviewArticles[2]; // Book review (Sub item 2)
-  const item3 = reviewArticles[3]; // Auto tractor review (Sub item 3)
-
-  container.innerHTML = `
-    <!-- Item 0 Large Card: photo, then the text below it -->
-    ${largeCardHTML({
-      onclick: `openArticleModal(${item0.id})`,
-      link: linkTo(item0),
-      imgHTML: fluidImg(item0.image, item0.title, [480, 800], "(max-width: 600px) 100vw, 300px"),
-      badge: `<span class="category-tag-badge">${item0.categoryLabel}</span>`,
-      title: item0.title,
-      byline: `<span class="by-word">by </span>${item0.author} - ${item0.date} ${stars(item0)}`,
-    })}
-
-    <!-- Item 1 List Card -->
-    <div class="popular-sub-item" onclick="openArticleModal(${item1.id})">
-      <div class="popular-sub-thumb">
-        ${thumbImg(item1.image, item1.title, 240)}
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${titleLink(item1)}</h5>
-        <div class="popular-sub-date">
-          ${item1.date}
-          ${stars(item1)}
-        </div>
-      </div>
-    </div>
-
-    <!-- Item 2 List Card -->
-    <div class="popular-sub-item" onclick="openArticleModal(${item2.id})">
-      <div class="popular-sub-thumb">
-        ${thumbImg(item2.image, item2.title, 240)}
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${titleLink(item2)}</h5>
-        <div class="popular-sub-date">
-          ${item2.date}
-          ${stars(item2)}
-        </div>
-      </div>
-    </div>
-
-    <!-- Item 3 List Card -->
-    <div class="popular-sub-item" onclick="openArticleModal(${item3.id})">
-      <div class="popular-sub-thumb">
-        ${thumbImg(item3.image, item3.title, 240)}
-      </div>
-      <div class="popular-sub-content">
-        <h5 class="popular-sub-title">${titleLink(item3)}</h5>
-        <div class="popular-sub-date">
-          ${item3.date}
-          ${stars(item3)}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 // --- Videos of the Featured Videos widget: only what the owner uploads / links in the Admin Panel (see videoPostsData below) ---
 const builtInVideos = [];   // (the old sample videos were removed: with no uploaded video the widget shows its empty card)
 
@@ -1795,6 +1660,7 @@ let renderedRoute = null;      // canonical key of the view that is on screen
 // The backend (Admin Panel data) has not answered yet. Until it does, an address such as ?post=10000 or ?issue=43 may simply
 // belong to something the Admin Panel added, so it is not thrown away ("unknown address -> Home") too early.
 let apiSyncPending = true;
+let backendCounts = false;     // the backend answered: a reader opening a news / blog is counted (countRead)
 let routeWaitingForApi = false;
 let routeWaitTimer = 0;
 let currentView = "home";
@@ -2023,9 +1889,10 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     updateNavActiveStates(article.category);
     setDocTitle(article.issue ? `${issueLabel(article) || article.title} • साप्ताहिक आवृत्ती` : article.title);
     seoForView(article.issue ? "issue" : "post", renderedRoute, { article });
+    countRead(article);
   } else {
     currentCategory = r.type === "weekly" ? "weekly" : r.type === "cat" ? r.cat : "all";
-    const first = articlesData.find((a) => a.category === currentCategory);
+    const first = sectionArticles(currentCategory)[0];
     mainStoryId = currentCategory === "all"
       // Home: the story marked "Lead Story" in the Admin Panel; without one, the first Rajkiy story
       ? (articlesData.find((a) => Number(a.is_lead) === 1 && a.category !== "weekly")?.id
@@ -2210,9 +2077,11 @@ function weeklyLatestHTML(a) {
     </article>`;
 }
 
-// ---- CATEGORY sections (Samajik, Rajkiy, Blogs, Reviews) ----
+// ---- CATEGORY sections (Samajik, Rajkiy, Blogs, Reviews = the news and blogs with the most views) ----
 function renderCategorySection(container, cat) {
-  const article = articlesData.find((a) => a.id === mainStoryId) || articlesData.find((a) => a.category === cat) || latestIssue() || articlesData[0];
+  const article = articlesData.find((a) => a.id === mainStoryId) || sectionArticles(cat)[0] || latestIssue() || articlesData[0];
+  const [moreIcon, moreTitle] = { blogs: ["fa-pen-nib", "इतर ब्लॉग्स"], review: ["fa-fire", "सर्वाधिक वाचलेल्या इतर बातम्या व ब्लॉग्स"] }[cat]
+    || ["fa-newspaper", "इतर ताज्या बातम्या"];
   container.className = "main-content-box view-home";
   container.innerHTML = `
     <div class="breadcrumb-bar" id="main-breadcrumb">
@@ -2226,13 +2095,23 @@ function renderCategorySection(container, cat) {
     ${leadStoryHTML(article, { heading: "h2" })}
 
     <div class="more-posts-header">
-      <h2 class="more-posts-title"><i class="fa-solid ${cat === "blogs" ? "fa-pen-nib" : "fa-newspaper"}" style="color:var(--main-color); margin-right:6px"></i> ${cat === "blogs" ? "इतर ब्लॉग्स" : "इतर ताज्या बातम्या"}</h2>
+      <h2 class="more-posts-title"><i class="fa-solid ${moreIcon}" style="color:var(--main-color); margin-right:6px"></i> ${moreTitle}</h2>
     </div>
     <div id="secondary-posts-feed">
       <!-- Populated below -->
     </div>
   `;
   renderSecondaryPosts();
+}
+
+// The publication date under a headline (the date typed in the Admin Panel, "प्रकाशन तारीख"), in small letters. <time> also gives it as
+// yyyy-mm-dd when the date can be read.
+function headlineDateHTML(article) {
+  const text = String((article && article.date) || "").trim();
+  if (!text) return "";
+  const v = dateValue(text);
+  const iso = v ? `${Math.floor(v / 10000)}-${String(Math.floor(v / 100) % 100).padStart(2, "0")}-${String(v % 100).padStart(2, "0")}` : "";
+  return `<p class="headline-date"><i class="fa-regular fa-calendar" aria-hidden="true"></i> <time${iso ? ` datetime="${iso}"` : ""}>${text}</time></p>`;
 }
 
 // the big first story (Home, Weekly lead and category sections share it)
@@ -2243,6 +2122,7 @@ function leadStoryHTML(article, { pdf = false, label = "", heading = "h1" } = {}
     <${heading} class="main-post-headline" id="main-headline-text" onclick="${open}" style="cursor:pointer">
       ${titleLink(article)}
     </${heading}>
+    ${headlineDateHTML(article)}
 
     <div class="main-featured-media" id="main-featured-img-wrap" onclick="${open}">
       ${fluidImg(article.image, article.title, [480, 800, 1200], "(max-width: 980px) 100vw, 700px", `${HERO_IMG_ATTRS} id="main-story-image"`)}
@@ -2390,7 +2270,7 @@ function postRowHTML(item) {
           <span class="meta-dot">•</span>
           <span>${item.date}</span>
           <span class="meta-dot">•</span>
-          <span><i class="fa-regular fa-eye"></i> ${item.views}</span>
+          <span><i class="fa-regular fa-eye"></i> ${viewsText(item)}</span>
         </div>
       </div>
     </div>`;
@@ -2438,7 +2318,7 @@ function newsListHTML(filter) {
       badge: `<span class="category-tag-badge cat-${first.category}">${first.categoryLabel}</span>`,
       title: first.title,
       titleTag: "h3",
-      byline: `${first.date} • <i class="fa-regular fa-eye"></i> ${first.views}`,
+      byline: `${first.date} • <i class="fa-regular fa-eye"></i> ${viewsText(first)}`,
     })}
     ${rest.map(postRowHTML).join("")}
     ${loadMoreBtnHTML}`;
@@ -2531,7 +2411,7 @@ function renderSecondaryPosts() {
   }
 
   // other categories (Rajkiy, Samajik, Blogs, Review): the rest of the section
-  const list = articlesData.filter((a) => a.category === currentCategory && a.id !== mainStoryId);
+  const list = sectionArticles(currentCategory).filter((a) => a.id !== mainStoryId);
   // Blogs: the lead story + the next ones make BLOGS_SHOWN; the other blogs open with "अधिक वाचा"
   const isBlogs = currentCategory === "blogs";
   const rows = isBlogs && !blogsExpanded ? list.slice(0, BLOGS_SHOWN - 1) : list;
@@ -2773,6 +2653,7 @@ function renderArticleView(article) {
     <h1 class="single-post-headline">
       ${article.title}
     </h1>
+    ${headlineDateHTML(article)}
 
     ${isIssue && WEEKLY_PDF ? `
     <!-- The weekly issue: cover + PDF e-paper -->
@@ -3517,6 +3398,22 @@ async function apiJson(path) {
   return null;
 }
 
+// A reader opened a news / blog: one more view (POST /api/articles/<id>/read; see viewsOf - the Review section lists the most viewed).
+// Once per story and tab: Back / Forward, a refresh or the language switch show the same story again without counting it. Only once
+// the backend has answered (a static host has none; a story opened before the answer is counted when the answer draws it again).
+const readsSent = new Set();
+function countRead(article) {
+  if (!backendCounts || !article || article.category === "weekly" || readsSent.has(article.id)) return;
+  readsSent.add(article.id);
+  const key = "lokmangal-read-" + article.id;
+  try {
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch (e) { /* storage blocked: counted once per page load (the backend limits repeats as well) */ }
+  // (the answer is read so the request ends: an unread one stays open, and crawlers that wait for a quiet network wait for it)
+  fetch(`${API_BASE}/api/articles/${article.id}/read`, { method: "POST" }).then((r) => r.text()).catch(() => { /* not counted: nothing to show */ });
+}
+
 // --- Footer "कार्यालय संपर्क": office address, phone, e-mail (Admin Panel > Footer) --------------------------------------------------
 // The details come from js/settings-data.js (kept by the backend, for a static host) and then GET /api/settings. A detail that was left
 // empty is not shown, and neither is the block when all three are empty. Text is put in with textContent (never as HTML).
@@ -3578,8 +3475,6 @@ function renderFooterContact() {
 
 // Merges the news rows of the database - GET /api/articles, or js/articles-data.js on a static host - into articlesData.
 function mergeArticleRows(rows) {
-  // The four built-in reviews are not in the database; remember them before the database data is merged in.
-  const builtInReviewIds = new Set(articlesData.filter((a) => a.category === 'review').map((a) => a.id));
   const dbIds = new Set(rows.map((a) => a.id));
   // Oldest first: every NEW article is put at the front of the list, so the newest one ends up on top.
   rows.slice().sort((a, b) => a.id - b.id).forEach((row) => {
@@ -3592,8 +3487,8 @@ function mergeArticleRows(rows) {
     }
   });
   // The database is the truth for what it holds: a built-in article that was DELETED in the Admin Panel
-  // leaves the website too. (The built-in reviews are not in the database, so they stay.)
-  articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id) || builtInReviewIds.has(a.id));
+  // leaves the website too.
+  articlesData = articlesData.filter((a) => a.category === 'weekly' || dbIds.has(a.id));
 }
 
 // A static host (Vercel) has no backend: the news the owner changed in the Admin Panel (edited, Popular / Lead / Random / Latest, new,
@@ -3613,7 +3508,10 @@ async function syncPortalWithApi() {
     articlesData.forEach((a) => restoreRawFields(a, true));      // the backend's rows are raw (Marathi) text: merge into raw text, then apply the language again
     let hasUpdates = false;
     // (an EMPTY list counts too: when the last news is deleted in the Admin Panel the built-in ones must not come back)
-    if (artJson && artJson.success && Array.isArray(artJson.articles)) mergeArticleRows(artJson.articles);
+    if (artJson && artJson.success && Array.isArray(artJson.articles)) {
+      mergeArticleRows(artJson.articles);
+      backendCounts = true;
+    }
     if (weekJson) {
       // (an EMPTY list counts too: when the last issue is deleted in the Admin Panel the 68 built-in issues must not come back)
       if (weekJson.success && Array.isArray(weekJson.issues)) {
@@ -3658,13 +3556,12 @@ async function syncPortalWithApi() {
     if (artJson || weekJson) {
       apiSyncPending = false;          // from now on an unknown address really is unknown
       routeWaitingForApi = false;
-      articlesData.sort(newerFirst);   // the most recently updated news first (Latest, Reviews, every section)
+      articlesData.sort(newerFirst);   // the most recently updated news first (Latest, every section)
       fillBuiltInEnglish();            // (a row without English text must not wipe the built-in English)
       applyDataLanguage();
       if (typeof renderLabelCounts === 'function') renderLabelCounts();
       renderLeftSidebar();
       renderRightSidebar();
-      renderLatestReviews();
       // The slide-out "Popular Items" list is built when the menu is first opened (its photos are not
       // downloaded before that). Refresh it here only if it was already built, so it shows the new data.
       if (drawerPopularRendered && typeof renderDrawerPopularItems === 'function') {

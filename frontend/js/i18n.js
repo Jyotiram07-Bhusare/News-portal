@@ -162,6 +162,7 @@
     ["इतर संबंधित बातम्या", "Related stories"],
     ["इतर ताज्या बातम्या", "Other latest news"],
     ["इतर ब्लॉग्स", "Other blogs"],
+    ["सर्वाधिक वाचलेल्या इतर बातम्या व ब्लॉग्स", "Other most-read news and blogs"],
     ["वाचकांच्या प्रतिक्रिया", "Readers' comments", ["वाचकांच्या प्रतिक्रिया (Comments)"]],
     ["लोकमंगल वाचक", "Lokmangal reader"],
     ["आत्ताच", "Just now"],
