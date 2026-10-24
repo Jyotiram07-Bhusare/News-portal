@@ -3,6 +3,8 @@ News and blogs are numbered by their publication date instead, newest first: see
 import pytest
 
 import database
+import sanitize
+from sanitize import ValidationError
 
 BASE = {"title": "t", "category": "review", "author": "a", "date": "d", "excerpt": "e", "content": "<p>c</p>", "image": "assets/images/a.jpg"}
 
@@ -56,3 +58,26 @@ def test_an_unreadable_date_counts_as_the_day_the_story_was_added():
         {"id": 3, "date": "", "created_at": None},                                       # (nothing to go by: on top, never lost at the bottom)
     ]
     assert database._date_order(rows) == [3, 2, 1]
+
+
+# ---- the places inside the Popular / Random widgets: a story put in is number 1, a place typed in the Admin Panel moves it
+def test_a_story_put_in_goes_to_the_top_and_a_typed_place_moves_it():
+    assert database._moved([10, 11, 12], 13, 1) == [13, 10, 11, 12]       # newly put into Popular: the top, the others one place down
+    assert database._moved([10, 11, 12], 12, 1) == [12, 10, 11]           # moved up by hand
+    assert database._moved([10, 11, 12], 10, 2) == [11, 10, 12]           # moved down by hand
+    assert database._moved([10, 11, 12], 11, 99) == [10, 12, 11]          # (past the end: the last place)
+
+
+@pytest.mark.parametrize("key", ["popular_order", "random_order"])
+def test_the_widget_places_are_cleaned_like_the_place_number(key):
+    assert sanitize.article({key: "2"}, creating=False) == {key: 2}
+    assert sanitize.article({key: ""}, creating=False) == {key: None}
+    with pytest.raises(ValidationError):
+        sanitize.article({key: "abc"}, creating=False)
+
+
+def test_the_admin_panel_can_give_a_popular_story_its_place(client, admin, db):
+    article_id = client.post("/api/articles", headers=admin, json={**BASE, "category": "blogs", "is_popular": 1}).get_json()["article"]["id"]
+    reply = client.put(f"/api/articles/{article_id}", headers=admin, json={"popular_order": "3"})
+    assert reply.status_code == 200 and db.articles[article_id]["popular_order"] == 3
+    assert client.put(f"/api/articles/{article_id}", headers=admin, json={"random_order": "0"}).status_code == 400

@@ -770,6 +770,8 @@ def create_app():
         database.ensure_clicks_column()      # ... and articles.clicks (how often readers opened a news / blog: the Review section)
         database.ensure_review_column()      # ... and articles.is_review (the Review placement ticked in the Admin Panel)
         database.renumber_all_by_date()      # news and blogs numbered by their date (a database numbered the older ways is put right)
+        database.ensure_placement_order_columns()    # ... and the places inside the Popular / Random widgets
+        database.number_placements()
     except pymysql.MySQLError:
         pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:

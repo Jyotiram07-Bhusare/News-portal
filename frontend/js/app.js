@@ -1216,13 +1216,22 @@ window.toggleMoreStories = function(kind) {
   else if (kind === "blogs") { blogsExpanded = !blogsExpanded; renderSecondaryPosts(); }
 };
 
+// The order inside the Popular / Random widgets: their own place numbers (popular_order / random_order: a story put in is number 1, the
+// Admin Panel can move it), then any story without one in the usual order of the lists.
+const placementOrder = (field) => (a, b) => {
+  const pa = Number(a[field]) || 0, pb = Number(b[field]) || 0;
+  if (pa && pb && pa !== pb) return pa - pb;
+  if (pa !== pb) return pa ? -1 : 1;
+  return newerFirst(a, b) || b.id - a.id;
+};
+
 function renderLeftSidebar() {
   const container = document.getElementById("popular-posts-container");
   if (!container) return;
 
-  // Pick articles explicitly marked as popular in Admin Panel - the most recently updated / marked first (then the highest id), so a story
-  // marked or edited now shows at once and goes to the top; the widget shows POPULAR_SHOWN, the rest waits behind "अधिक वाचा"
-  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
+  // Pick articles explicitly marked as popular in Admin Panel, in their Popular places (placementOrder); the widget shows POPULAR_SHOWN,
+  // the rest waits behind "अधिक वाचा"
+  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort(placementOrder("popular_order"));
   
   // Only what is marked Popular in the Admin Panel is listed: nothing is added to fill the places (a story taken out of Popular must be gone)
   const total = popularList.length;
@@ -1264,8 +1273,8 @@ function renderRightSidebar() {
   const container = document.getElementById("random-posts-grid");
   if (!container) return;
 
-  // Pick articles explicitly marked as random in Admin Panel - the most recently updated / marked first; RANDOM_SHOWN are shown, the rest waits behind "अधिक वाचा"
-  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);
+  // Pick articles explicitly marked as random in Admin Panel, in their Random places; RANDOM_SHOWN are shown, the rest waits behind "अधिक वाचा"
+  let randomList = articlesData.filter(a => Number(a.is_random) === 1 && a.category !== "weekly").sort(placementOrder("random_order"));
 
   // Only what is marked Random in the Admin Panel is listed: nothing is added to fill the places
   const total = randomList.length;
@@ -1542,7 +1551,7 @@ function renderDrawerPopularItems() {
   const container = document.getElementById("drawer-popular-list");
   if (!container) return;
 
-  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort((a, b) => newerFirst(a, b) || b.id - a.id);   // (same order as the Popular widget)
+  let popularList = articlesData.filter(a => Number(a.is_popular) === 1 && a.category !== "weekly").sort(placementOrder("popular_order"));   // (same order as the Popular widget)
   // (only what is marked Popular - nothing is added to fill the list)
   const item0 = popularList[0];
   const otherItems = popularList.slice(1, 5);

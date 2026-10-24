@@ -44,6 +44,8 @@ database.ensure_slug_column = lambda: False          # (no MySQL: nothing to fil
 database.ensure_clicks_column = lambda: True
 database.ensure_review_column = lambda: True
 database.renumber_all_by_date = lambda: None
+database.ensure_placement_order_columns = lambda: True
+database.number_placements = lambda: None
 
 import app as app_module  # noqa: E402
 import auth  # noqa: E402

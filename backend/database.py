@@ -83,6 +83,12 @@ LATEST_COLUMNS = {
 REVIEW_COLUMNS = {
     "articles": (("is_review", "TINYINT(1) NOT NULL DEFAULT 0"),),
 }
+# The places inside the Popular and Random widgets (Admin Panel: "लोकप्रिय क्रम" / "यादृच्छिक क्रम", 1 = the top), apart from the section's
+# date order: a story put into Popular / Random becomes number 1 there and the others move down one place; taken out, its place closes up.
+PLACEMENT_ORDER_COLUMNS = {
+    "articles": (("popular_order", "INT NULL"), ("random_order", "INT NULL")),
+}
+PLACEMENT_ORDERS = {"is_popular": "popular_order", "is_random": "random_order"}
 # The place a news / blog is given in the Admin Panel ("क्रम क्रमांक", 1 = first). NULL = not placed by hand: it is listed by recency as before. The
 # numbers are kept 1..K inside a group by _renumber_articles; the website lists the numbered ones first, in number order (newerFirst in app.js).
 ORDER_COLUMNS = {
@@ -295,6 +301,7 @@ _english_state = {"ok": False, "checked": 0.0}
 _updated_state = {"ok": False, "checked": 0.0}
 _latest_state = {"ok": False, "checked": 0.0}
 _review_state = {"ok": False, "checked": 0.0}
+_placement_order_state = {"ok": False, "checked": 0.0}
 _order_state = {"ok": False, "checked": 0.0}
 _slug_state = {"ok": False, "checked": 0.0}
 _clicks_state = {"ok": False, "checked": 0.0}
@@ -364,6 +371,26 @@ def ensure_review_column() -> bool:
             raise
     _review_state.update(ok=False, checked=0.0)
     return has_review()
+
+
+def has_placement_order() -> bool:
+    """True when `articles` has popular_order and random_order (the places inside the Popular and Random widgets)."""
+    return _has_columns(PLACEMENT_ORDER_COLUMNS, _placement_order_state)
+
+
+def ensure_placement_order_columns() -> bool:
+    """An older database gets articles.popular_order / random_order here (once, at start-up). Returns whether the columns are there."""
+    if has_placement_order():
+        return True
+    for name, ddl in PLACEMENT_ORDER_COLUMNS["articles"]:
+        try:
+            with connection() as conn:
+                conn.cursor().execute(f"ALTER TABLE articles ADD COLUMN {name} {ddl}")
+        except pymysql.err.OperationalError as e:
+            if not (e.args and e.args[0] == 1060):              # 1060 = the column exists already (another process was first)
+                raise
+    _placement_order_state.update(ok=False, checked=0.0)
+    return has_placement_order()
 
 
 def _optional_flags() -> tuple:
@@ -618,6 +645,42 @@ def renumber_all_by_date() -> None:
             _renumber_by_date(cur, group)
 
 
+def _moved(ids: List[int], move_id: int, position: int) -> List[int]:
+    """`ids` in order with `move_id` put at `position` (1 = the top; past the end = the last place)."""
+    rest = [i for i in ids if i != move_id]
+    rest.insert(max(0, min(len(rest), int(position) - 1)), move_id)
+    return rest
+
+
+def _renumber_placement(cur, flag: str, move_id: Optional[int] = None, position: Optional[int] = None) -> None:
+    """Keep the places inside one widget (flag "is_popular" or "is_random") 1..K: the stories with the flag on, the numbered ones first in
+    number order, then any without a number (the most recently updated first). `move_id` takes `position`. A story with the flag off
+    keeps no place. Only the numbers that change are written."""
+    col = PLACEMENT_ORDERS[flag]
+    cur.execute(f"UPDATE articles SET `{col}` = NULL WHERE `{flag}` = 0 AND `{col}` IS NOT NULL")
+    recent = "updated_at DESC, " if has_updated() else ""
+    cur.execute(f"SELECT id, `{col}` AS place FROM articles WHERE `{flag}` = 1 ORDER BY (`{col}` IS NULL), `{col}`, {recent}id DESC")
+    rows = cur.fetchall()
+    now = {r["id"]: r["place"] for r in rows}
+    ids = [r["id"] for r in rows]
+    if move_id is not None and move_id in now and position is not None:
+        ids = _moved(ids, move_id, position)
+    for number, row_id in enumerate(ids, start=1):
+        if now[row_id] != number:
+            cur.execute(f"UPDATE articles SET `{col}` = %s WHERE id = %s", (number, row_id))
+
+
+def number_placements() -> None:
+    """The Popular and Random widgets numbered 1..K (at start-up: a story marked before the numbers existed gets one, the most recently
+    marked first)."""
+    if not has_placement_order():
+        return
+    with connection() as conn:
+        cur = conn.cursor()
+        for flag in PLACEMENT_ORDERS:
+            _renumber_placement(cur, flag)
+
+
 def create_article(data: Dict[str, Any]) -> int:
     category = _text(data, "category", "rajkiy")
     category_label = _text(data, "categoryLabel") or CATEGORY_LABELS.get(category, DEFAULT_CATEGORY_LABEL)
@@ -660,6 +723,10 @@ def create_article(data: Dict[str, Any]) -> int:
                 _renumber_by_date(cur, _order_group(category))                 # its date decides its place; the others move over
             elif data.get("sort_order") is not None:
                 _renumber_articles(cur, _order_group(category), new_id, data["sort_order"])      # given a place by hand: the others move over
+        if has_placement_order():
+            for flag, col in PLACEMENT_ORDERS.items():
+                if _flag(data.get(flag, 0)):
+                    _renumber_placement(cur, flag, new_id, data.get(col) or 1)     # put into Popular / Random: number 1 unless a place is typed
         return new_id
 
 
@@ -676,14 +743,16 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest", "is_review") else data[key])
     place = has_order() and ("sort_order" in data or "date" in data or "category" in data)    # (the place can change: a number, a new date or section)
-    if not fields and not place:
+    orders = has_placement_order() and any(k in data for k in (*PLACEMENT_ORDERS, *PLACEMENT_ORDERS.values()))   # (Popular / Random and their places)
+    if not fields and not place and not orders:
         return False
     if fields and has_updated():
         fields.append("`updated_at` = CURRENT_TIMESTAMP")       # saved = the newest: the website lists it first (unless it has a place number)
 
     with connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, category" + (", sort_order" if place else "") + " FROM articles WHERE id = %s", (article_id,))
+        cur.execute("SELECT id, category, is_popular, is_random" + (", sort_order" if place else "")
+                    + (", popular_order, random_order" if orders else "") + " FROM articles WHERE id = %s", (article_id,))
         before = cur.fetchone()
         if before is None:
             return False                                        # nothing is touched for an unknown id
@@ -706,6 +775,16 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
                     _renumber_by_date(cur, _order_group(before["category"]))
                 else:
                     _renumber_articles(cur, _order_group(before["category"]))
+        if orders:
+            for flag, col in PLACEMENT_ORDERS.items():
+                was_on = bool(before[flag])
+                is_on = bool(_flag(data[flag])) if flag in data else was_on
+                if is_on and not was_on:
+                    _renumber_placement(cur, flag, article_id, data.get(col) or 1)     # just put in: number 1 unless a place is typed
+                elif is_on and data.get(col) is not None and data[col] != before.get(col):
+                    _renumber_placement(cur, flag, article_id, data[col])            # given another place in the Admin Panel
+                elif was_on and not is_on:
+                    _renumber_placement(cur, flag)                                   # taken out: its place closes up
         return True
 
 
@@ -728,6 +807,11 @@ def toggle_placement(article_id: int, field: str, value: Any = None) -> Optional
         if new_value == 1 and has_updated():
             # marked Lead / Popular / Random: it is the newest there. (Turning a flag OFF, or another article becoming the Lead, stamps nothing.)
             cur.execute("UPDATE articles SET `updated_at` = CURRENT_TIMESTAMP WHERE id = %s", (article_id,))
+        if field in PLACEMENT_ORDERS and has_placement_order() and new_value != (1 if row["current_value"] else 0):
+            if new_value:
+                _renumber_placement(cur, field, article_id, 1)      # put into Popular / Random: number 1 there, the others move down
+            else:
+                _renumber_placement(cur, field)                     # taken out: its place closes up
         cur.execute("SELECT * FROM articles WHERE id = %s", (article_id,))
         article = cur.fetchone()
         if article is None:                                     # deleted by someone else in the meantime
@@ -796,6 +880,9 @@ def delete_article(article_id: int) -> bool:
         deleted = cur.rowcount > 0
         if deleted and before and before.get("sort_order") is not None:
             _renumber_articles(cur, _order_group(before["category"]))       # the place it leaves is closed up
+        if deleted and has_placement_order():
+            for flag in PLACEMENT_ORDERS:
+                _renumber_placement(cur, flag)                                # (and its place in Popular / Random)
         return deleted
 
 

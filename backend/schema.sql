@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS articles (
   is_random     TINYINT(1)    NOT NULL DEFAULT 0,
   is_latest     TINYINT(1)    NOT NULL DEFAULT 1,                   -- 1 = listed in the Home page's Latest News section
   is_review     TINYINT(1)    NOT NULL DEFAULT 0,                   -- 1 = listed in the website's Review section (रिव्ह्यू), before the most viewed
-  sort_order    INT           NULL,                                 -- the place set by hand in the Admin Panel (1 = first), NULL = listed by recency
+  sort_order    INT           NULL,                                 -- the place in its section: news and blogs by date (newest = 1), Review by hand
+  popular_order INT           NULL,                                 -- the place inside the Popular widget (1 = top), NULL when not in Popular
+  random_order  INT           NULL,                                 -- the place inside the Random widget (1 = top), NULL when not in Random
   slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>): made when the news is created, never changed by an edit
   clicks        INT UNSIGNED  NOT NULL DEFAULT 0,                   -- how often readers opened it (POST /api/articles/<id>/read): the website shows views + clicks, its Review section lists the most viewed
   PRIMARY KEY (id),

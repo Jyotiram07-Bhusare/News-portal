@@ -1412,6 +1412,37 @@ body.dark-theme .placement-btn.is-active-review {
   font-size: 0.8rem;
 }
 
+/* the place inside the Popular / Random widget, under the tiles while that box is ticked */
+.placement-orders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.placement-box-group .placement-order {       /* (beats ".form-group label { display: block }") */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.placement-box-group .placement-order[hidden] {
+  display: none;                                /* (its box is not ticked) */
+}
+
+.placement-order .form-control {
+  width: 96px;
+  padding: 6px 10px;
+}
+
+.placement-btn .place-no {
+  margin-left: 2px;
+  font-weight: 800;
+}
+
 .placement-cards-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));      /* Lead, Popular, Random, Latest, Review: one row */

@@ -756,6 +756,9 @@ function renderArticlesTable() {
     } else if (appState.placementFilter === 'review') {
       list = list.filter(a => Number(a.is_review) === 1 || a.category === 'review');      // (both show in the website's Review section)
     }
+    // Popular / Random are listed in their places on the website (#1 first)
+    const placeField = { popular: 'popular_order', random: 'random_order' }[appState.placementFilter];
+    if (placeField) list = [...list].sort((a, b) => (Number(a[placeField]) || 9999) - (Number(b[placeField]) || 9999));
   }
 
   // Filter by search query
@@ -804,11 +807,13 @@ function renderArticlesTable() {
                   onclick="toggleArticlePlacement(${a.id}, 'is_popular')" 
                   title="${Number(a.is_popular) === 1 ? 'लोकप्रिय मधून काढा' : 'लोकप्रिय बातम्यांमध्ये जोडा'}">
             <i class="fa-solid fa-fire"></i> Popular
+            ${Number(a.is_popular) === 1 && a.popular_order ? `<span class="place-no" title="लोकप्रिय क्रम">#${a.popular_order}</span>` : ''}
           </button>
           <button type="button" class="placement-btn ${Number(a.is_random) === 1 ? 'is-active-random' : ''}" 
                   onclick="toggleArticlePlacement(${a.id}, 'is_random')" 
                   title="${Number(a.is_random) === 1 ? 'यादृच्छिक मधून काढा' : 'यादृच्छिक बातम्यांमध्ये जोडा'}">
             <i class="fa-solid fa-shuffle"></i> Random
+            ${Number(a.is_random) === 1 && a.random_order ? `<span class="place-no" title="यादृच्छिक क्रम">#${a.random_order}</span>` : ''}
           </button>
           <button type="button" class="placement-btn ${a.is_latest === undefined || Number(a.is_latest) === 1 ? 'is-active-latest' : ''}" 
                   onclick="toggleArticlePlacement(${a.id}, 'is_latest')" 
@@ -894,6 +899,16 @@ function syncOrderField() {
 }
 document.getElementById('form-article-category')?.addEventListener('change', syncOrderField);
 
+// The place inside the Popular / Random widget: its field shows while that box is ticked (empty = a story put in now is number 1)
+const PLACE_FIELDS = { popular: 'is-popular', random: 'is-random' };
+function syncPlacementOrderFields() {
+  Object.entries(PLACE_FIELDS).forEach(([name, box]) => {
+    const wrap = document.getElementById(`form-article-${name}-order-wrap`);
+    if (wrap) wrap.hidden = !document.getElementById(`form-article-${box}`)?.checked;
+  });
+}
+Object.values(PLACE_FIELDS).forEach((box) => document.getElementById(`form-article-${box}`)?.addEventListener('change', syncPlacementOrderFields));
+
 function openNewArticleModal() {
   appState.editingArticleId = null;
   document.getElementById('article-modal-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> नवीन बातमी तयार करा';
@@ -918,6 +933,9 @@ function openNewArticleModal() {
   document.getElementById('form-article-views').value = '1.8K';
   document.getElementById('form-article-order').value = '';               // (news / blog: its date gives the number; Review: empty = by recency)
   syncOrderField();
+  document.getElementById('form-article-popular-order').value = '';
+  document.getElementById('form-article-random-order').value = '';
+  syncPlacementOrderFields();
   document.getElementById('form-article-image').value = '';                 // (no photo is suggested: the editor chooses one)
   updateArticleImgPreview('');
   document.getElementById('form-article-excerpt').value = '';
@@ -958,6 +976,9 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-views').value = a.views || '1.5K';
   document.getElementById('form-article-order').value = a.sort_order || '';
   syncOrderField();
+  document.getElementById('form-article-popular-order').value = Number(a.is_popular) === 1 ? (a.popular_order || '') : '';
+  document.getElementById('form-article-random-order').value = Number(a.is_random) === 1 ? (a.random_order || '') : '';
+  syncPlacementOrderFields();
   document.getElementById('form-article-image').value = a.image || '';
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
@@ -1131,6 +1152,8 @@ async function handleArticleFormSubmit(e) {
     is_latest,
     is_review,
     sort_order: DATE_NUMBERED.includes(category) ? null : (parseInt(document.getElementById('form-article-order').value, 10) || null),   // (news / blogs: by date)
+    popular_order: is_popular ? (parseInt(document.getElementById('form-article-popular-order').value, 10) || null) : null,   // (empty: put in now = #1)
+    random_order: is_random ? (parseInt(document.getElementById('form-article-random-order').value, 10) || null) : null,
     author,
     date,
     views,
