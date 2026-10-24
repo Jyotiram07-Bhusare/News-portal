@@ -24,6 +24,10 @@ os.environ.update({
     "SERVE_FRONTEND": "false",
     "CORS_ORIGINS": "https://www.example.org",
     "LOGIN_MAX_FAILURES": "3",
+    # no real MySQL in the tests, on a PC that runs one too (as in CI): a call that slips past the fakes fails at once instead of
+    # reading or changing the developer's own database
+    "DB_HOST": "127.0.0.1",
+    "DB_PORT": "1",
 })
 os.environ.pop("ADMIN_PASSWORD_HASH", None)
 os.environ.pop("DB_SSL_CA", None)
@@ -172,6 +176,7 @@ def db(monkeypatch):
     monkeypatch.setattr(database, "publish_videos_file", lambda: False)
     monkeypatch.setattr(database, "publish_ads_file", lambda: False)
     monkeypatch.setattr(database, "get_stats", lambda: {"total_articles": len(fake.articles)})
+    monkeypatch.setattr(database, "settle_if_unplaced", lambda article_id, before: False)     # (it reads the real table)
     return fake
 
 
