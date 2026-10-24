@@ -883,6 +883,17 @@ async function toggleArticlePlacement(articleId, field) {
 // -------------------------------------------------------------
 // Articles: Add / Edit / Delete Modals & Handlers
 // -------------------------------------------------------------
+// News and blogs take their place number from their date (the backend numbers them, newest = 1, like the weekly issues): the field only
+// shows it. A Review story is still placed by hand.
+const DATE_NUMBERED = ['rajkiy', 'samajik', 'blogs'];
+function syncOrderField() {
+  const field = document.getElementById('form-article-order');
+  const auto = DATE_NUMBERED.includes(document.getElementById('form-article-category').value);
+  field.disabled = auto;
+  field.placeholder = auto ? 'तारखेनुसार आपोआप' : 'आपोआप';
+}
+document.getElementById('form-article-category')?.addEventListener('change', syncOrderField);
+
 function openNewArticleModal() {
   appState.editingArticleId = null;
   document.getElementById('article-modal-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> नवीन बातमी तयार करा';
@@ -905,7 +916,8 @@ function openNewArticleModal() {
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
   document.getElementById('form-article-date').value = '';                 // (initDateDisplay below puts today's date: never what the form held before)
   document.getElementById('form-article-views').value = '1.8K';
-  document.getElementById('form-article-order').value = '';               // (no number: listed by recency; a number puts it at that place of its list)
+  document.getElementById('form-article-order').value = '';               // (news / blog: its date gives the number; Review: empty = by recency)
+  syncOrderField();
   document.getElementById('form-article-image').value = '';                 // (no photo is suggested: the editor chooses one)
   updateArticleImgPreview('');
   document.getElementById('form-article-excerpt').value = '';
@@ -945,6 +957,7 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-date').value = a.date || '';
   document.getElementById('form-article-views').value = a.views || '1.5K';
   document.getElementById('form-article-order').value = a.sort_order || '';
+  syncOrderField();
   document.getElementById('form-article-image').value = a.image || '';
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
@@ -1117,7 +1130,7 @@ async function handleArticleFormSubmit(e) {
     is_random,
     is_latest,
     is_review,
-    sort_order: parseInt(document.getElementById('form-article-order').value, 10) || null,     // (empty = not placed by hand)
+    sort_order: DATE_NUMBERED.includes(category) ? null : (parseInt(document.getElementById('form-article-order').value, 10) || null),   // (news / blogs: by date)
     author,
     date,
     views,

@@ -11,7 +11,7 @@ import threading
 import time
 import unicodedata
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
 import pymysql
@@ -89,9 +89,9 @@ ORDER_COLUMNS = {
     "articles": (("sort_order", "INT NULL"),),
 }
 ORDER_GROUPS = {"rajkiy": ("rajkiy", "samajik"), "samajik": ("rajkiy", "samajik")}     # the two news sections are one list; every other section is its own
-# Sections whose stories always carry a place number: a NEW blog becomes number 1 of the Blogs section and the others move down one place
-# (the newest blog first, the one before it second ...). A number typed in the Admin Panel still puts a blog at that place.
-AUTO_NUMBERED = ("blogs",)
+# Sections numbered by their publication date, like the weekly issues: the story with the newest date ("प्रकाशन तारीख") is number 1 of its
+# list (the big story of its section), the one before it 2 ... Every save renumbers the list, so a new story lands in its place by itself.
+AUTO_NUMBERED = ("rajkiy", "samajik", "blogs")
 # The words of a news / blog's address (/blog/<slug>). Made once when it is created (the English headline when there is one, else the Marathi one) and never
 # changed by an edit, so a link that was shared keeps working. NULL only until backfill_slugs() has run (at start-up).
 SLUG_COLUMNS = {
@@ -583,26 +583,39 @@ def _renumber_articles(cur, categories: tuple, move_id: Optional[int] = None, po
         cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s AND (sort_order IS NULL OR sort_order != %s)", (number, row_id, number))
 
 
-def _place_for(category: Any, given: Optional[int], current: Optional[int] = None, arriving: bool = True) -> Optional[int]:
-    """The place number a story takes: the one typed in the Admin Panel; without one, in an AUTO_NUMBERED section a story that arrives there
-    (new, or moved in from another section) is number 1 and one that was there already keeps its number. Elsewhere none (listed by recency)."""
-    if given is not None:
-        return given
-    if str(category) not in AUTO_NUMBERED:
-        return None
-    return 1 if arriving else current
+def _date_order(rows: List[Dict[str, Any]]) -> List[int]:
+    """Ids newest first by the publication date ("२४ ऑक्टोबर २०२६"); a date that cannot be read counts as the day the story was added
+    (or, without that, as the newest - a fresh story never disappears at the bottom). Same date: the later added first."""
+    from seo import parse_date                                  # (seo imports this module)
+
+    def key(row):
+        day = parse_date(row.get("date"))
+        if day is None:
+            added = row.get("created_at")
+            day = added.date() if isinstance(added, datetime) else (parse_date(str(added or "")[:10]) or date.max)
+        return (day, int(row["id"]))
+    return [r["id"] for r in sorted(rows, key=key, reverse=True)]
 
 
-def _number_unplaced(cur, categories: tuple, except_id: Optional[int] = None) -> None:
-    """Every story of the group without a place number gets one, after the numbered ones, the newest (highest id) first."""
+def _renumber_by_date(cur, categories: tuple) -> None:
+    """Number one AUTO_NUMBERED list 1..K by publication date (only the numbers that change are written)."""
     marks = ", ".join(["%s"] * len(categories))
-    cur.execute(f"SELECT id, sort_order FROM articles WHERE category IN ({marks}) AND id != %s ORDER BY id DESC", (*categories, except_id or 0))
+    cur.execute(f"SELECT id, `date`, created_at, sort_order FROM articles WHERE category IN ({marks})", tuple(categories))
     rows = cur.fetchall()
-    number = max((r["sort_order"] for r in rows if r["sort_order"] is not None), default=0)
-    for row in rows:
-        if row["sort_order"] is None:
-            number += 1
-            cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s", (number, row["id"]))
+    now = {r["id"]: r["sort_order"] for r in rows}
+    for number, row_id in enumerate(_date_order(rows), start=1):
+        if now[row_id] != number:
+            cur.execute("UPDATE articles SET sort_order = %s WHERE id = %s", (number, row_id))
+
+
+def renumber_all_by_date() -> None:
+    """Every AUTO_NUMBERED list numbered by date (at start-up: a database numbered the older ways is put right once)."""
+    if not has_order():
+        return
+    with connection() as conn:
+        cur = conn.cursor()
+        for group in {_order_group(c) for c in AUTO_NUMBERED}:
+            _renumber_by_date(cur, group)
 
 
 def create_article(data: Dict[str, Any]) -> int:
@@ -642,11 +655,11 @@ def create_article(data: Dict[str, Any]) -> int:
         if has_slug():
             english = str(data.get("title_en") or "").strip()
             cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, slugify(english or data.get("title")), new_id), new_id))
-        position = _place_for(category, data.get("sort_order"))            # (a new blog: number 1)
-        if position is not None and has_order():
+        if has_order():
             if category in AUTO_NUMBERED:
-                _number_unplaced(cur, _order_group(category), new_id)          # every blog has its number; the older ones keep their order
-            _renumber_articles(cur, _order_group(category), new_id, position)  # placed: the others move over
+                _renumber_by_date(cur, _order_group(category))                 # its date decides its place; the others move over
+            elif data.get("sort_order") is not None:
+                _renumber_articles(cur, _order_group(category), new_id, data["sort_order"])      # given a place by hand: the others move over
         return new_id
 
 
@@ -662,7 +675,7 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
         if key in data:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest", "is_review") else data[key])
-    place = has_order() and "sort_order" in data                # the place number came with the request (a number, or None = not placed by hand)
+    place = has_order() and ("sort_order" in data or "date" in data or "category" in data)    # (the place can change: a number, a new date or section)
     if not fields and not place:
         return False
     if fields and has_updated():
@@ -682,14 +695,17 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
             category = data.get("category") or before["category"]
             group = _order_group(category)
             moved = _order_group(before["category"]) != group
-            # (a blog keeps its number when the field is left empty; one moved into Blogs without a number becomes number 1)
-            position = _place_for(category, data.get("sort_order"), before.get("sort_order"), arriving=moved)
-            if position is not None or before.get("sort_order") is not None:
-                if position is not None and category in AUTO_NUMBERED:
-                    _number_unplaced(cur, group, article_id)
-                _renumber_articles(cur, group, article_id, position)
+            if category in AUTO_NUMBERED:
+                _renumber_by_date(cur, group)                   # numbered by date: a number typed by hand does not count here
+            elif "sort_order" in data:
+                position = data.get("sort_order")
+                if position is not None or before.get("sort_order") is not None:
+                    _renumber_articles(cur, group, article_id, position)
             if moved:                                           # moved to another section: the place it leaves behind is closed up
-                _renumber_articles(cur, _order_group(before["category"]))
+                if before["category"] in AUTO_NUMBERED:
+                    _renumber_by_date(cur, _order_group(before["category"]))
+                else:
+                    _renumber_articles(cur, _order_group(before["category"]))
         return True
 
 
