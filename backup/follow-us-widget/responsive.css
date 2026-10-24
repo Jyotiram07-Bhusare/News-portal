@@ -1,0 +1,145 @@
+/* BACKUP 2026-10-24: the "आम्हाला फॉलो करा" (Follow Us) widget, taken off the website. See README.md in this folder.
+   From frontend/css/responsive.css, three places. */
+
+/* 1) in "D. TABLET PORTRAIT (601–980px)": #widget-follow was one of the widgets that run the full width. This is how that
+      rule read (the comment too); today it has no #widget-follow line. */
+  /* Popular Posts, Follow Us and Random Posts run the full width; Ads | Labels and
+     Featured Videos also runs the full width (app.js keeps Follow Us under Labels) */
+  #widget-popular,
+  #widget-follow,
+  #widget-random,
+  #widget-videos {
+    grid-column: 1 / -1;
+  }
+
+/* 2) this whole section: between the end of "E. PHONES" (the @supports not (aspect-ratio) block) and "E3. VIEWS ON PHONES /
+      TABLETS", with two empty lines before and after it */
+
+/* ==========================================================================
+   E2. FOLLOW US WIDGET  (phones + tablets)
+   Brand-coloured cards with an icon badge and a one-line call to action.
+   app.js places this widget right under "Labels" on these layouts; on desktop it
+   stays in the right column and keeps the original plain buttons (style.css).
+   ========================================================================== */
+@media (max-width: 980px) {
+  .follow-intro {
+    display: block;
+    margin: -4px 0 14px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--meta-color);
+  }
+
+  .widget-follow .social-icons-grid {
+    gap: 10px;
+  }
+
+  .follow-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 64px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    color: #ffffff;
+    box-shadow: 0 8px 16px -8px var(--follow-glow, rgba(0, 0, 0, 0.45));
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* soft light disc in the corner = depth without a heavy gradient */
+  .follow-card::after {
+    content: "";
+    position: absolute;
+    top: -28px;
+    right: -24px;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.13);
+    pointer-events: none;
+  }
+
+  /* deeper tone on the text side (white text stays readable), brand colour on the far side */
+  .follow-card.fb { background: linear-gradient(135deg, #2b4a8a 0%, #4267b2 100%); --follow-glow: rgba(43, 74, 138, 0.75); }
+  .follow-card.tw { background: linear-gradient(135deg, #000000 0%, #2a2a2a 100%); --follow-glow: rgba(0, 0, 0, 0.55); }
+  .follow-card.yt { background: linear-gradient(135deg, #b50e0e 0%, #e62d2d 100%); --follow-glow: rgba(181, 14, 14, 0.75); }
+  .follow-card.wa { background: linear-gradient(135deg, #0f8a6e 0%, #25d366 100%); --follow-glow: rgba(15, 138, 110, 0.75); }
+
+  .follow-ic {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 18px;
+  }
+
+  .follow-txt {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    line-height: 1.25;
+  }
+
+  .follow-name {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .follow-sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* tablets / landscape phones: the full-width widget shows all four cards in one row */
+@media (min-width: 601px) and (max-width: 980px) {
+  #widget-follow .social-icons-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* small phones: slightly tighter cards so "WhatsApp" never gets clipped */
+@media (max-width: 360px) {
+  .follow-card {
+    gap: 10px;
+    min-height: 60px;
+    padding: 10px 12px;
+  }
+
+  .follow-ic {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .follow-name {
+    font-size: 14px;
+  }
+}
+
+/* 3) in "F. SMALL PHONES", inside @media (max-width: 300px): .social-icons-grid shared the share bar's one-column rule. This is
+      how it read. */
+  .social-icons-grid,
+  .single-share-bar {
+    grid-template-columns: 1fr;
+  }

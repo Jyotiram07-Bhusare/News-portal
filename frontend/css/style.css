@@ -1820,13 +1820,7 @@ html.is-dark .x-share-btn.share-toggle-more {
   border: 1px solid rgba(238, 123, 48, 0.4);
 }
 
-/* Social Follow Widget */
-.social-icons-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
+/* Coloured social buttons (the share bar under an article) */
 .social-icon-box {
   display: flex;
   align-items: center;
@@ -1839,22 +1833,10 @@ html.is-dark .x-share-btn.share-toggle-more {
 }
 
 .social-icon-box.fb { background-color: #3b5998; }
-.social-icon-box.tw { background-color: #000000; }          /* X (Twitter) is black everywhere: Follow us + the share bar under an article */
+.social-icon-box.tw { background-color: #000000; }          /* X (Twitter) is black */
 html.is-dark .social-icon-box.tw { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }   /* a hairline, so black stays visible on the dark page */
-.social-icon-box.yt { background-color: #cd201f; }
 .social-icon-box.wa { background-color: #25d366; }
 .social-icon-box.cp { background-color: #0284c7; }
-
-/* Follow Us widget: the intro line and the small sub-labels are only shown on phones / tablets
-   (css/responsive.css). On desktop the cards look exactly like the plain coloured buttons. */
-.follow-intro,
-.follow-sub {
-  display: none;
-}
-
-.follow-txt {
-  display: contents;
-}
 
 /* Share-bar buttons under an article (these used to be inline styles in app.js) */
 .share-btn {

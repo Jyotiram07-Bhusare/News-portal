@@ -1,0 +1,37 @@
+<!-- BACKUP 2026-10-24: the "आम्हाला फॉलो करा" (Follow Us) widget, taken off the website. See README.md in this folder.
+     Goes back into frontend/index.html, inside <aside id="sidebar-wrapper">, between the Random Posts widget (#widget-random)
+     and the Featured Videos widget (#widget-videos), with one empty line before and after it. The comment above <aside> then reads
+     "COLUMN 3: RIGHT SIDEBAR (Random Posts 2x2 Grid + Follow Us + Videos)" again. -->
+
+          <!-- Widget: Social Follow ("Follow Us"). On phones / tablets app.js moves it right under the Labels widget. -->
+          <div class="widget-box widget-follow" id="widget-follow">
+            <div class="widget-title-wrap">
+              <h3 class="widget-title-text">आम्हाला फॉलो करा</h3>
+            </div>
+            <p class="follow-intro">ताज्या बातम्यांसाठी लोकमंगलशी जोडले राहा</p>
+            <div class="social-icons-grid">
+              <a href="javascript:void(0)" class="social-icon-box follow-card fb" onclick="showToast('लोकमंगल फेसबुक')">
+                <span class="follow-ic"><i class="fa-brands fa-facebook-f"></i></span>
+                <span class="follow-txt"><span class="follow-name">Facebook</span><span class="follow-sub">फॉलो
+                    करा</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card tw"
+                onclick="showToast('लोकमंगल ट्विटर (X)')">
+                <span class="follow-ic"><i class="fa-brands fa-x-twitter"></i></span>
+                <span class="follow-txt"><span class="follow-name">X</span><span class="follow-sub">फॉलो
+                    करा</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card yt"
+                onclick="showToast('लोकमंगल यूट्यूब')">
+                <span class="follow-ic"><i class="fa-brands fa-youtube"></i></span>
+                <span class="follow-txt"><span class="follow-name">YouTube</span><span
+                    class="follow-sub">सबस्क्राईब</span></span>
+              </a>
+              <a href="javascript:void(0)" class="social-icon-box follow-card wa"
+                onclick="showToast('लोकमंगल व्हॉट्सअ‍ॅप')">
+                <span class="follow-ic"><i class="fa-brands fa-whatsapp"></i></span>
+                <span class="follow-txt"><span class="follow-name">WhatsApp</span><span class="follow-sub">जॉईन
+                    करा</span></span>
+              </a>
+            </div>
+          </div>

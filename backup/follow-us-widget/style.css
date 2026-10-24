@@ -1,0 +1,27 @@
+/* BACKUP 2026-10-24: the "आम्हाला फॉलो करा" (Follow Us) widget, taken off the website. See README.md in this folder.
+   From frontend/css/style.css, three places. The share bar under an article still uses .social-icon-box (fb / tw / wa / cp):
+   those rules stayed in style.css. */
+
+/* 1) right under the comment "Coloured social buttons (the share bar under an article)", above .social-icon-box
+      (put that comment back to "Social Follow Widget") */
+.social-icons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* 2) with the other .social-icon-box colours, right after the two .social-icon-box.tw lines (YouTube was only in Follow Us)
+      (and the .tw comment back to: X (Twitter) is black everywhere: Follow us + the share bar under an article) */
+.social-icon-box.yt { background-color: #cd201f; }
+
+/* 3) after .social-icon-box.cp, above "Share-bar buttons under an article" */
+/* Follow Us widget: the intro line and the small sub-labels are only shown on phones / tablets
+   (css/responsive.css). On desktop the cards look exactly like the plain coloured buttons. */
+.follow-intro,
+.follow-sub {
+  display: none;
+}
+
+.follow-txt {
+  display: contents;
+}
