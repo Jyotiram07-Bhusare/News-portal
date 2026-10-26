@@ -134,10 +134,6 @@ button:focus-visible,
     min-height: 44px;
   }
 
-  .comment-action-btn {
-    min-height: 40px;
-  }
-
   .post-nav-item {
     min-height: 56px;
   }
@@ -488,8 +484,7 @@ button:focus-visible,
   }
 
   .main-article-body,
-  .single-article-content,
-  .comment-text-content {
+  .single-article-content {
     overflow-wrap: anywhere;
   }
 
@@ -1145,58 +1140,74 @@ button:focus-visible,
     font-size: 17px;
   }
 
-  .comment-item-card {
-    gap: 10px;
-    padding: 12px;
-    border-radius: 8px;
-  }
-
-  .comment-avatar {
-    width: 34px;
-    height: 34px;
-  }
-
-  .comment-text-content {
-    font-size: 14.5px;
-    line-height: 1.65;
-  }
-
-  .comment-action-btn {
-    min-height: 40px;
-    padding: 6px 10px 6px 0;
-    font-size: 12.5px;
-  }
-
-  .add-comment-wrapper {
+  .cm-form {
     padding: 14px;
     border-radius: 8px;
   }
 
-  .comment-name-input,
-  .comment-textarea-input {
+  .cm-form .comment-textarea-input {
     max-width: none;
     font-size: 16px;               /* >=16px or iOS zooms the page when the field is focused */
     border-radius: 8px;
   }
 
-  .comment-name-input {
-    min-height: 46px;
+  /* the sign-in dialog is a sheet from the bottom of the screen */
+  .cm-modal {
+    align-items: flex-end;
+    padding: 0;
   }
 
-  .comment-textarea-input {
+  .cm-modal-card {
+    max-width: none;
+    max-height: 94%;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 16px 16px 0 0;
+  }
+
+  .cm-login-form input[type="text"],
+  .cm-login-form input[type="email"] {
+    font-size: 16px;               /* >=16px: iOS does not zoom */
+  }
+
+  .cm-login-form .btn-submit-comment {
+    flex: none;
+  }
+
+  .cm-form .comment-textarea-input {
     min-height: 112px;
   }
 
+  .cm-form-row {
+    flex-wrap: wrap;
+  }
+
   .btn-submit-comment {
-    width: 100%;
+    flex: 1 1 150px;
     min-height: 48px;
     justify-content: center;
     border-radius: 8px;
     font-size: 15px;
   }
 
-  .comment-submit-row {
-    display: block;
+  .cm-cancel {
+    min-height: 48px;
+    border-radius: 8px;
+  }
+
+  .cm-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .cm-text {
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .cm-replies {
+    margin-left: 14px;
+    padding-left: 12px;
   }
 
   .back-home-wrap .btn-read-full {
@@ -1924,5 +1935,50 @@ button:focus-visible,
 
   .single-article-content blockquote {
     font-size: 16.5px;
+  }
+}
+
+
+/* ==========================================================================
+   H. COMMENTS - finger-sized buttons on any touch screen (the look is in css/style.css)
+   ========================================================================== */
+@media (pointer: coarse) {
+  .cm-vote,
+  .cm-reply-btn,
+  .cm-replies-btn,
+  .cm-showmore,
+  .cm-menu-list button,
+  .cm-retry,
+  .cm-loadmore {
+    min-height: 44px;
+  }
+
+  .cm-vote {
+    height: auto;
+  }
+
+  .cm-menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cm-signout,
+  .cm-link,
+  .cm-modal-close {
+    min-height: 44px;
+  }
+
+  .cm-modal-close {
+    width: 44px;
+  }
+}
+
+@media (max-width: 340px) {
+  .cm-actions-right {
+    gap: 6px;
+  }
+
+  .cm-vote {
+    padding: 0 10px;
   }
 }

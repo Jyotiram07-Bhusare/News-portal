@@ -31,7 +31,13 @@ let appState = {
   editingAdId: null,             // id while the ad form edits an existing ad (null = a new ad)
   settings: {},                  // the Footer section (admin-settings.js): office address, phone, e-mail
   settingsLoaded: false,         // true once the details really came from the backend
-  settingsFailed: false
+  settingsFailed: false,
+  comments: [],                  // the Comments section (admin-comments.js): the rows loaded so far for the chosen filter
+  commentsFilter: 'all',         // 'all' | 'reported'
+  commentsTotal: 0,              // every comment and reply there is / how many of them are reported (the numbers of the API's answer)
+  commentsReported: 0,
+  commentsLoaded: false,         // true once the first page really came from the backend
+  commentsFailed: false
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
@@ -277,6 +283,7 @@ function initNavigation() {
     else if (hash === 'weekly') switchTab('tab-weekly');
     else if (hash === 'videos') switchTab('tab-videos');
     else if (hash === 'ads') switchTab('tab-ads');
+    else if (hash === 'comments') switchTab('tab-comments');
     else if (hash === 'footer') switchTab('tab-footer');
     else switchTab('tab-dashboard');
   });
@@ -287,6 +294,7 @@ function initNavigation() {
     else if (h === 'weekly') switchTab('tab-weekly');
     else if (h === 'videos') switchTab('tab-videos');
     else if (h === 'ads') switchTab('tab-ads');
+    else if (h === 'comments') switchTab('tab-comments');
     else if (h === 'footer') switchTab('tab-footer');
   }
 }
@@ -378,12 +386,16 @@ function switchTab(tabId) {
     'tab-weekly': 'साप्ताहिक ई-पेपर (Weekly PDF)',
     'tab-videos': 'व्हिडिओ अपलोड (Videos)',
     'tab-ads': 'जाहिरात (Advertisements)',
+    'tab-comments': 'प्रतिक्रिया (Comments)',
     'tab-footer': 'फूटर माहिती (Footer)'
   };
   if (breadcrumb) breadcrumb.textContent = names[tabId] || 'डॅशबोर्ड';
 
   // Close mobile sidebar if open
   setSidebarOpen(false);
+
+  // Comments arrive all the time: opening the section shows the newest (admin-comments.js skips this when the list is fresh)
+  if (tabId === 'tab-comments' && typeof commentsTabOpened === 'function') commentsTabOpened();
 
 }
 
@@ -490,14 +502,15 @@ async function loadAllData() {
     fetchWeekly(),
     fetchVideos(),
     fetchAds(),
-    fetchSettings()
+    fetchSettings(),
+    fetchComments()
   ]);
   // the backend answers but a list did not arrive (a dropped connection): say so, never show a silent empty list
   showBackendBanner(state === 'online' && !(appState.articlesLoaded && appState.weeklyLoaded) ? 'partial' : state);
 }
 
 // The numbers of the dashboard start as "…" (not as made-up numbers): a number that never arrives becomes "—", never a wrong "0".
-const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'sidebar-videos-count', 'sidebar-ads-count', 'stat-total-articles', 'stat-total-weekly',
+const LIVE_COUNTERS = ['sidebar-articles-count', 'sidebar-weekly-count', 'sidebar-videos-count', 'sidebar-ads-count', 'sidebar-comments-count', 'stat-total-articles', 'stat-total-weekly',
                        'stat-total-rajkiy', 'stat-total-samajik', 'stat-total-popular', 'stat-total-random'];
 
 function backendProblem(state) {

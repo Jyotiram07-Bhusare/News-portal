@@ -695,6 +695,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDrawerSearch();
   initDrawerSwipe();
   initSheetSwipe();
+  initCommentEvents();
   renderLabelCounts();
   renderLeftSidebar();
   renderRightSidebar();
@@ -2448,140 +2449,701 @@ window.showAllWeeklyIssues = function() {
   filterWeeklyIssuesList(input ? input.value : "");
 };
 
-// --- Per-Article Comments Management (Local Storage & Interactive) ---
-const AVATAR_PALETTE = [
-  "#2563eb", "#059669", "#d97706", "#7c3aed", 
-  "#db2777", "#0891b2", "#4f46e5", "#e11d48", "#0d9488"
-];
+// --- Comments: readers write under every news / blog / weekly issue, the API keeps them (/api/comments) ---
+// Replies are one level deep (a reply to a reply is saved under its top-level comment, with "@Name " in front). Likes / dislikes and reports go to
+// the API too. The texts are Marathi; js/i18n.js turns them into English like everything else on the page.
+const COMMENT_PAGE = 10;             // top-level comments shown at first, and added by "आणखी प्रतिक्रिया पहा"
+const REPLY_PAGE = 3;                // replies shown when a thread is opened
+const COMMENT_MAX = 2000;
+const COMMENT_NAME_MAX = 60;
+const COMMENT_FRESH_MS = 60000;      // a list loaded less than this long ago is not asked for again (a language switch draws the page again)
+const COMMENT_STAR_MIN = 3;          // likes + dislikes + replies a comment needs for the "सर्वाधिक प्रतिसाद" badge
+const COMMENT_MONTHS = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
+const COMMENT_ERRORS = {
+  invalid: "कृपया तुमची प्रतिक्रिया (१–२००० अक्षरे) तपासा.",
+  login: "प्रतिक्रिया देण्यासाठी साइन इन करा.",
+  missing: "ही प्रतिक्रिया किंवा बातमी सापडली नाही.",
+  limit: "थोड्या वेळाने पुन्हा प्रयत्न करा",
+  network: "इंटरनेट जोडणी तपासा व पुन्हा प्रयत्न करा.",
+  server: "काहीतरी चुकले, थोड्या वेळाने पुन्हा प्रयत्न करा.",
+  name: "कृपया तुमचे पूर्ण नाव लिहा.",
+  email: "कृपया योग्य ईमेल आयडी लिहा.",
+  captcha: "बेरीज चुकली, पुन्हा प्रयत्न करा.",
+  code: "हा कोड बरोबर नाही.",
+  expired: "कोडची मुदत संपली, नवा कोड मागवा.",
+  wait: "कोड आत्ताच पाठवला आहे, एक मिनिट थांबा.",
+  mail: "ईमेल पाठवता आला नाही, पुन्हा प्रयत्न करा.",
+  taken: "या ईमेलचे खाते आहे — Google किंवा ईमेल कोडने साइन इन करा.",
+  google: "Google साइन-इन जमले नाही, पुन्हा प्रयत्न करा.",
+};
 
-function getInitials(name) {
-  if (!name) return "वा";
-  const clean = name.trim().replace(/^श्री\s*|^सौ\s*|^डॉ\.\s*/i, "");
-  const parts = clean.split(/\s+/);
-  if (parts.length > 1) {
-    return (parts[0][0] || "") + (parts[1][0] || "");
-  }
-  return clean.substring(0, 2);
+const commentLists = {};             // "article:12" -> its state: { type, id, status, total, comments, shown, open, loadedAt, draft }
+let commentCurrent = null;           // the state of the story on screen
+
+// who is writing: a random id this browser makes once (the API keeps only a hash of it, to know "your" vote). Without storage it lasts one page view.
+let commentVisitorMemory = "";
+function commentVisitor() {
+  try {
+    const saved = localStorage.getItem("lokmangal-visitor");
+    if (saved && /^[A-Za-z0-9-]{8,64}$/.test(saved)) return saved;
+  } catch (e) { /* storage blocked */ }
+  if (commentVisitorMemory) return commentVisitorMemory;
+  let id = "";
+  try { id = crypto.randomUUID(); } catch (e) { /* an old browser */ }
+  if (!id) id = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+  commentVisitorMemory = id;
+  try { localStorage.setItem("lokmangal-visitor", id); } catch (e) { /* storage blocked */ }
+  return id;
 }
 
-// Comments are kept in the visitor's own browser only (there is no comments database), so they are OFF on the live site:
-// js/config.js -> COMMENTS = true turns the section on again. The invented sample comments that used to fill it are gone.
-const COMMENTS_ENABLED = !!(window.LOKMANGAL_CONFIG && window.LOKMANGAL_CONFIG.COMMENTS === true);
+// who is writing: the reader who signed in on this browser (see the dialog below). The token goes with every comment he writes.
+let commentUser = null;
+try {
+  const saved = JSON.parse(localStorage.getItem("lokmangal-commenter") || "null");
+  if (saved && typeof saved.token === "string" && saved.name) commentUser = saved;
+} catch (e) { /* storage blocked or damaged: signed out */ }
 
-window.getArticleComments = function(articleId) {
+function commentSetUser(user) {
+  commentUser = user;
   try {
-    const parsed = JSON.parse(localStorage.getItem("lokmangal_comments_" + articleId) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    if (user) localStorage.setItem("lokmangal-commenter", JSON.stringify(user));
+    else localStorage.removeItem("lokmangal-commenter");
+  } catch (e) { /* storage blocked: signed in until the page is closed */ }
+  paintCommentIdentity();
+}
+
+// one call of the API (`path` is what follows /api/): the answer, or an exception { kind } - invalid | login | missing | limit | network | server,
+// or the API's own reason (name, email, captcha, code, expired, wait, mail, taken, google)
+async function commentApi(path, body) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/${path}`, body === undefined ? {} : {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitor: commentVisitor(), ...body }),
+    });
   } catch (e) {
-    return [];                       // blocked or damaged storage: no comments
+    throw { kind: "network" };
   }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* no JSON */ }
+  if (res.ok && data && data.success !== false) return data;
+  const reason = data && data.reason;
+  throw { kind: reason || (res.status === 401 ? "login" : res.status === 429 ? "limit" : res.status === 404 ? "missing" : res.status === 400 ? "invalid" : "server") };
+}
+
+const commentItemOf = (article) => (article.category === "weekly" && article.issue ? { type: "weekly", id: article.issue } : { type: "article", id: article.id });
+const commentFind = (state, id) => {
+  for (const top of state.comments) {
+    if (top.id === id) return top;
+    const reply = top.replies.find((r) => r.id === id);
+    if (reply) return reply;
+  }
+  return null;
 };
 
-window.saveArticleComments = function(articleId, comments) {
-  try { localStorage.setItem("lokmangal_comments_" + articleId, JSON.stringify(comments)); } catch (e) { /* storage blocked / full */ }
-};
+// the comment people reacted to most is shown first and carries the badge; the others stay newest first
+function commentOrder(list) {
+  let star = null, best = COMMENT_STAR_MIN - 1;
+  list.forEach((c) => {
+    const score = c.likes + c.dislikes + c.replies.length;
+    if (score > best) { best = score; star = c; }
+  });
+  list.forEach((c) => { c.star = c === star; });
+  return star ? [star, ...list.filter((c) => c !== star)] : list;
+}
 
-window.renderCommentsListHTML = function(comments) {
-  if (!comments || comments.length === 0) {
-    return `
-      <div style="text-align:center; padding:28px 16px; color:var(--meta-color); background:var(--body-bg-color); border:1px dashed var(--border-color); border-radius:var(--border-radius);">
-        <i class="fa-regular fa-comment-dots" style="font-size:26px; display:block; margin-bottom:8px; opacity:0.6;"></i>
-        <span style="font-size:13.5px; font-weight:500;">अद्याप कोणतीही प्रतिक्रिया आलेली नाही. पहिली प्रतिक्रिया तुम्ही नोंदवा!</span>
-      </div>
-    `;
-  }
+function commentTime(iso) {
+  const at = Date.parse(iso);
+  if (isNaN(at)) return "";
+  const minutes = Math.floor(Math.max(0, Date.now() - at) / 60000);
+  if (minutes < 1) return "आत्ताच";
+  if (minutes < 60) return minutes === 1 ? "१ मिनिटापूर्वी" : `${toDevanagari(minutes)} मिनिटांपूर्वी`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? "१ तासापूर्वी" : `${toDevanagari(hours)} तासांपूर्वी`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return days === 1 ? "१ दिवसापूर्वी" : `${toDevanagari(days)} दिवसांपूर्वी`;
+  const when = new Date(at);
+  return `${toDevanagari(when.getDate())} ${COMMENT_MONTHS[when.getMonth()]} ${toDevanagari(when.getFullYear())}`;
+}
 
-  return comments.map(c => `
-    <div class="comment-item-card" id="comment-card-${c.id}">
-      <div class="author-circle-avatar comment-avatar" style="background:${AVATAR_PALETTE.includes(c.color) ? c.color : '#2563eb'}">
-        ${escText(getInitials(trUI(c.name)))}
+// one of six soft colours, always the same for the same name
+function commentColor(name) {
+  let sum = 0;
+  for (const ch of String(name)) sum = (sum * 31 + ch.codePointAt(0)) >>> 0;
+  return sum % 6;
+}
+
+function commentIdentityHTML() {
+  return commentUser
+    ? `<div class="cm-as"><span class="cm-as-label">प्रतिक्रिया देणारे:</span> <strong data-no-i18n>${escText(commentUser.name)}</strong> <button type="button" class="cm-signout" data-act="signout">बाहेर पडा</button></div>`
+    : `<div class="cm-as"><span class="cm-as-label">प्रतिक्रिया पोस्ट करताना साइन इन करावे लागेल.</span></div>`;
+}
+
+function paintCommentIdentity() {
+  document.querySelectorAll("#comments-section .cm-as").forEach((row) => { row.outerHTML = commentIdentityHTML(); });
+}
+
+function commentFormHTML(parentId, prefill, withCancel) {
+  return `
+    <form class="cm-form" data-parent="${parentId || ""}" novalidate>
+      ${commentIdentityHTML()}
+      <textarea name="body" class="comment-textarea-input cm-body-input" maxlength="${COMMENT_MAX}" rows="${parentId ? 3 : 4}" placeholder="तुमची प्रतिक्रिया लिहा…" aria-label="तुमची प्रतिक्रिया">${escText(prefill || "")}</textarea>
+      <input type="text" name="website" class="cm-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <p class="cm-form-error" role="alert" hidden></p>
+      <div class="cm-form-row">
+        <span class="cm-counter">${toDevanagari((prefill || "").length)}/${toDevanagari(COMMENT_MAX)}</span>
+        ${withCancel ? `<button type="button" class="cm-cancel" data-act="cancel">रद्द करा</button>` : ""}
+        <button type="submit" class="btn-submit-comment">${parentId ? "उत्तर पोस्ट करा" : "प्रतिक्रिया पोस्ट करा"}</button>
       </div>
-      <div class="comment-body-wrap">
-        <div class="comment-header-row">
-          <span class="comment-user-name">${escText(c.name)}</span>
-          <span class="comment-time-badge"><i class="fa-regular fa-clock"></i> ${escText(c.time || 'आत्ताच')}</span>
+    </form>`;
+}
+
+// one comment (a reply has no thread of its own: it sits inside the thread of its top-level comment)
+function commentHTML(c, state, isReply) {
+  const opened = isReply ? 0 : state.open[c.id] || 0;
+  const mine = c.my_vote;
+  const first = [...String(c.name).trim()][0] || "?";
+  const count = isReply ? 0 : c.replies.length;
+  const hidden = count - opened;
+  return `
+    <article class="cm-item${isReply ? " cm-reply" : ""}" id="comment-${c.id}" data-id="${c.id}">
+      <header class="cm-head">
+        <span class="cm-avatar cm-av-${commentColor(c.name)}" aria-hidden="true" data-no-i18n>${escText(first.toUpperCase())}</span>
+        <div class="cm-who">
+          <div class="cm-name-row">
+            <span class="cm-name" data-no-i18n>${escText(c.name)}</span>
+            ${c.star ? `<span class="cm-badge">सर्वाधिक प्रतिसाद</span>` : ""}
+          </div>
+          <time class="cm-time" datetime="${escText(c.created_at)}">${commentTime(c.created_at)}</time>
         </div>
-        <p class="comment-text-content">${escText(c.text)}</p>
-        <div class="comment-actions-bar">
-          <button class="comment-action-btn" onclick="toggleCommentLike(this, ${c.id})">
-            <i class="fa-regular fa-thumbs-up"></i> पसंत (${c.likes || 0})
-          </button>
-          <button class="comment-action-btn" data-name="${escText(c.name || '')}" onclick="replyToComment(this.dataset.name)">
-            <i class="fa-solid fa-reply"></i> उत्तर द्या
-          </button>
+        <div class="cm-menu">
+          <button type="button" class="cm-menu-btn" data-act="menu" aria-label="पर्याय" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-ellipsis"></i></button>
+          <div class="cm-menu-list" role="menu" hidden><button type="button" role="menuitem" data-act="report">तक्रार करा</button></div>
+        </div>
+      </header>
+      <p class="cm-text" data-no-i18n>${escText(c.body)}</p>
+      <div class="cm-actions">
+        ${!isReply && count ? `<button type="button" class="cm-replies-btn" data-act="replies" aria-expanded="${opened > 0}">${count === 1 ? "१ उत्तर" : `${toDevanagari(count)} उत्तरे`} <i class="fa-solid fa-chevron-${opened ? "up" : "down"}"></i></button>` : "<span></span>"}
+        <div class="cm-actions-right">
+          <button type="button" class="cm-vote cm-like${mine === 1 ? " on" : ""}" data-act="like" aria-pressed="${mine === 1}" aria-label="आवडले"><i class="fa-${mine === 1 ? "solid" : "regular"} fa-thumbs-up"></i><span>${toDevanagari(c.likes)}</span></button>
+          <button type="button" class="cm-vote cm-dislike${mine === -1 ? " on" : ""}" data-act="dislike" aria-pressed="${mine === -1}" aria-label="आवडले नाही"><i class="fa-${mine === -1 ? "solid" : "regular"} fa-thumbs-down"></i><span>${toDevanagari(c.dislikes)}</span></button>
+          <button type="button" class="cm-reply-btn" data-act="reply">उत्तर द्या</button>
         </div>
       </div>
-    </div>
-  `).join("");
-};
+      <div class="cm-slot"></div>
+      ${opened ? `
+      <div class="cm-replies">
+        ${c.replies.slice(0, opened).map((r) => commentHTML(r, state, true)).join("")}
+        ${hidden > 0 ? `<button type="button" class="cm-showmore" data-act="morereplies">${hidden === 1 ? "आणखी १ उत्तर पहा" : `आणखी ${toDevanagari(hidden)} उत्तरे पहा`} <i class="fa-solid fa-chevron-down"></i></button>` : ""}
+      </div>` : ""}
+    </article>`;
+}
 
-window.toggleCommentLike = function(btn, commentId) {
-  const isLiked = btn.classList.contains("active");
-  const countMatch = btn.innerText.match(/\d+/);
-  let count = countMatch ? parseInt(countMatch[0], 10) : 0;
-  if (isLiked) {
-    btn.classList.remove("active");
-    btn.innerHTML = `<i class="fa-regular fa-thumbs-up"></i> पसंत (${Math.max(0, count - 1)})`;
-  } else {
-    btn.classList.add("active");
-    btn.innerHTML = `<i class="fa-solid fa-thumbs-up" style="color:var(--main-color)"></i> पसंत (${count + 1})`;
+function commentListHTML(state) {
+  if (state.status === "loading") return `<p class="cm-note">प्रतिक्रिया लोड होत आहेत…</p>`;
+  if (state.status === "error") {
+    return `<div class="cm-note"><p>प्रतिक्रिया लोड करता आल्या नाहीत.</p><button type="button" class="cm-retry" data-act="retry">पुन्हा प्रयत्न करा</button></div>`;
   }
-};
+  if (!state.comments.length) return `<p class="cm-note">पहिली प्रतिक्रिया तुमची असू द्या</p>`;
+  return state.comments.slice(0, state.shown).map((c) => commentHTML(c, state, false)).join("");
+}
 
-window.replyToComment = function(authorName) {
-  const textarea = document.getElementById("comment-user-text");
-  if (textarea) {
-    textarea.value = `@${authorName} `;
-    textarea.focus();
-    textarea.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-};
+const commentHeadingText = (state) => `प्रतिक्रिया (${toDevanagari(state.total)})`;
+const commentMoreVisible = (state) => state.status === "ready" && state.shown < state.comments.length;
 
-window.submitUserComment = function(articleId) {
-  const nameInput = document.getElementById("comment-user-name");
-  const textInput = document.getElementById("comment-user-text");
-  
-  if (!textInput || !textInput.value.trim()) {
-    showToast("कृपया तुमची प्रतिक्रिया लिहा.");
-    if (textInput) textInput.focus();
-    return;
+// the whole section (a first draw, after a language switch, after loading); what was typed in the top form stays
+function paintComments() {
+  const state = commentCurrent;
+  const section = document.getElementById("comments-section");
+  if (!state || !section) return;
+  const old = section.querySelector(".cm-form[data-parent='']");
+  if (old) state.draft = { body: old.elements.body.value };
+  section.innerHTML = `
+    <h3 class="comments-heading" id="comments-title"><i class="fa-regular fa-comments"></i> <span class="cm-heading-text">${commentHeadingText(state)}</span></h3>
+    ${commentFormHTML(null, "", false)}
+    <div class="cm-list" id="comments-list" aria-live="polite">${commentListHTML(state)}</div>
+    <button type="button" class="cm-loadmore" data-act="more"${commentMoreVisible(state) ? "" : " hidden"}>आणखी प्रतिक्रिया पहा</button>`;
+  if (state.draft) {
+    const form = section.querySelector(".cm-form");
+    form.elements.body.value = state.draft.body;
+    form.querySelector(".cm-counter").textContent = `${toDevanagari(state.draft.body.length)}/${toDevanagari(COMMENT_MAX)}`;
   }
-  
-  const rawName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : "लोकमंगल वाचक";
-  const commentText = textInput.value.trim();
-  
-  const comments = getArticleComments(articleId);
-  const newComment = {
-    id: Date.now(),
-    name: rawName,
-    text: commentText,
-    time: "आत्ताच",
-    color: AVATAR_PALETTE[Math.floor(Math.random() * AVATAR_PALETTE.length)],
-    likes: 0
-  };
-  
-  comments.push(newComment);
-  saveArticleComments(articleId, comments);
-  
-  // Update comments list DOM
-  const container = document.getElementById("comments-list-container");
-  if (container) {
-    container.innerHTML = renderCommentsListHTML(comments);
-  }
-  
-  // Update counts
-  const headingCount = document.getElementById("comments-heading-count");
-  if (headingCount) {
-    headingCount.innerText = `(${comments.length})`;
-  }
-  
-  // Clear textarea and drop the on-screen keyboard so the new comment + toast are visible
-  textInput.value = "";
-  textInput.blur();
-  if (nameInput) nameInput.blur();
+}
 
-  showToast("तुमची प्रतिक्रिया यशस्वीरीत्या प्रसिद्ध झाली!");
-};
+function paintCommentHeading() {
+  const heading = document.querySelector("#comments-section .cm-heading-text");
+  if (heading && commentCurrent) heading.textContent = commentHeadingText(commentCurrent);
+}
+
+// a comment drawn again (its thread opened / closed, a reply added): the reply forms open inside it stay, with what was typed
+function refreshComment(c) {
+  const card = document.getElementById(`comment-${c.id}`);
+  if (!card || !commentCurrent) return;
+  const kept = [...card.querySelectorAll(".cm-slot > form")].map((form) => [form.closest(".cm-item").dataset.id, form]);
+  card.outerHTML = commentHTML(c, commentCurrent, c.parent_id !== null);
+  kept.forEach(([id, form]) => {
+    const slot = document.querySelector(`#comment-${id} > .cm-slot`);
+    if (slot) slot.append(form);
+  });
+}
+
+// only the two vote buttons of a comment change when somebody votes (nothing else of the page is touched)
+function paintVotes(c) {
+  const bar = document.querySelector(`#comment-${c.id} > .cm-actions`);
+  if (!bar) return;
+  [["like", 1, c.likes, "up"], ["dislike", -1, c.dislikes, "down"]].forEach(([act, value, count, hand]) => {
+    const button = bar.querySelector(`[data-act="${act}"]`);
+    const on = c.my_vote === value;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", String(on));
+    button.firstElementChild.className = `fa-${on ? "solid" : "regular"} fa-thumbs-${hand}`;
+    button.lastElementChild.textContent = toDevanagari(count);
+  });
+}
+
+async function loadComments(state) {
+  state.status = "loading";
+  if (state === commentCurrent) paintComments();
+  try {
+    const data = await commentApi(`comments?type=${state.type}&id=${state.id}&visitor=${encodeURIComponent(commentVisitor())}`);
+    state.comments = commentOrder(data.comments.map((c) => ({ ...c, replies: c.replies || [] })));
+    state.total = data.total;
+    state.shown = COMMENT_PAGE;
+    state.open = {};
+    state.status = "ready";
+    state.loadedAt = Date.now();
+  } catch (e) {
+    state.status = "error";
+  }
+  if (state === commentCurrent) paintComments();
+}
+
+// called whenever a news / blog / weekly issue is drawn
+function initComments(article) {
+  const item = commentItemOf(article);
+  const key = `${item.type}:${item.id}`;
+  const state = commentLists[key] || (commentLists[key] = { ...item, status: "loading", total: 0, comments: [], shown: COMMENT_PAGE, open: {}, loadedAt: 0, draft: null });
+  commentCurrent = state;
+  loadLoginOptions();
+  paintComments();
+  if (state.status !== "ready" || Date.now() - state.loadedAt > COMMENT_FRESH_MS) loadComments(state);
+}
+
+function commentFormError(form, kind) {
+  const box = form.querySelector(".cm-form-error");
+  box.textContent = COMMENT_ERRORS[kind] || COMMENT_ERRORS.server;
+  box.hidden = false;
+}
+
+async function submitComment(form) {
+  const state = commentCurrent;
+  if (!state) return;
+  const parentId = Number(form.dataset.parent) || null;
+  const text = form.elements.body.value.trim();
+  if (!text || text.length > COMMENT_MAX) return commentFormError(form, "invalid");
+  if (!commentUser) {                                              // not signed in: the dialog opens, and this same form posts once the reader is in
+    form.querySelector(".cm-form-error").hidden = true;
+    return openCommentLogin(() => { if (form.isConnected) submitComment(form); });
+  }
+  const button = form.querySelector("button[type=submit]");
+  button.disabled = true;
+  form.querySelector(".cm-form-error").hidden = true;
+  try {
+    const data = await commentApi("comments", { type: state.type, id: state.id, parent_id: parentId, token: commentUser.token, body: text, website: form.elements.website.value });
+    const posted = { ...data.comment, replies: data.comment.replies || [] };
+    state.total += 1;
+    if (parentId) {
+      const top = commentFind(state, parentId);
+      if (top) {
+        top.replies.push(posted);
+        state.open[top.id] = top.replies.length;               // its thread opens and shows the new reply
+        if (state === commentCurrent) refreshComment(top);
+      }
+    } else {
+      state.comments.unshift(posted);
+      state.draft = null;
+      if (state === commentCurrent) {
+        const list = document.getElementById("comments-list");
+        if (!list.querySelector(".cm-item")) list.innerHTML = "";
+        list.insertAdjacentHTML("afterbegin", commentHTML(posted, state, false));
+        form.elements.body.value = "";
+        form.querySelector(".cm-counter").textContent = `०/${toDevanagari(COMMENT_MAX)}`;
+        document.querySelector("#comments-section .cm-loadmore").hidden = !commentMoreVisible(state);
+      }
+    }
+    if (state === commentCurrent) paintCommentHeading();
+    if (parentId) form.remove();
+  } catch (e) {
+    if (e.kind === "login") {                                      // the sign-in is no longer good (it ran out): sign in again, then post
+      commentSetUser(null);
+      openCommentLogin(() => { if (form.isConnected) submitComment(form); });
+    } else {
+      commentFormError(form, e.kind);
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function voteOnComment(c, vote) {
+  if (c.busy) return;
+  const before = { likes: c.likes, dislikes: c.dislikes, my_vote: c.my_vote };
+  const next = c.my_vote === vote ? 0 : vote;                   // the same button again takes the vote back
+  c.likes += (next === 1) - (c.my_vote === 1);
+  c.dislikes += (next === -1) - (c.my_vote === -1);
+  c.my_vote = next;
+  c.busy = true;
+  paintVotes(c);
+  try {
+    const answer = await commentApi(`comments/${c.id}/vote`, { vote: next });
+    Object.assign(c, { likes: answer.likes, dislikes: answer.dislikes, my_vote: answer.my_vote });
+  } catch (e) {
+    Object.assign(c, before);
+    showToast(COMMENT_ERRORS[e.kind] || COMMENT_ERRORS.server);
+  }
+  c.busy = false;
+  paintVotes(c);
+}
+
+async function reportComment(c) {
+  try {
+    await commentApi(`comments/${c.id}/report`, {});
+    showToast("धन्यवाद — आम्ही ही प्रतिक्रिया तपासू");
+  } catch (e) {
+    showToast(COMMENT_ERRORS[e.kind] || COMMENT_ERRORS.server);
+  }
+}
+
+function closeCommentMenus(except) {
+  document.querySelectorAll("#comments-section .cm-menu-list:not([hidden])").forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.parentElement.querySelector(".cm-menu-btn").setAttribute("aria-expanded", "false");
+  });
+}
+
+function onCommentClick(e) {
+  const button = e.target.closest("[data-act]");
+  const state = commentCurrent;
+  if (!button || !state) return;
+  const act = button.dataset.act;
+  const card = button.closest(".cm-item");
+  const c = card ? commentFind(state, Number(card.dataset.id)) : null;
+  if (act === "menu") {
+    const menu = button.parentElement.querySelector(".cm-menu-list");
+    closeCommentMenus(menu);
+    menu.hidden = !menu.hidden;
+    button.setAttribute("aria-expanded", String(!menu.hidden));
+  } else if (act === "report" && c) {
+    closeCommentMenus();
+    reportComment(c);
+  } else if ((act === "like" || act === "dislike") && c) {
+    voteOnComment(c, act === "like" ? 1 : -1);
+  } else if (act === "replies" && c) {
+    state.open[c.id] = state.open[c.id] ? 0 : Math.min(REPLY_PAGE, c.replies.length);
+    refreshComment(c);
+  } else if (act === "morereplies" && c) {
+    state.open[c.id] = c.replies.length;
+    refreshComment(c);
+  } else if (act === "reply" && c) {
+    const slot = card.querySelector(":scope > .cm-slot");
+    if (!slot.firstElementChild) slot.innerHTML = commentFormHTML(c.parent_id || c.id, `@${c.name} `, true);
+    const box = slot.querySelector("textarea");
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  } else if (act === "signout") {
+    commentSetUser(null);
+  } else if (act === "cancel") {
+    button.closest(".cm-form").remove();
+  } else if (act === "more") {
+    state.shown += COMMENT_PAGE;
+    document.getElementById("comments-list").innerHTML = commentListHTML(state);
+    button.hidden = !commentMoreVisible(state);
+  } else if (act === "retry") {
+    loadComments(state);
+  }
+}
+
+function initCommentEvents() {
+  const section = () => document.getElementById("comments-section");
+  document.addEventListener("click", (e) => {
+    const box = section();
+    if (!box || !box.contains(e.target)) return closeCommentMenus();
+    if (!e.target.closest(".cm-menu")) closeCommentMenus();
+    onCommentClick(e);
+  });
+  document.addEventListener("submit", (e) => {
+    if (!e.target.classList.contains("cm-form")) return;
+    e.preventDefault();
+    submitComment(e.target);
+  });
+  document.addEventListener("input", (e) => {
+    if (!e.target.classList.contains("cm-body-input")) return;
+    e.target.closest(".cm-form").querySelector(".cm-counter").textContent = `${toDevanagari(e.target.value.length)}/${toDevanagari(COMMENT_MAX)}`;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const open = document.querySelector("#comments-section .cm-menu-list:not([hidden])");
+    if (!open) return;
+    open.parentElement.querySelector(".cm-menu-btn").focus();
+    closeCommentMenus();
+  });
+}
+
+// ---- the "Post Your Comment" dialog: Google, a code mailed to the reader, or name + e-mail + a small sum ----
+let commentLoginAfter = null;        // what to do once the reader is in (post the comment that was waiting)
+let commentLoginFocus = null;        // where the focus goes back to
+let commentLoginEmail = "";          // the address a code was sent to
+let commentLoginMail = false;        // does this server offer the e-mailed code
+let commentSum = "";                 // the token of the sum on show
+let commentOptionsPromise = null;
+let commentGoogleScript = null;
+
+// which ways of signing in this server offers (asked once)
+function loadLoginOptions() {
+  if (!commentOptionsPromise) {
+    commentOptionsPromise = commentApi("commenters/options")
+      .then((d) => ({ google_client_id: d.google_client_id || "", email: !!d.email }))
+      .catch(() => { commentOptionsPromise = null; return { google_client_id: "", email: false }; });
+  }
+  return commentOptionsPromise;
+}
+
+const commentLoginModal = () => document.getElementById("cm-modal");
+
+function commentLoginHTML() {
+  return `
+    <div class="cm-modal-backdrop" data-act="login-close"></div>
+    <div class="cm-modal-card">
+      <div class="cm-modal-head">
+        <h3 id="cm-modal-title">तुमची प्रतिक्रिया पोस्ट करा</h3>
+        <button type="button" class="cm-modal-close" data-act="login-close" aria-label="बंद करा"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <section class="cm-signin" id="cm-signin" hidden>
+        <h4>प्रतिक्रिया पोस्ट करण्यासाठी साइन इन करा:</h4>
+        <div class="cm-google" id="cm-google" hidden></div>
+        <p class="cm-error" id="cm-google-error" role="alert" hidden></p>
+        <form class="cm-login-form" data-form="email-start" novalidate hidden>
+          <div class="cm-email-row">
+            <input type="email" name="email" maxlength="190" autocomplete="email" placeholder="ईमेल आयडी" aria-label="ईमेल आयडी" />
+            <button type="submit" class="cm-arrow" aria-label="कोड पाठवा"><i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          <p class="cm-error" role="alert" hidden></p>
+        </form>
+        <form class="cm-login-form" data-form="email-verify" novalidate hidden>
+          <p class="cm-sent"><span>तुमच्या ईमेलवर ६ अंकी कोड पाठवला आहे:</span> <strong id="cm-sent-to" data-no-i18n></strong></p>
+          <input type="text" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="६ अंकी कोड" aria-label="६ अंकी कोड" />
+          <input type="text" name="name" maxlength="${COMMENT_NAME_MAX}" autocomplete="name" placeholder="तुमचे नाव (ऐच्छिक)" aria-label="तुमचे नाव (ऐच्छिक)" />
+          <p class="cm-error" role="alert" hidden></p>
+          <div class="cm-login-row">
+            <button type="button" class="cm-link" data-act="email-back">ईमेल बदला</button>
+            <button type="submit" class="btn-submit-comment">साइन इन करा</button>
+          </div>
+        </form>
+      </section>
+      <div class="cm-or" id="cm-or" hidden><span>किंवा</span></div>
+      <section class="cm-guest">
+        <h4>साइन इन न करता सुरू ठेवा</h4>
+        <form class="cm-login-form" data-form="guest" novalidate>
+          <input type="text" name="name" maxlength="${COMMENT_NAME_MAX}" autocomplete="name" placeholder="तुमचे पूर्ण नाव" aria-label="तुमचे पूर्ण नाव" />
+          <input type="email" name="email" maxlength="190" autocomplete="email" placeholder="तुमचा ईमेल आयडी" aria-label="तुमचा ईमेल आयडी" />
+          <input type="text" name="website" class="cm-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <div class="cm-sum">
+            <span class="cm-sum-q" id="cm-sum-q">…</span>
+            <input type="text" name="answer" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="येथे उत्तर लिहा" aria-label="येथे उत्तर लिहा" />
+          </div>
+          <p class="cm-error" role="alert" hidden></p>
+          <button type="submit" class="btn-submit-comment cm-wide">प्रतिक्रिया पोस्ट करा</button>
+        </form>
+      </section>
+      <p class="cm-privacy"><i class="fa-solid fa-circle-info"></i> तुमचे नाव व ईमेल आमच्याकडे जतन केले जातात. तुमचा ईमेल इतरांना दाखवला जात नाही.</p>
+    </div>`;
+}
+
+const loginFormClear = (form) => { form.querySelector(".cm-error").hidden = true; };
+function loginFormError(form, kind) {
+  const box = form.querySelector(".cm-error");
+  box.textContent = COMMENT_ERRORS[kind] || COMMENT_ERRORS.server;
+  box.hidden = false;
+}
+
+// the e-mail part has two steps: the address, then the code that was mailed to it
+function showLoginStep(step, devCode) {
+  const modal = commentLoginModal();
+  if (!modal) return;
+  modal.querySelector('[data-form="email-start"]').hidden = !(commentLoginMail && step === "start");
+  const verify = modal.querySelector('[data-form="email-verify"]');
+  verify.hidden = step !== "code";
+  if (step === "code") {
+    modal.querySelector("#cm-sent-to").textContent = commentLoginEmail;
+    verify.elements.code.value = devCode || "";                       // (only a development PC without a mail server hands the code back)
+    verify.elements.code.focus();
+  }
+}
+
+async function loadCommentSum() {
+  const question = document.getElementById("cm-sum-q");
+  try {
+    const data = await commentApi("commenters/captcha");
+    commentSum = data.token;
+    if (question) question.textContent = `कॅप्चा: ${data.question}`;
+  } catch (e) {
+    commentSum = "";
+    if (question) question.textContent = "…";
+  }
+}
+
+function loadGoogleScript() {
+  if (window.google && window.google.accounts) return Promise.resolve();
+  if (!commentGoogleScript) {
+    commentGoogleScript = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => { commentGoogleScript = null; reject(new Error("google")); };
+      document.head.appendChild(script);
+    });
+  }
+  return commentGoogleScript;
+}
+
+async function showGoogleButton(clientId) {
+  const holder = document.getElementById("cm-google");
+  try { await loadGoogleScript(); } catch (e) { return; }           // blocked or offline: the other ways stay
+  if (!holder || !holder.isConnected) return;
+  window.google.accounts.id.initialize({ client_id: clientId, callback: onGoogleCredential });
+  holder.hidden = false;
+  holder.innerHTML = "";
+  window.google.accounts.id.renderButton(holder, { theme: "outline", size: "large", text: "signin_with", width: Math.min(360, holder.clientWidth || 320), locale: getLang() === "en" ? "en" : "mr" });
+}
+
+function commentSignedIn(data) {
+  commentSetUser({ token: data.token, name: data.user.name, email: data.user.email, provider: data.user.provider });
+  const after = commentLoginAfter;
+  closeCommentLogin();
+  if (after) after();
+}
+
+async function onGoogleCredential(response) {
+  const box = document.getElementById("cm-google-error");
+  if (box) box.hidden = true;
+  try {
+    commentSignedIn(await commentApi("commenters/google", { credential: response.credential }));
+  } catch (e) {
+    if (box) { box.textContent = COMMENT_ERRORS[e.kind] || COMMENT_ERRORS.server; box.hidden = false; }
+  }
+}
+
+async function openCommentLogin(after) {
+  commentLoginAfter = after || null;
+  commentLoginFocus = document.activeElement;
+  let modal = commentLoginModal();
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "cm-modal";
+    modal.className = "cm-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "cm-modal-title");
+    modal.addEventListener("click", onLoginClick);
+    modal.addEventListener("submit", onLoginSubmit);
+    modal.addEventListener("keydown", onLoginKey);
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = commentLoginHTML();                              // drawn fresh each time: in the language of the moment, nothing typed before
+  modal.hidden = false;
+  document.documentElement.classList.add("cm-modal-open");
+  loadCommentSum();
+  const options = await loadLoginOptions();
+  if (modal.hidden) return;
+  commentLoginMail = options.email;
+  const signin = modal.querySelector("#cm-signin");
+  signin.hidden = !(options.email || options.google_client_id);
+  modal.querySelector("#cm-or").hidden = signin.hidden;
+  showLoginStep("start");
+  if (options.google_client_id) showGoogleButton(options.google_client_id);
+  const first = modal.querySelector(".cm-signin:not([hidden]) input, .cm-guest input");
+  if (first) first.focus();
+}
+
+function closeCommentLogin() {
+  const modal = commentLoginModal();
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  modal.innerHTML = "";
+  commentLoginAfter = null;
+  document.documentElement.classList.remove("cm-modal-open");
+  if (commentLoginFocus && commentLoginFocus.isConnected) commentLoginFocus.focus();
+}
+
+function onLoginClick(e) {
+  const button = e.target.closest("[data-act]");
+  if (!button) return;
+  if (button.dataset.act === "login-close") closeCommentLogin();
+  else if (button.dataset.act === "email-back") showLoginStep("start");
+}
+
+function onLoginKey(e) {
+  if (e.key === "Escape") {
+    e.stopPropagation();
+    closeCommentLogin();
+  } else if (e.key === "Tab") {                                      // the focus stays inside the dialog
+    const nodes = [...commentLoginModal().querySelectorAll("button, input, a[href]")].filter((n) => !n.disabled && n.tabIndex >= 0 && n.offsetParent !== null);
+    if (!nodes.length) return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+}
+
+async function onLoginSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const which = form.dataset.form;
+  const button = form.querySelector("button[type=submit]");
+  const looksLikeEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+  loginFormClear(form);
+  if (which === "email-start") {
+    const email = form.elements.email.value.trim();
+    if (!looksLikeEmail(email)) return loginFormError(form, "email");
+    button.disabled = true;
+    try {
+      const data = await commentApi("commenters/email/start", { email });
+      commentLoginEmail = email;
+      showLoginStep("code", data.dev_code);
+    } catch (err) {
+      loginFormError(form, err.kind);
+    }
+    button.disabled = false;
+  } else if (which === "email-verify") {
+    const code = form.elements.code.value.trim();
+    if (!/^\d{6}$/.test(code)) return loginFormError(form, "code");
+    button.disabled = true;
+    try {
+      commentSignedIn(await commentApi("commenters/email/verify", { email: commentLoginEmail, code, name: form.elements.name.value.trim() }));
+    } catch (err) {
+      loginFormError(form, err.kind);
+      button.disabled = false;
+    }
+  } else if (which === "guest") {
+    const name = form.elements.name.value.trim();
+    const email = form.elements.email.value.trim();
+    const answer = form.elements.answer.value.trim();
+    if (!name) return loginFormError(form, "name");
+    if (!looksLikeEmail(email)) return loginFormError(form, "email");
+    if (!answer || !commentSum) return loginFormError(form, "captcha");
+    button.disabled = true;
+    try {
+      commentSignedIn(await commentApi("commenters/guest", { name, email, captcha_token: commentSum, captcha_answer: answer, website: form.elements.website.value }));
+    } catch (err) {
+      loginFormError(form, err.kind);
+      if (err.kind === "captcha") { form.elements.answer.value = ""; loadCommentSum(); }
+      button.disabled = false;
+    }
+  }
+}
 
 // --- One article / one weekly issue on its own page (center column) ---
 function renderArticleView(article) {
@@ -2592,7 +3154,6 @@ function renderArticleView(article) {
   if (!container) return;
 
   const isIssue = article.category === "weekly" && !!article.issue;
-  const comments = COMMENTS_ENABLED ? getArticleComments(article.id) : [];
   const pageUrl = shareUrlFor(article);
   const sectionOnclick = `setCategoryFilter('${article.category}')`;
 
@@ -2730,35 +3291,8 @@ function renderArticleView(article) {
       <button class="btn-archive-pill" onclick="setCategoryFilter('weekly')"><i class="fa-solid fa-layer-group" style="color:var(--accent-red)"></i> सर्व ${toDevanagari(weeklyIssues().length)} अंक${WEEKLY_PDF ? " व PDF" : ""} पहा</button>
     </div>` : ""}
 
-    ${COMMENTS_ENABLED ? `
-    <!-- Comments Section (वाचकांच्या सर्व प्रतिक्रिया) -->
-    <div class="comments-section-wrap" id="comments-section">
-      <h3 class="comments-heading">
-        <i class="fa-regular fa-comments"></i> वाचकांच्या प्रतिक्रिया (Comments) <span id="comments-heading-count" style="font-size:14px; color:var(--meta-color); font-weight:600">(${comments.length})</span>
-      </h3>
-
-      <!-- All comments list for this post -->
-      <div id="comments-list-container" class="comments-list-box">
-        ${renderCommentsListHTML(comments)}
-      </div>
-
-      <!-- Add Comment Form Box -->
-      <div class="add-comment-wrapper">
-        <div class="add-comment-title">
-          <i class="fa-solid fa-pen-to-square" style="color:var(--main-color)"></i> तुमची प्रतिक्रिया नोंदवा
-        </div>
-        <div class="comment-inputs-row">
-          <input type="text" id="comment-user-name" class="comment-name-input" placeholder="तुमचे नाव (उदा. सचिन पवार)" />
-        </div>
-        <textarea id="comment-user-text" class="comment-textarea-input" placeholder="या बातमीवर आपले मत किंवा प्रतिक्रिया येथे लिहा..."></textarea>
-        <div class="comment-submit-row">
-          <button class="btn-submit-comment" onclick="submitUserComment(${article.id})">
-            <i class="fa-solid fa-paper-plane"></i> प्रतिक्रिया पाठवा
-          </button>
-        </div>
-      </div>
-    </div>
-    ` : ""}
+    <!-- Comments (initComments fills it in) -->
+    <section class="comments-section-wrap" id="comments-section" aria-labelledby="comments-title"></section>
 
     <!-- Back links: to the section this page belongs to, and to Home -->
     <div class="back-home-wrap">
@@ -2771,6 +3305,7 @@ function renderArticleView(article) {
     </div>
   `;
   hydratePdfInfo(container);
+  initComments(article);
 }
 
 // Any link / card that opens an article or a weekly issue goes through the router

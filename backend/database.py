@@ -3,6 +3,8 @@
 Port of the old SQLite module (data/database.py): same functions, same results, MySQL underneath.
 Each call borrows its own connection from a small pool (never shared between threads), so it is thread-safe.
 """
+import hashlib
+import hmac
 import json
 import os
 import queue
@@ -878,6 +880,8 @@ def delete_article(article_id: int) -> bool:
             before = cur.fetchone()
         cur.execute("DELETE FROM articles WHERE id = %s", (article_id,))
         deleted = cur.rowcount > 0
+        if deleted:
+            _delete_item_comments(cur, "article", article_id)
         if deleted and before and before.get("sort_order") is not None:
             _renumber_articles(cur, _order_group(before["category"]))       # the place it leaves is closed up
         if deleted and has_placement_order():
@@ -895,6 +899,262 @@ def count_click(article_id: int) -> bool:
         cur = conn.cursor()
         cur.execute("UPDATE articles SET clicks = clicks + 1 WHERE id = %s", (article_id,))
         return cur.rowcount > 0
+
+
+# -------------------------------------------------------------
+# Public comments (website: under every news / blog / weekly issue - Admin Panel > Comments)
+# -------------------------------------------------------------
+COMMENT_TABLES = {"comments": (("id", ""), ("reports", ""), ("commenter_id", "")), "comment_votes": (("comment_id", ""),), "comment_reports": (("comment_id", ""),),
+                  "commenters": (("email", ""),), "commenter_codes": (("code_hash", ""),)}
+COMMENT_ITEMS = {"article": ("articles", "id"), "weekly": ("weekly_editions", "issue_no")}
+COMMENT_LIST_MAX = 500                  # the most recent top-level comments one answer carries (their replies come with them)
+_comments_state = {"ok": False, "checked": 0.0}
+
+
+def has_comments() -> bool:
+    """True when the three comment tables exist (python init_db.py creates them: every deploy runs it). Until then the website shows no comments."""
+    return _has_columns(COMMENT_TABLES, _comments_state)
+
+
+def ensure_comment_tables() -> bool:
+    """A development PC gets the comment tables here (CREATE TABLE IF NOT EXISTS from schema.sql). On the server the deploy's init_db.py does it:
+    the web application's own database user has no CREATE right, so a refusal here is not an error. Returns whether the tables are there."""
+    if has_comments():
+        return True
+    try:
+        with connection() as conn:
+            cur = conn.cursor()
+            for statement in schema_statements():
+                if re.match(r"CREATE TABLE IF NOT EXISTS\s+comment", statement, re.I):
+                    cur.execute(statement)
+    except pymysql.err.Error:
+        return False
+    _comments_state.update(ok=False, checked=0.0)
+    return has_comments()
+
+
+COMMENT_CODE_TRIES = 5                 # wrong tries one mailed code allows
+COMMENT_CODE_GAP = 45                  # seconds before the same address may ask for another code
+COMMENT_CODES_PER_HOUR = 5
+
+
+def sign_in_commenter(email: str, name: str, provider: str) -> Optional[Dict[str, Any]]:
+    """Finds or makes the reader with this e-mail address and returns {id, email, name, provider}. provider = google | email | guest.
+    A proven address (google / email) keeps the name it has and a guest who later proves the address takes over (with the proven name).
+    A guest can never be the owner of a proven address: that gives None."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM commenters WHERE email = %s FOR UPDATE", (email,))
+        row = cur.fetchone()
+        if row is None:
+            cur.execute("INSERT INTO commenters (email, name, provider, created_at, last_login_at) VALUES (%s, %s, %s, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                        (email, name, provider))
+            return {"id": cur.lastrowid, "email": email, "name": name, "provider": provider}
+        if provider == "guest" and row["provider"] != "guest":
+            return None
+        if provider != "guest" and row["provider"] == "guest":
+            row["name"], row["provider"] = name, provider                     # the guest proved the address
+        elif provider == "guest":
+            row["name"] = name                                                 # a guest may write under another name each time
+        cur.execute("UPDATE commenters SET name = %s, provider = %s, last_login_at = UTC_TIMESTAMP() WHERE id = %s", (row["name"], row["provider"], row["id"]))
+        return {"id": row["id"], "email": email, "name": row["name"], "provider": row["provider"]}
+
+
+def get_commenter(commenter_id: Optional[int]) -> Optional[Dict[str, Any]]:
+    if not commenter_id:
+        return None
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, name, provider FROM commenters WHERE id = %s", (commenter_id,))
+        return cur.fetchone()
+
+
+def save_email_code(email: str, code_hash: str) -> str:
+    """Keeps the hash of a code just mailed to `email` (10 minutes). Returns "ok", or "wait" (a code went out a moment ago) or "limit" (too many lately)."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT sends, TIMESTAMPDIFF(SECOND, sent_at, UTC_TIMESTAMP()) AS ago, TIMESTAMPDIFF(MINUTE, window_start, UTC_TIMESTAMP()) AS minutes "
+                    "FROM commenter_codes WHERE email = %s FOR UPDATE", (email,))
+        row = cur.fetchone()
+        if row is None:
+            cur.execute("INSERT INTO commenter_codes (email, code_hash, expires_at, tries, sent_at, sends, window_start) "
+                        "VALUES (%s, %s, UTC_TIMESTAMP() + INTERVAL 10 MINUTE, 0, UTC_TIMESTAMP(), 1, UTC_TIMESTAMP())", (email, code_hash))
+            return "ok"
+        if row["ago"] < COMMENT_CODE_GAP:
+            return "wait"
+        fresh = row["minutes"] >= 60
+        if not fresh and row["sends"] >= COMMENT_CODES_PER_HOUR:
+            return "limit"
+        cur.execute("UPDATE commenter_codes SET code_hash = %s, expires_at = UTC_TIMESTAMP() + INTERVAL 10 MINUTE, tries = 0, sent_at = UTC_TIMESTAMP(), "
+                    "sends = %s, window_start = IF(%s, UTC_TIMESTAMP(), window_start) WHERE email = %s",
+                    (code_hash, 1 if fresh else row["sends"] + 1, 1 if fresh else 0, email))
+        return "ok"
+
+
+def check_email_code(email: str, code_hash: str) -> str:
+    """"ok" (the code is used up now), "wrong" (one try spent), or "expired" (no code, too old, or too many wrong tries)."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT code_hash, tries, expires_at > UTC_TIMESTAMP() AS live FROM commenter_codes WHERE email = %s FOR UPDATE", (email,))
+        row = cur.fetchone()
+        if row is None or not row["live"] or row["tries"] >= COMMENT_CODE_TRIES:
+            return "expired"
+        if hmac.compare_digest(row["code_hash"], code_hash):
+            cur.execute("UPDATE commenter_codes SET expires_at = UTC_TIMESTAMP() - INTERVAL 1 SECOND WHERE email = %s", (email,))
+            return "ok"
+        cur.execute("UPDATE commenter_codes SET tries = tries + 1 WHERE email = %s", (email,))
+        return "wrong"
+
+
+def _visitor_hash(visitor: str) -> str:
+    """Only this is kept of a visitor's random id (the website sends the id, never the address or a name)."""
+    return hashlib.sha256((config.SECRET_KEY + visitor).encode("utf-8")).hexdigest()
+
+
+def _comment_json(row: Dict[str, Any], my_vote: int = 0) -> Dict[str, Any]:
+    created = row["created_at"]
+    return {"id": row["id"], "parent_id": row["parent_id"], "name": row["name"], "body": row["body"], "likes": row["likes"],
+            "dislikes": row["dislikes"], "created_at": created.strftime("%Y-%m-%dT%H:%M:%SZ") if isinstance(created, datetime) else str(created),
+            "my_vote": my_vote}
+
+
+def _item_exists(cur, item_type: str, item_id: int) -> bool:
+    table, key = COMMENT_ITEMS[item_type]
+    cur.execute(f"SELECT 1 AS found FROM {table} WHERE {key} = %s", (item_id,))
+    return cur.fetchone() is not None
+
+
+def get_comments(item_type: str, item_id: int, visitor: Optional[str] = None) -> Dict[str, Any]:
+    """The comments of one news / blog / issue: the top-level ones newest first, each with its replies oldest first. `visitor` fills my_vote."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM comments WHERE item_type = %s AND item_id = %s AND parent_id IS NULL ORDER BY id DESC LIMIT %s",
+                    (item_type, item_id, COMMENT_LIST_MAX))
+        tops = cur.fetchall()
+        cur.execute("SELECT COUNT(*) AS n FROM comments WHERE item_type = %s AND item_id = %s", (item_type, item_id))
+        total = cur.fetchone()["n"]
+        replies: Dict[int, List[Dict[str, Any]]] = {}
+        votes: Dict[int, int] = {}
+        if tops:
+            marks = ", ".join(["%s"] * len(tops))
+            ids = [r["id"] for r in tops]
+            cur.execute(f"SELECT * FROM comments WHERE parent_id IN ({marks}) ORDER BY id ASC", ids)
+            for r in cur.fetchall():
+                replies.setdefault(r["parent_id"], []).append(r)
+            if visitor:
+                every = ids + [r["id"] for rs in replies.values() for r in rs]
+                cur.execute(f"SELECT comment_id, vote FROM comment_votes WHERE visitor_hash = %s AND comment_id IN ({', '.join(['%s'] * len(every))})",
+                            (_visitor_hash(visitor), *every))
+                votes = {v["comment_id"]: v["vote"] for v in cur.fetchall()}
+    comments = []
+    for top in tops:
+        one = _comment_json(top, votes.get(top["id"], 0))
+        one["replies"] = [_comment_json(r, votes.get(r["id"], 0)) for r in replies.get(top["id"], [])]
+        comments.append(one)
+    return {"total": total, "comments": comments}
+
+
+def add_comment(item_type: str, item_id: int, parent_id: Optional[int], commenter_id: int, name: str, body: str):
+    """Saves one comment of a signed-in reader (`name` is theirs at this moment). Returns (comment, None), or (None, "item") when there is no such news / issue, or (None, "parent") when `parent_id`
+    is not a comment of the same item. A reply to a reply is saved under that reply's top-level comment (replies are one level deep)."""
+    with connection() as conn:
+        cur = conn.cursor()
+        if not _item_exists(cur, item_type, item_id):
+            return None, "item"
+        if parent_id is not None:
+            cur.execute("SELECT id, parent_id, item_type, item_id FROM comments WHERE id = %s", (parent_id,))
+            parent = cur.fetchone()
+            if not parent or parent["item_type"] != item_type or parent["item_id"] != item_id:
+                return None, "parent"
+            parent_id = parent["parent_id"] or parent["id"]
+        cur.execute("INSERT INTO comments (item_type, item_id, parent_id, commenter_id, name, body, created_at) VALUES (%s, %s, %s, %s, %s, %s, UTC_TIMESTAMP())",
+                    (item_type, item_id, parent_id, commenter_id, name, body))
+        cur.execute("SELECT * FROM comments WHERE id = %s", (cur.lastrowid,))
+        comment = _comment_json(cur.fetchone())
+        if parent_id is None:
+            comment["replies"] = []
+        return comment, None
+
+
+def vote_comment(comment_id: int, visitor: str, vote: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """This visitor's vote on a comment: 1 like, -1 dislike, 0 takes it back, None only reads the counts. likes / dislikes change in the same
+    transaction as the vote row. Returns {likes, dislikes, my_vote}, or None when there is no such comment."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT likes, dislikes FROM comments WHERE id = %s FOR UPDATE", (comment_id,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        who = _visitor_hash(visitor)
+        cur.execute("SELECT vote FROM comment_votes WHERE comment_id = %s AND visitor_hash = %s FOR UPDATE", (comment_id, who))
+        had = cur.fetchone()
+        old = had["vote"] if had else 0
+        likes, dislikes = row["likes"], row["dislikes"]
+        if vote is not None and vote != old:
+            if vote == 0:
+                cur.execute("DELETE FROM comment_votes WHERE comment_id = %s AND visitor_hash = %s", (comment_id, who))
+            elif had:
+                cur.execute("UPDATE comment_votes SET vote = %s WHERE comment_id = %s AND visitor_hash = %s", (vote, comment_id, who))
+            else:
+                cur.execute("INSERT INTO comment_votes (comment_id, visitor_hash, vote) VALUES (%s, %s, %s)", (comment_id, who, vote))
+            likes = max(0, likes + (vote == 1) - (old == 1))
+            dislikes = max(0, dislikes + (vote == -1) - (old == -1))
+            cur.execute("UPDATE comments SET likes = %s, dislikes = %s WHERE id = %s", (likes, dislikes, comment_id))
+            old = vote
+        return {"likes": likes, "dislikes": dislikes, "my_vote": old}
+
+
+def report_comment(comment_id: int, visitor: str) -> bool:
+    """Counts one report of a comment, once per visitor. Returns False when there is no such comment."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM comments WHERE id = %s FOR UPDATE", (comment_id,))
+        if cur.fetchone() is None:
+            return False
+        cur.execute("INSERT IGNORE INTO comment_reports (comment_id, visitor_hash, created_at) VALUES (%s, %s, UTC_TIMESTAMP())",
+                    (comment_id, _visitor_hash(visitor)))
+        if cur.rowcount:
+            cur.execute("UPDATE comments SET reports = reports + 1 WHERE id = %s", (comment_id,))
+        return True
+
+
+def admin_comments(only_reported: bool = False, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+    """The Admin Panel's list: every comment (and reply) with the news / issue it is under. Newest first, or - reported only - the most reported first."""
+    slug = ", a.slug AS item_slug" if has_slug() else ""
+    where = "WHERE c.reports > 0" if only_reported else ""
+    order = "c.reports DESC, c.id DESC" if only_reported else "c.id DESC"
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT c.*, (SELECT COUNT(*) FROM comments r WHERE r.parent_id = c.id) AS replies_count, "
+                    f"IF(c.item_type = 'weekly', w.title, a.title) AS item_title, a.category AS item_category, u.email AS email, u.provider AS provider{slug} "
+                    "FROM comments c LEFT JOIN articles a ON c.item_type = 'article' AND a.id = c.item_id "
+                    "LEFT JOIN weekly_editions w ON c.item_type = 'weekly' AND w.issue_no = c.item_id LEFT JOIN commenters u ON u.id = c.commenter_id "
+                    f"{where} ORDER BY {order} LIMIT %s OFFSET %s", (limit, offset))
+        rows = cur.fetchall()
+        cur.execute("SELECT COUNT(*) AS total, COALESCE(SUM(reports > 0), 0) AS reported FROM comments")
+        counts = cur.fetchone()
+    comments = []
+    for r in rows:
+        one = _comment_json(r)
+        one.pop("my_vote")
+        one.update(item_type=r["item_type"], item_id=r["item_id"], item_title=r["item_title"] or "", item_category=r["item_category"],
+                   item_slug=r.get("item_slug"), reports=r["reports"], replies_count=r["replies_count"], email=r["email"] or "", provider=r["provider"] or "")
+        comments.append(one)
+    return {"total": counts["total"], "reported_total": int(counts["reported"]), "comments": comments}
+
+
+def delete_comment(comment_id: int) -> bool:
+    """Deletes a comment with its replies, their votes and reports (foreign keys with ON DELETE CASCADE)."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM comments WHERE id = %s", (comment_id,))
+        return cur.rowcount > 0
+
+
+def _delete_item_comments(cur, item_type: str, item_id: int) -> None:
+    """A news / blog / issue that is deleted takes its comments with it (same transaction)."""
+    if has_comments():
+        cur.execute("DELETE FROM comments WHERE item_type = %s AND item_id = %s", (item_type, item_id))
 
 
 # -------------------------------------------------------------
@@ -947,7 +1207,10 @@ def delete_weekly_edition(issue_no: int) -> bool:
     with connection() as conn:
         cur = conn.cursor()
         cur.execute("DELETE FROM weekly_editions WHERE issue_no = %s", (issue_no,))
-        return cur.rowcount > 0
+        deleted = cur.rowcount > 0
+        if deleted:
+            _delete_item_comments(cur, "weekly", issue_no)
+        return deleted
 
 
 # -------------------------------------------------------------

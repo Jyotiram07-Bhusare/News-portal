@@ -2546,3 +2546,130 @@ body.dark-theme .login-error, body.dark-theme .login-problem { color: #fca5a5; }
 body.dark-theme .uploader-preview-wrap.is-empty {
   background: rgba(148, 163, 184, 0.12);
 }
+
+/* ------------------------------------------------------------
+   COMMENTS (admin-comments.js)
+------------------------------------------------------------ */
+.comment-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 3px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.comment-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comment-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.comment-tab-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  background: var(--brand-primary);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.comment-who {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-time {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.comment-body {
+  color: var(--text-primary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.comment-tag {
+  padding: 1px 8px;
+  background: var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.comment-item-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.comment-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.comment-open {
+  color: var(--brand-blue);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.comment-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.comment-reports.is-hot {
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.comment-row-reported td:first-child {
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+}
+
+.comments-more {
+  margin: 16px 0;
+  text-align: center;
+}
+
+.comments-more[hidden] {
+  display: none;
+}
+
+.comment-email {
+  color: var(--brand-blue);
+  font-size: 0.8rem;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.comment-tag.is-guest {
+  background: #fef3c7;
+  color: #92400e;
+}

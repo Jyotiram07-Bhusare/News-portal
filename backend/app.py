@@ -26,6 +26,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 import auth
+import commenters
 import config
 import database
 import sanitize
@@ -64,7 +65,8 @@ def _english_warning(ignored):
 # -------------------------------------------------------------
 # Login: nothing that writes works without it
 # -------------------------------------------------------------
-PUBLIC_WRITE_ENDPOINTS = {"api.login", "api.count_article_read"}
+PUBLIC_WRITE_ENDPOINTS = {"api.login", "api.count_article_read", "api.post_comment", "api.vote_on_comment", "api.report_comment", "api.commenter_google",
+                          "api.commenter_email_start", "api.commenter_email_verify", "api.commenter_guest"}
 
 
 @api.before_request
@@ -221,6 +223,262 @@ def count_article_read(article_id):
     if _counts_as_read(article_id):
         database.count_click(article_id)
     return ok()
+
+
+# -------------------------------------------------------------
+# Public comments: under every news / blog / weekly issue (no login). Admin Panel > Comments lists and deletes them.
+# -------------------------------------------------------------
+# What one client address may do: (how many, in how many seconds) - every rule must have room. Counted in the memory of each worker process (the API
+# runs 2 to 4 of them), so the real limit is a few times looser and a restart forgets them: a brake on spam, not a lock.
+COMMENT_RULES = ((5, 600), (30, 86400))
+VOTE_RULES = ((120, 3600),)
+REPORT_RULES = ((20, 3600),)
+SIGN_IN_RULES = ((10, 600),)
+EMAIL_CODE_RULES = ((5, 600),)
+_hits = {}                           # (kind, client address) -> times of its recent actions
+_hits_lock = threading.Lock()
+
+
+def _allowed(kind, rules):
+    """True (and the action is written down) when this client address is within every rule of `kind`."""
+    key, now = (kind, auth.client_address()), time.time()
+    longest = max(seconds for _, seconds in rules)
+    with _hits_lock:
+        times = [t for t in _hits.get(key, []) if now - t < longest]
+        if any(sum(1 for t in times if now - t < seconds) >= limit for limit, seconds in rules):
+            _hits[key] = times
+            return False
+        _hits[key] = times + [now]
+        if len(_hits) > 20000:       # never grow without a limit: the quietest addresses are forgotten
+            for old in sorted(_hits, key=lambda k: _hits[k][-1] if _hits[k] else 0)[:5000]:
+                _hits.pop(old, None)
+    return True
+
+
+def _whole_id(value):
+    """A whole number (as a number or as digits) or None; true / false, 1.5 and long digit strings are not ids."""
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    text = str(value).strip()
+    return int(text) if text.isdigit() and len(text) <= 9 else None
+
+
+@api.get("/comments")
+def list_comments():
+    item_type, item_id = request.args.get("type", ""), _whole_id(request.args.get("id"))
+    if item_type not in database.COMMENT_ITEMS or item_id is None:
+        return fail("type must be article or weekly, and id a whole number.", 400)
+    data = database.get_comments(item_type, item_id, sanitize.visitor_id(request.args.get("visitor"))) if database.has_comments() \
+        else {"total": 0, "comments": []}
+    reply = ok(**data)
+    reply.headers["Cache-Control"] = "no-store"
+    return reply
+
+
+@api.post("/comments")
+def post_comment():
+    data = body()
+    item_type, item_id = data.get("type"), _whole_id(data.get("id"))
+    if item_type not in database.COMMENT_ITEMS or item_id is None:
+        return fail("type must be article or weekly, and id a whole number.", 400)
+    parent_id = data.get("parent_id")
+    if parent_id not in (None, ""):
+        parent_id = _whole_id(parent_id)
+        if parent_id is None:
+            return fail("parent_id must be a whole number.", 400)
+    else:
+        parent_id = None
+    try:
+        text = sanitize.comment_body(data.get("body"))
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400)
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    who = database.get_commenter(commenters.verify_token(data.get("token")))
+    if who is None:
+        return fail("Please sign in to comment.", 401, login_required=True)
+    name = who["name"]
+    if str(data.get("website") or "").strip():            # the hidden field only a robot fills in: it is told it worked, nothing is saved
+        fake = {"id": 10 ** 9 + secrets.randbelow(10 ** 9), "parent_id": parent_id, "name": name, "body": text, "likes": 0, "dislikes": 0,
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "my_vote": 0}
+        if parent_id is None:
+            fake["replies"] = []
+        return jsonify({"success": True, "comment": fake}), 201
+    if not _allowed("comment", COMMENT_RULES):
+        return fail("Too many comments from this address - please try again in a little while.", 429)
+    comment, problem = database.add_comment(item_type, item_id, parent_id, who["id"], name, text)
+    if problem == "item":
+        return fail("There is no such news or issue.", 404)
+    if problem == "parent":
+        return fail("parent_id is not a comment of this news or issue.", 400)
+    return jsonify({"success": True, "comment": comment}), 201
+
+
+# ---- who may comment: Google, a mailed code, or name + e-mail + a small sum. Each answers {token, user} - the token goes with every comment.
+def _commenter_name(raw, email):
+    """The name a reader is shown under: what they gave (cleaned), or the first part of the e-mail address."""
+    try:
+        return sanitize.comment_name(raw)
+    except sanitize.ValidationError:
+        return sanitize.comment_name(re.sub(r"[._+-]+", " ", email.split("@")[0]).title() or "Reader")
+
+
+def _signed_in(commenter):
+    return ok(token=commenters.issue_token(commenter["id"]),
+              user={"name": commenter["name"], "email": commenter["email"], "provider": commenter["provider"]})
+
+
+@api.get("/commenters/options")
+def commenter_options():
+    """Which ways of signing in this server offers (the website shows only these)."""
+    return ok(google_client_id=config.GOOGLE_CLIENT_ID, email=commenters.email_login_available(), guest=True)
+
+
+@api.get("/commenters/captcha")
+def commenter_captcha():
+    token, question = commenters.new_captcha()
+    reply = ok(token=token, question=question)
+    reply.headers["Cache-Control"] = "no-store"
+    return reply
+
+
+@api.post("/commenters/google")
+def commenter_google():
+    if not config.GOOGLE_CLIENT_ID:
+        return fail("Google sign-in is not set up.", 503)
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    if not _allowed("sign-in", SIGN_IN_RULES):
+        return fail("Too many tries - please try again in a little while.", 429, reason="limit")
+    profile = commenters.google_profile(body().get("credential"))
+    if profile is None:
+        return fail("Google sign-in did not work - please try again.", 401, reason="google")
+    try:
+        email = sanitize.email_address(profile["email"])
+    except sanitize.ValidationError:
+        return fail("Google sign-in did not work - please try again.", 401, reason="google")
+    return _signed_in(database.sign_in_commenter(email, _commenter_name(profile["name"], email), "google"))
+
+
+@api.post("/commenters/email/start")
+def commenter_email_start():
+    if not commenters.email_login_available():
+        return fail("Sign-in with an e-mail code is not set up.", 503)
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    try:
+        email = sanitize.email_address(body().get("email"))
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400, reason="email")
+    if not _allowed("email-code", EMAIL_CODE_RULES):
+        return fail("Too many tries - please try again in a little while.", 429, reason="limit")
+    code = commenters.new_code()
+    saved = database.save_email_code(email, commenters.hash_code(email, code))
+    if saved != "ok":
+        return fail("A code was sent a moment ago - please wait a minute." if saved == "wait" else "Too many codes for this e-mail address - try again in an hour.",
+                    429, reason=saved)
+    if not commenters.send_code(email, code):
+        return fail("The e-mail could not be sent - please try again.", 503, reason="mail")
+    return ok(**({"dev_code": code} if commenters.shows_dev_code() else {}))
+
+
+@api.post("/commenters/email/verify")
+def commenter_email_verify():
+    data = body()
+    try:
+        email = sanitize.email_address(data.get("email"))
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400, reason="email")
+    code = str(data.get("code") or "").strip()
+    if not re.fullmatch(r"\d{6}", code):
+        return fail("The code has 6 digits.", 400, reason="code")
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    if not _allowed("email-verify", SIGN_IN_RULES):
+        return fail("Too many tries - please try again in a little while.", 429, reason="limit")
+    result = database.check_email_code(email, commenters.hash_code(email, code))
+    if result != "ok":
+        return fail("That code is not right." if result == "wrong" else "The code has expired - ask for a new one.", 400,
+                    reason="code" if result == "wrong" else "expired")
+    return _signed_in(database.sign_in_commenter(email, _commenter_name(data.get("name"), email), "email"))
+
+
+@api.post("/commenters/guest")
+def commenter_guest():
+    data = body()
+    try:
+        name, email = sanitize.comment_name(data.get("name")), sanitize.email_address(data.get("email"))
+    except sanitize.ValidationError as e:
+        return fail(str(e), 400, reason="email" if "e-mail" in str(e) else "name")
+    if str(data.get("website") or "").strip():           # the hidden field only a robot fills in
+        return fail("Please try again.", 400, reason="captcha")
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    if not _allowed("sign-in", SIGN_IN_RULES):
+        return fail("Too many tries - please try again in a little while.", 429, reason="limit")
+    if not commenters.check_captcha(data.get("captcha_token"), data.get("captcha_answer")):
+        return fail("The sum is not right.", 400, reason="captcha")
+    commenter = database.sign_in_commenter(email, name, "guest")
+    if commenter is None:
+        return fail("This e-mail address has an account - please sign in with Google or an e-mailed code.", 409, reason="taken")
+    return _signed_in(commenter)
+
+
+@api.post("/comments/<int:comment_id>/vote")
+def vote_on_comment(comment_id):
+    data = body()
+    visitor, vote = sanitize.visitor_id(data.get("visitor")), data.get("vote")
+    if visitor is None or isinstance(vote, bool) or not isinstance(vote, (int, float)) or vote not in (1, -1, 0):
+        return fail("vote must be 1, -1 or 0, and visitor the website's visitor id.", 400)
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    robot = bool(NOT_A_READER.search(request.headers.get("User-Agent", "")))
+    if not robot and not _allowed("vote", VOTE_RULES):
+        return fail("Too many votes from this address - please try again in a little while.", 429)
+    counts = database.vote_comment(comment_id, visitor, None if robot else int(vote))      # (a crawler only reads the counts)
+    if counts is None:
+        return fail("Comment not found", 404)
+    return ok(**counts)
+
+
+@api.post("/comments/<int:comment_id>/report")
+def report_comment(comment_id):
+    visitor = sanitize.visitor_id(body().get("visitor"))
+    if visitor is None:
+        return fail("visitor must be the website's visitor id.", 400)
+    if not database.has_comments():
+        return fail("Comments are not available yet.", 503)
+    if not _allowed("report", REPORT_RULES):
+        return fail("Too many reports from this address - please try again in a little while.", 429)
+    if not database.report_comment(comment_id, visitor):
+        return fail("Comment not found", 404)
+    return ok()
+
+
+@api.get("/admin/comments")
+@auth.admin_required
+def admin_list_comments():
+    only_reported = request.args.get("filter") == "reported"
+    limit = min(max(request.args.get("limit", 50, type=int), 1), 100)
+    offset = max(request.args.get("offset", 0, type=int), 0)
+    data = database.admin_comments(only_reported, limit, offset) if database.has_comments() else {"total": 0, "reported_total": 0, "comments": []}
+    site = seo.site_url()
+    for one in data["comments"]:
+        slug = one.pop("item_slug", None)
+        where = seo.issue_path(one["item_id"]) if one["item_type"] == "weekly" \
+            else seo.story_path({"id": one["item_id"], "slug": slug, "category": one["item_category"]})
+        one["item_url"] = f"{site}/{where}"
+    reply = ok(**data)
+    reply.headers["Cache-Control"] = "no-store"
+    return reply
+
+
+@api.delete("/admin/comments/<int:comment_id>")
+@auth.admin_required
+def admin_delete_comment(comment_id):
+    if not database.has_comments() or not database.delete_comment(comment_id):
+        return fail("Comment not found", 404)
+    return ok(message="प्रतिक्रिया हटवण्यात आली!")
 
 
 # -------------------------------------------------------------
@@ -772,6 +1030,7 @@ def create_app():
         database.renumber_all_by_date()      # news and blogs numbered by their date (a database numbered the older ways is put right)
         database.ensure_placement_order_columns()    # ... and the places inside the Popular / Random widgets
         database.number_placements()
+        database.ensure_comment_tables()             # ... and the tables of the public comments (a development PC; the server gets them from init_db.py)
     except pymysql.MySQLError:
         pass                                 # MySQL is down / not set up yet: the next start does it
     if config.SERVE_FRONTEND:

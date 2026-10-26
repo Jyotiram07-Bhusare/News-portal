@@ -50,6 +50,7 @@ database.ensure_review_column = lambda: True
 database.renumber_all_by_date = lambda: None
 database.ensure_placement_order_columns = lambda: True
 database.number_placements = lambda: None
+database.ensure_comment_tables = lambda: True
 
 import app as app_module  # noqa: E402
 import auth  # noqa: E402
@@ -62,6 +63,8 @@ class FakeDB:
     def __init__(self):
         self.articles, self.weekly, self.videos, self.ads = {}, {}, {}, {}
         self.next_article, self.next_video, self.next_ad = 10000, 1, 1
+        self.comments, self.next_comment, self.comment_tables = {}, 1, True
+        self.commenters, self.codes = {}, {}
 
     # ---- articles
     def get_articles(self, category=None, search=None, limit=None, placement=None):
@@ -98,6 +101,111 @@ class FakeDB:
         if article_id not in self.articles:
             return False
         self.articles[article_id]["clicks"] = self.articles[article_id].get("clicks", 0) + 1
+        return True
+
+    # ---- comments (the same rules as database.py, kept simple: rows are dicts)
+    def has_comments(self):
+        return self.comment_tables
+
+    def _comment_item_exists(self, item_type, item_id):
+        return (item_id in self.articles) if item_type == "article" else (item_id in self.weekly)
+
+    def get_comments(self, item_type, item_id, visitor=None):
+        mine = [c for c in self.comments.values() if c["item_type"] == item_type and c["item_id"] == item_id]
+        view = lambda c: {k: c[k] for k in ("id", "parent_id", "name", "body", "likes", "dislikes", "created_at")} | {"my_vote": c["votes"].get(visitor, 0)}
+        tops = sorted((c for c in mine if c["parent_id"] is None), key=lambda c: -c["id"])
+        return {"total": len(mine), "comments": [view(c) | {"replies": [view(r) for r in sorted(mine, key=lambda r: r["id"]) if r["parent_id"] == c["id"]]}
+                                                  for c in tops]}
+
+    def sign_in_commenter(self, email, name, provider):
+        known = self.commenters.get(email)
+        if known is None:
+            known = self.commenters[email] = {"id": len(self.commenters) + 1, "email": email, "name": name, "provider": provider}
+        elif provider == "guest" and known["provider"] != "guest":
+            return None
+        elif provider != "guest" and known["provider"] == "guest":
+            known.update(name=name, provider=provider)
+        elif provider == "guest":
+            known["name"] = name
+        return dict(known)
+
+    def get_commenter(self, commenter_id):
+        return next((dict(c) for c in self.commenters.values() if c["id"] == commenter_id), None)
+
+    def save_email_code(self, email, code_hash):
+        row = self.codes.get(email)
+        if row and row["wait"]:
+            return "wait"
+        if row and row["sends"] >= 5:
+            return "limit"
+        self.codes[email] = {"hash": code_hash, "tries": 0, "sends": (row["sends"] if row else 0) + 1, "wait": False, "used": False}
+        return "ok"
+
+    def check_email_code(self, email, code_hash):
+        row = self.codes.get(email)
+        if not row or row["used"] or row["tries"] >= 5:
+            return "expired"
+        if row["hash"] == code_hash:
+            row["used"] = True
+            return "ok"
+        row["tries"] += 1
+        return "wrong"
+
+    def add_comment(self, item_type, item_id, parent_id, commenter_id, name, body):
+        if not self._comment_item_exists(item_type, item_id):
+            return None, "item"
+        if parent_id is not None:
+            parent = self.comments.get(parent_id)
+            if not parent or (parent["item_type"], parent["item_id"]) != (item_type, item_id):
+                return None, "parent"
+            parent_id = parent["parent_id"] or parent["id"]
+        new_id, self.next_comment = self.next_comment, self.next_comment + 1
+        row = {"id": new_id, "item_type": item_type, "item_id": item_id, "parent_id": parent_id, "commenter_id": commenter_id, "name": name, "body": body, "likes": 0, "dislikes": 0,
+               "reports": 0, "created_at": "2026-10-24T10:48:21Z", "votes": {}, "reporters": set()}
+        self.comments[new_id] = row
+        out = {k: row[k] for k in ("id", "parent_id", "name", "body", "likes", "dislikes", "created_at")} | {"my_vote": 0}
+        return (out | {"replies": []}) if parent_id is None else out, None
+
+    def vote_comment(self, comment_id, visitor, vote=None):
+        row = self.comments.get(comment_id)
+        if row is None:
+            return None
+        if vote is not None:
+            if vote == 0:
+                row["votes"].pop(visitor, None)
+            else:
+                row["votes"][visitor] = vote
+            row["likes"] = sum(1 for v in row["votes"].values() if v == 1)
+            row["dislikes"] = sum(1 for v in row["votes"].values() if v == -1)
+        return {"likes": row["likes"], "dislikes": row["dislikes"], "my_vote": row["votes"].get(visitor, 0)}
+
+    def report_comment(self, comment_id, visitor):
+        row = self.comments.get(comment_id)
+        if row is None:
+            return False
+        if visitor not in row["reporters"]:
+            row["reporters"].add(visitor)
+            row["reports"] += 1
+        return True
+
+    def admin_comments(self, only_reported=False, limit=50, offset=0):
+        rows = [c for c in self.comments.values() if c["reports"] > 0 or not only_reported]
+        rows.sort(key=(lambda c: (-c["reports"], -c["id"])) if only_reported else (lambda c: -c["id"]))
+        out = []
+        for c in rows[offset: offset + limit]:
+            item = self.articles.get(c["item_id"]) if c["item_type"] == "article" else self.weekly.get(c["item_id"])
+            out.append({"id": c["id"], "parent_id": c["parent_id"], "name": c["name"], "body": c["body"], "likes": c["likes"], "dislikes": c["dislikes"],
+                        "created_at": c["created_at"], "item_type": c["item_type"], "item_id": c["item_id"], "item_title": (item or {}).get("title", ""),
+                        "item_category": (item or {}).get("category") if c["item_type"] == "article" else None, "item_slug": (item or {}).get("slug"),
+                        "reports": c["reports"], "replies_count": sum(1 for r in self.comments.values() if r["parent_id"] == c["id"]),
+                        "email": (self.get_commenter(c["commenter_id"]) or {}).get("email", ""), "provider": (self.get_commenter(c["commenter_id"]) or {}).get("provider", "")})
+        return {"total": len(self.comments), "reported_total": sum(1 for c in self.comments.values() if c["reports"] > 0), "comments": out}
+
+    def delete_comment(self, comment_id):
+        if comment_id not in self.comments:
+            return False
+        for gone in [comment_id] + [c["id"] for c in self.comments.values() if c["parent_id"] == comment_id]:
+            self.comments.pop(gone, None)
         return True
 
     # ---- weekly
@@ -169,7 +277,8 @@ def db(monkeypatch):
     for name in ("get_articles", "get_article", "get_article_by_slug", "create_article", "update_article", "toggle_placement", "delete_article", "count_click",
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
                  "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
-                 "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad"):
+                 "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad",
+                 "has_comments", "sign_in_commenter", "get_commenter", "save_email_code", "check_email_code", "get_comments", "add_comment", "vote_comment", "report_comment", "admin_comments", "delete_comment"):
         monkeypatch.setattr(database, name, getattr(fake, name))
     monkeypatch.setattr(database, "ping", lambda: True)
     monkeypatch.setattr(database, "has_english", lambda: True)

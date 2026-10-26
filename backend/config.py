@@ -85,6 +85,20 @@ SECRET_KEY = _secret or secrets.token_urlsafe(48)
 ADMIN_USERNAME = _text("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD_HASH = _text("ADMIN_PASSWORD_HASH")
 TOKEN_TTL_HOURS = max(1, _int("TOKEN_TTL_HOURS", 12))
+
+# ---- Readers who comment (the website's "Post Your Comment" dialog) ----
+# A comment is written under a signed-in name. Three ways in, each offered only when it is set up here:
+#   Google sign-in         GOOGLE_CLIENT_ID = the OAuth client id (type "Web application") made in the Google Cloud console
+#   a code sent by e-mail  SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD / SMTP_FROM (a development PC without them prints the code instead)
+#   without login          name + e-mail + a small sum: always there
+GOOGLE_CLIENT_ID = _text("GOOGLE_CLIENT_ID")
+SMTP_HOST = _text("SMTP_HOST")
+SMTP_PORT = _int("SMTP_PORT", 587)
+SMTP_USER = _text("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = _text("SMTP_FROM", SMTP_USER)
+SMTP_SSL = _flag("SMTP_SSL", SMTP_PORT == 465)          # True: SSL from the start (port 465) - else STARTTLS (port 587)
+COMMENTER_TTL_DAYS = max(1, _int("COMMENTER_TTL_DAYS", 90))      # how long a reader stays signed in
 LOGIN_MAX_FAILURES = max(1, _int("LOGIN_MAX_FAILURES", 5))      # wrong passwords from one address ...
 LOGIN_LOCK_MINUTES = max(1, _int("LOGIN_LOCK_MINUTES", 15))     # ... block that address for this long
 

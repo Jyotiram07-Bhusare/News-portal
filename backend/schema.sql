@@ -98,3 +98,72 @@ CREATE TABLE IF NOT EXISTS site_settings (
   updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Readers who comment (the website's "Post Your Comment" dialog). One row per e-mail address: the name and e-mail are kept with the comments.
+-- provider = google or email (the e-mail address is proven) or guest (name + e-mail typed, not proven: it can never take the address of a proven one).
+-- The Admin Panel shows them under Comments. The website never shows an e-mail address.
+CREATE TABLE IF NOT EXISTS commenters (
+  id            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(190)  NOT NULL,                      -- lower case
+  name          VARCHAR(60)   NOT NULL,
+  provider      VARCHAR(10)   NOT NULL,                      -- google | email | guest
+  created_at    DATETIME      NOT NULL,                      -- UTC
+  last_login_at DATETIME      NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_commenters_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The 6 digit code mailed to an address that signs in by e-mail: only a hash of it is kept, with its tries, and how many were sent lately.
+CREATE TABLE IF NOT EXISTS commenter_codes (
+  email         VARCHAR(190)  NOT NULL,
+  code_hash     CHAR(64)      NOT NULL,
+  expires_at    DATETIME      NOT NULL,                      -- UTC
+  tries         TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  sent_at       DATETIME      NOT NULL,
+  sends         TINYINT UNSIGNED NOT NULL DEFAULT 1,         -- codes sent since window_start (an address gets only a few an hour)
+  window_start  DATETIME      NOT NULL,
+  PRIMARY KEY (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Public comments on a news story, a blog or a weekly issue (website: under the story, Admin Panel > Comments).
+-- item_type = article (a news or blog, item_id = articles.id) or weekly (an issue, item_id = weekly_editions.issue_no). There is no foreign key to the
+-- item itself because it can be one of two tables: database.delete_article() / delete_weekly_edition() delete its comments in the same transaction.
+-- A reply (parent_id) points to a TOP-LEVEL comment of the same item, one level only. Deleting a comment deletes its replies, votes and reports.
+-- Created by init_db.py (every deploy runs it) and, on a development PC, by database.ensure_comment_tables() when the backend starts.
+CREATE TABLE IF NOT EXISTS comments (
+  id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  item_type   VARCHAR(10)   NOT NULL,                      -- article | weekly
+  item_id     INT UNSIGNED  NOT NULL,
+  parent_id   INT UNSIGNED  NULL,                          -- NULL = a top-level comment
+  commenter_id INT UNSIGNED NULL,                          -- who wrote it (the name below is the one used when it was written)
+  name        VARCHAR(60)   NOT NULL,                      -- plain text
+  body        TEXT          NOT NULL,                      -- plain text, at most 2000 characters
+  likes       INT UNSIGNED  NOT NULL DEFAULT 0,            -- kept equal to the comment_votes rows in the same transaction
+  dislikes    INT UNSIGNED  NOT NULL DEFAULT 0,
+  reports     INT UNSIGNED  NOT NULL DEFAULT 0,            -- how many visitors reported it - never shown on the website
+  created_at  DATETIME      NOT NULL,                      -- UTC, set with UTC_TIMESTAMP on insert
+  PRIMARY KEY (id),
+  KEY idx_comments_item (item_type, item_id, parent_id, id),
+  KEY idx_comments_parent (parent_id, id),
+  KEY idx_comments_reports (reports, id),
+  CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comments_commenter FOREIGN KEY (commenter_id) REFERENCES commenters (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One vote per visitor and comment. visitor_hash = sha256 of SECRET_KEY + the visitor id the website made: the visitor id itself is never kept.
+CREATE TABLE IF NOT EXISTS comment_votes (
+  comment_id   INT UNSIGNED  NOT NULL,
+  visitor_hash CHAR(64)      NOT NULL,
+  vote         TINYINT       NOT NULL,                     -- 1 = like, -1 = dislike (no row = no vote)
+  PRIMARY KEY (comment_id, visitor_hash),
+  CONSTRAINT fk_comment_votes_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One report per visitor and comment (the count is comments.reports).
+CREATE TABLE IF NOT EXISTS comment_reports (
+  comment_id   INT UNSIGNED  NOT NULL,
+  visitor_hash CHAR(64)      NOT NULL,
+  created_at   DATETIME      NOT NULL,
+  PRIMARY KEY (comment_id, visitor_hash),
+  CONSTRAINT fk_comment_reports_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

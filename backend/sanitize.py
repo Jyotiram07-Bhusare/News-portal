@@ -286,3 +286,59 @@ def ad(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
     if "sort_order" in data and str(data["sort_order"] if data["sort_order"] is not None else "").strip() != "":
         out["sort_order"] = whole_number(data["sort_order"], "sort_order", 1, 100_000)
     return out
+
+
+# ---- public comments ----
+COMMENT_NAME_MAX = 60
+COMMENT_BODY_MAX = 2000
+COMMENT_RAW_MAX = 20_000                   # (more than this is refused before any cleaning: the work stays small)
+_CONTROL = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")      # every control character except the new line
+_VISITOR = re.compile(r"[A-Za-z0-9-]{8,64}")
+
+
+def comment_name(value: Any) -> str:
+    """The name a visitor typed under a comment: one line of plain text, 1 to 60 characters."""
+    text = "" if value is None else str(value)
+    if len(text) > COMMENT_RAW_MAX:
+        raise ValidationError(f"The name is too long (at most {COMMENT_NAME_MAX} characters).")
+    text = _CONTROL.sub("", text.replace("\r", "\n"))
+    text = re.sub(r"\s+", " ", plain(text, COMMENT_RAW_MAX, "The name")).strip()
+    if not text:
+        raise ValidationError("The name is required.")
+    if len(text) > COMMENT_NAME_MAX:
+        raise ValidationError(f"The name is too long (at most {COMMENT_NAME_MAX} characters).")
+    return text
+
+
+def comment_body(value: Any) -> str:
+    """The text of a comment: plain text (no markup), new lines kept, other control characters removed, more than 2 empty lines in a row
+    squeezed to 2, trimmed, 1 to 2000 characters."""
+    text = "" if value is None else str(value)
+    if len(text) > COMMENT_RAW_MAX:
+        raise ValidationError(f"The comment is too long (at most {COMMENT_BODY_MAX} characters).")
+    text = _CONTROL.sub("", text.replace("\r\n", "\n").replace("\r", "\n"))
+    text = plain(text, COMMENT_RAW_MAX, "The comment")
+    text = re.sub(r"[^\S\n]+\n", "\n", text)                  # (a line of spaces is an empty line)
+    text = re.sub(r"\n{4,}", "\n\n\n", text).strip()
+    if not text:
+        raise ValidationError("The comment is required.")
+    if len(text) > COMMENT_BODY_MAX:
+        raise ValidationError(f"The comment is too long (at most {COMMENT_BODY_MAX} characters).")
+    return text
+
+
+_EMAIL = re.compile(r"[A-Za-z0-9._%+'-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+
+
+def email_address(value: Any) -> str:
+    """An e-mail address as it is kept: trimmed, lower case, at most 190 characters, one @ and a dot in the domain."""
+    text = str(value).strip().lower() if isinstance(value, str) else ""
+    if len(text) > 190 or not _EMAIL.fullmatch(text):
+        raise ValidationError("Please enter a valid e-mail address.")
+    return text
+
+
+def visitor_id(value: Any) -> Optional[str]:
+    """The random id the website keeps for a visitor: 8 to 64 characters of A-Z a-z 0-9 and -. None when it is missing or not like that."""
+    text = value if isinstance(value, str) else ""
+    return text if _VISITOR.fullmatch(text) else None

@@ -71,6 +71,11 @@
           <span>जाहिरात (Advertisements)</span>
           <span class="nav-badge" id="sidebar-ads-count">…</span>
         </a>
+        <a href="#comments" class="nav-item" data-tab="tab-comments">
+          <i class="fa-regular fa-comments"></i>
+          <span>प्रतिक्रिया (Comments)</span>
+          <span class="nav-badge" id="sidebar-comments-count">…</span>
+        </a>
         <a href="#footer" class="nav-item" data-tab="tab-footer">
           <i class="fa-solid fa-address-card"></i>
           <span>फूटर माहिती (Footer)</span>
@@ -445,6 +450,53 @@
                 </button>
               </div>
             </form>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 7: COMMENTS (what readers write under news, blogs and weekly issues: read them, delete the bad ones) -->
+        <!-- ============================================== -->
+        <section class="admin-tab" id="tab-comments">
+          <div class="tab-toolbar">
+            <div class="toolbar-left">
+              <h2 class="tab-title">प्रतिक्रिया व्यवस्थापन</h2>
+              <div class="comment-tabs" role="tablist" aria-label="प्रतिक्रिया">
+                <button type="button" class="comment-tab active" role="tab" aria-selected="true" data-filter="all" onclick="setCommentsFilter('all')">
+                  <span>सर्व</span>
+                </button>
+                <button type="button" class="comment-tab" role="tab" aria-selected="false" data-filter="reported" onclick="setCommentsFilter('reported')">
+                  <span>तक्रार आलेल्या</span> <span class="comment-tab-count" id="comments-reported-count">0</span>
+                </button>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button type="button" class="btn btn-refresh" onclick="refreshComments()">
+                <i class="fa-solid fa-rotate"></i> रिफ्रेश करा
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="comments-table">
+                <thead>
+                  <tr>
+                    <th>प्रतिक्रिया</th>
+                    <th style="width: 260px;">बातमी / अंक</th>
+                    <th style="width: 190px;">आकडेवारी</th>
+                    <th style="width: 80px; text-align: center;">कृती</th>
+                  </tr>
+                </thead>
+                <tbody id="comments-table-body">
+                  <tr><td colspan="4" style="text-align: center; padding: 30px;">लोड होत आहे...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="comments-more" id="comments-more" hidden>
+            <button type="button" class="btn btn-outline" id="comments-more-btn" onclick="loadMoreComments()">
+              <i class="fa-solid fa-angles-down"></i> <span>आणखी पहा</span>
+            </button>
           </div>
         </section>
       </div>
@@ -960,5 +1012,6 @@
   <script src="/admin/admin-videos.js"></script>
   <script src="/admin/admin-ads.js"></script>
   <script src="/admin/admin-settings.js"></script>
+  <script src="/admin/admin-comments.js"></script>
 </body>
 </html>

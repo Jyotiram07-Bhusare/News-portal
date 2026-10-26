@@ -18,7 +18,7 @@ lokmangal news portal/
 │   │   ├── i18n.js                 ← मराठी / English: शब्दकोश + भाषा बदलणारी बटणे
 │   │   ├── content-en.js           ← आधीपासूनच्या १८ बातम्या + ६८ अंकांचा English मजकूर
 │   │   └── app.js
-│   ├── admin/                      ← Admin Panel (index.html, admin.js, admin-videos.js, admin.css)
+│   ├── admin/                      ← Admin Panel (index.html, admin.js, admin-videos.js, admin-comments.js, admin.css)
 │   └── assets/                     ← लोगो, फोटो (images/), साप्ताहिक PDF (pdf/) आणि Admin मधून अपलोड केलेले व्हिडिओ (videos/ — Git मध्ये जात नाही)
 ├── backend/                        ← Python (Flask) REST API + MySQL
 │   ├── app.py                      ← सर्व्हर:  python app.py   (प्रकाशित: gunicorn -c gunicorn.conf.py app:app)
@@ -29,7 +29,7 @@ lokmangal news portal/
 │   ├── manage.py                   ← set-admin-password · gen-secret · check
 │   ├── tests/                      ← स्वयंचलित चाचण्या:  python -m pytest -q
 │   ├── database.py                 ← MySQL चे सर्व प्रश्न (बातम्या / साप्ताहिक अंक / व्हिडिओ)
-│   ├── schema.sql                  ← MySQL टेबल्स (articles, weekly_editions, videos)
+│   ├── schema.sql                  ← MySQL टेबल्स (articles, weekly_editions, videos, ads, site_settings, commenters, commenter_codes, comments, comment_votes, comment_reports)
 │   ├── init_db.py                  ← डेटाबेस + टेबल्स तयार करतो (जुन्या डेटाबेसमध्ये English कॉलम्सही जोडतो)
 │   ├── seed_data.py                ← १८ बातम्या + ६८ साप्ताहिक अंक भरतो (seed/ मधून; फक्त रिकाम्या टेबलमध्ये)
 │   ├── migrate_sqlite_to_mysql.py  ← जुना SQLite डेटा MySQL मध्ये कॉपी करतो
@@ -83,7 +83,6 @@ lokmangal news portal/
 - **बातम्या / अंकांचा मजकूर:** Admin Panel मधील **English टॅब** (बातमी व अंकाचा फॉर्म) मध्ये English शीर्षक / सारांश / मजकूर / बातमीदार भरा. English निवडल्यावर साईट तोच दाखवते; English भरलेले नसेल तर त्या बातमीचा मराठी मजकूर दिसतो. शोध (search) दोन्ही भाषांत चालतो.
 - **आधीपासूनचा मजकूर (१८ बातम्या, ६८ साप्ताहिक अंक) English मध्येही दिसतो:** त्यांचा English मजकूर `frontend/js/content-en.js` मध्ये आहे (आणि `backend/seed/*.json` मध्ये `title_en` … म्हणून) — त्यामुळे Vercel सारख्या बॅकएंडशिवाय चालणाऱ्या होस्टवरही EN दाबताच सगळे English होते. Admin मध्ये त्या बातमीचा English टॅब भरला तर तो (डेटाबेसमधला) मजकूर या फाईलपेक्षा वरचढ ठरतो; फाईल फक्त **रिकामी** जागा भरते.
 - **जुन्या डेटाबेससाठी एकदाच:** English मजकूर साठवायला MySQL मध्ये ६ नवे कॉलम्स लागतात. `backend` फोल्डरमध्ये `python init_db.py` चालवा (काहीही हटवत / बदलत नाही: कॉलम्स जोडते आणि आधीच्या १८ बातम्या / ६८ अंकांचा English मजकूर त्यांच्या रिकाम्या English जागी भरते — म्हणजे Admin मध्ये त्यांचा English टॅबही भरलेला दिसतो; तुम्ही स्वतः टाकलेला English कधीच बदलला जात नाही). तोपर्यंत Admin मध्ये English टॅबवर तशी सूचना दिसते आणि English जतन होत नाही (मराठी नेहमी जतन होते). नवीन डेटाबेसमध्ये हे आपोआप असतात.
-- साईटच्या कोडमधील नमुना प्रतिक्रियांचे English आधीच दिले आहे; ते Admin मधून बदलता येत नाहीत (कोडमध्येच आहेत).
 
 ### ३अ. पत्ते (URLs), Back बटण व साप्ताहिक PDF
 प्रत्येक पानाचा स्वतःचा पत्ता आहे, त्यामुळे ब्राउझरचे **Back / Forward**, रिफ्रेश आणि शेअर केलेल्या लिंक्स नेमक्या त्याच पानावर नेतात:
@@ -200,7 +199,7 @@ python app.py
 | बॅकएंड तपासणी | http://localhost:5000/api/health |
 
 - `init_db.py` कितीही वेळा चालवला तरी चालतो — काहीही पुसले जात नाही. `--seed` फक्त **रिकाम्या** टेबल्समध्ये नमुना डेटा भरतो (तेच id / अंक पुन्हा लिहायचे असतील तर `python seed_data.py --force`).
-- **डेटाबेसमधील बदलांच्या SQL फाईल्स:** `backend/migrations/` (उदा. `2026-10-24-review-clicks.sql` — `articles.clicks`, `articles.is_review`; `2026-10-24-popular-random-order.sql` — `articles.popular_order`, `articles.random_order`). Live वर हे बदल प्रत्येक deploy आपोआप करतो (`init_db.py --schema-only`, `deploy/docker/deploy-entry.sh`); SQL फाईल तोच बदल हाताने लावण्यासाठी आहे (`mysql ... lokmangal_news_portal < backend/migrations/<फाईल>.sql`) — पुन्हा चालवली तरी सुरक्षित, कोणताही row बदलत / हटवत नाही.
+- **डेटाबेसमधील बदलांच्या SQL फाईल्स:** `backend/migrations/` (उदा. `2026-10-24-review-clicks.sql` — `articles.clicks`, `articles.is_review`; `2026-10-24-popular-random-order.sql` — `articles.popular_order`, `articles.random_order`; `2026-10-24-comments.sql` — टेबल्स `commenters`, `commenter_codes`, `comments`, `comment_votes`, `comment_reports`). Live वर हे बदल प्रत्येक deploy आपोआप करतो (`init_db.py --schema-only`, `deploy/docker/deploy-entry.sh`); SQL फाईल तोच बदल हाताने लावण्यासाठी आहे (`mysql ... lokmangal_news_portal < backend/migrations/<फाईल>.sql`) — पुन्हा चालवली तरी सुरक्षित, कोणताही row बदलत / हटवत नाही.
 - **जुना SQLite डेटा (`data/portal.db`) हवा असेल:** `--seed` ऐवजी `python init_db.py` नंतर `python migrate_sqlite_to_mysql.py` चालवा. बातम्या, अंक, तारखा आणि Lead / Popular / Random निवड जशीच्या तशी कॉपी होते (फाईल `backend/legacy/portal.db`; दुसरी फाईल हवी तर `--sqlite <फाईल>`). लक्षात ठेवा: त्या जुन्या फाईलमध्ये ते ४२ नमुना साप्ताहिक अंकही आहेत — migration चालवल्यास ते परत येतात (Admin Panel मधून हटवता येतात).
 - **फोनवर तपासायचे असेल:** फोन व PC एकाच वाय-फायवर ठेवून `http://<PC चा IP>:5000/` उघडा (`.env` मध्ये `HOST=0.0.0.0` असताना; Windows Firewall विचारले तर "Private network" ला परवानगी द्या).
 - MySQL चालू नसेल तर `python app.py` सुरू होतो पण "WARNING: cannot use MySQL yet" दाखवतो; API `503` देते आणि साईट आतल्या डेटावरून चालते.
@@ -226,7 +225,10 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | `APP_ENV` | `development` / `production` — production मध्ये असुरक्षित सेटिंग्ज असतील तर बॅकएंड सुरू होत नाही (`python manage.py check` कारण सांगतो) | `development` |
 | `SECRET_KEY` | लॉगिन token वर सही करते (किमान 32 अक्षरे; `python manage.py gen-secret`). विकासात नसेल तर प्रत्येक सुरुवातीला नवी बनते | — |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | Admin लॉगिन (hash `python manage.py set-admin-password` भरतो; पासवर्ड स्वतः कुठेही साठवला जात नाही) | `admin`, — |
-| `TOKEN_TTL_HOURS` | लॉगिन किती तास टिकते | `12` |
+| `TOKEN_TTL_HOURS` | Admin लॉगिन किती तास टिकते | `12` |
+| `GOOGLE_CLIENT_ID` | "Google ने साइन इन" (प्रतिक्रियांसाठी): Google Cloud console → APIs & Services → Credentials → OAuth client ID (Web application); "Authorized JavaScript origins" मध्ये `https://www.lokmangal.info` (व PC वर पाहण्यासाठी `http://localhost:5001`) टाका. रिकामे = Google बटण दिसत नाही | — |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | ईमेल कोडने साइन इन: कोणताही SMTP (Gmail → "App password"; Amazon SES चे SMTP credentials). रिकामे = server वर हा पर्याय दिसत नाही | `587` |
+| `COMMENTER_TTL_DAYS` | प्रतिक्रिया देणारा किती दिवस साइन इन राहतो | `90` |
 | `DB_SSL_CA` | RDS चा CA bundle; दिला की DB कनेक्शन TLS ने व सर्टिफिकेट तपासून | — |
 | `STORAGE_BACKEND` | `local` = फाईल्स `frontend/assets/…` मध्ये · `s3` = Amazon S3 (`S3_BUCKET`, `S3_REGION`, `MEDIA_BASE_URL` = CloudFront पत्ता) | `local` |
 | `TRUSTED_PROXIES` | समोर किती proxy (nginx = 1) | `0` |
@@ -254,6 +256,10 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | POST | `/api/articles/<id>/toggle-placement` | `{"field": "is_lead\|is_popular\|is_random\|is_latest\|is_review", "value": 1}` (Lead एकावेळी एकच) |
 | POST | `/api/articles/<id>/read` | वाचकाने बातमी / ब्लॉग उघडला: `clicks` +1 — रिव्ह्यू विभागासाठी. लॉगिनशिवाय (वेबसाईट स्वतः पाठवते); crawler मोजले जात नाहीत, एका पत्त्यावरून एका बातमीचे तासाला ३० पेक्षा जास्त नाहीत |
 | DELETE | `/api/articles/<id>` | हटवा |
+| GET · POST | `/api/comments` (`?type=article\|weekly&id=&visitor=`) | प्रतिक्रिया वाचणे (नवीन आधी, प्रत्येकाची उत्तरे सोबत) / लिहिणे (`type`, `id`, `parent_id`, `body`, `token`, `visitor`; साइन इन नसेल तर `401`). लॉगिनशिवाय; मर्यादा वर "वाचकांच्या प्रतिक्रिया" मध्ये |
+| GET · POST | `/api/commenters/options` · `/api/commenters/captcha` · `/api/commenters/google` · `/api/commenters/email/start` · `/api/commenters/email/verify` · `/api/commenters/guest` | प्रतिक्रिया देणाऱ्याचे साइन इन (लॉगिनशिवाय) — उत्तर `{token, user}`; `token` प्रत्येक `POST /api/comments` सोबत (`"token"`) जातो, तो Admin च्या token पेक्षा वेगळा आहे |
+| POST | `/api/comments/<id>/vote` · `/api/comments/<id>/report` | `{"vote": 1\|-1\|0, "visitor"}` · `{"visitor"}` — लॉगिनशिवाय; crawler ची मते साठवली जात नाहीत |
+| GET · DELETE | `/api/admin/comments` (`?filter=all\|reported&limit=&offset=`) · `/api/admin/comments/<id>` | Admin: यादी (बातमी / अंकाच्या नावासह) / हटवा — लॉगिन लागते |
 | GET | `/api/weekly` (`?limit=`) | साप्ताहिक अंक |
 | POST | `/api/weekly` | अंक जोडा / बदला (`issue_no`, `title` गरजेचे) |
 | DELETE | `/api/weekly/<अंक क्रमांक>` | अंक हटवा |
@@ -291,6 +297,7 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | बातम्या व्यवस्थापन | नवी बातमी (फोटो अपलोडसह) — **मराठी | English टॅब**: एकदा मराठीत, एकदा English मध्ये भरा (शीर्षक, सारांश, मजकूर, बातमीदार), बदल, हटवा, शोध व फिल्टर. प्रत्येक बातमीचे स्थान निवडता येते: ⭐ **Lead Story** (Home वर सर्वात वर — एकावेळी एकच), 🔥 **Popular Posts** (डावी बाजू), 🎲 **Random Posts** (उजवी बाजू), 📰 **ताज्या बातम्या**, 🏅 **रिव्ह्यू** (रिव्ह्यू पानावर सर्वात वर). श्रेणीमध्ये **रिव्ह्यू** पण निवडता येते |
 | साप्ताहिक ई-पेपर | नवा अंक (शीर्षक व परिचय **मराठी + English टॅबवर**): **PDF निवडा** → तारीख व मुखपृष्ठ आपोआप भरतात (डिफॉल्ट मर्यादा ५० MB), तुम्ही शीर्षक + छोटा परिचय लिहिता. **✏️ संपादन बटण:** आधीच्या अंकाचे शीर्षक / तारीख / परिचय / मुखपृष्ठ / PDF बदलता येते (अंक क्रमांक बदलता येत नाही). नवा अंक आधीच असलेल्या क्रमांकाने जतन करताना "जुना बदलायचा का?" असे विचारले जाते. हटवा: अंक वेबसाईटवरूनही जातो; त्याची PDF / फोटो फाईल फोल्डरमध्ये राहते |
 | व्हिडिओ अपलोड | **नवीन व्हिडिओ अपलोड करा** → **व्हिडिओ फाईल निवडा** (किंवा ड्रॅग करा; MP4 / WebM उत्तम, डिफॉल्ट कमाल २०० MB) **किंवा YouTube / थेट .mp4 ची लिंक paste करा** (लिंक दिली तर काहीच अपलोड होत नाही; वेबसाईटवर YouTube त्याच्या स्वतःच्या प्लेअरमध्ये तिथेच चालतो, त्याचा thumbnail आपोआप येतो) + **शीर्षक** (मराठी + English टॅब) + ऐच्छिक वर्णन → जतन. फाईल निवडताच ब्राउझर व्हिडिओची **लांबी** वाचतो आणि त्यातून **एक फोटो** (वेबसाईटच्या कार्डचा thumbnail) घेतो; फाईल **जतन करतानाच** (प्रोग्रेस बारसह) अपलोड होते, म्हणून "रद्द करा" केले तर काहीच मागे राहत नाही. **✏️ संपादन:** शीर्षक / वर्णन बदला किंवा नवी फाईल निवडा (जुनी फाईल डिस्कवरून जाते). **हटवा:** व्हिडिओ वेबसाईटवरूनही जातो आणि फाईल कायमची डिलीट होते |
+| प्रतिक्रिया | वाचकांनी लिहिलेल्या प्रतिक्रिया (उत्तरांसह): **सर्व** / **तक्रार आलेल्या** टॅब, कोणत्या बातमी / अंकाखाली आहे (उघडण्याची लिंक), 👍 👎 उत्तरे व तक्रारींचे आकडे; वाईट प्रतिक्रिया 🗑 ने हटवता (तिची उत्तरेही जातात) |
 
 **Admin मध्ये भरलेली बातमी वेबसाईटवर कुठे दिसते** (जतन केल्यावर वेबसाईटचे पान refresh — F5 — करा):
 
@@ -318,7 +325,7 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 - **Admin Panel ला बॅकएंड व लॉगिन लागते** (`http://localhost:5000/admin/`, किंवा Amplify वरील `/admin/` + EC2 वरचा API). उघडल्यावर आधी लॉगिन स्क्रीन येते; लॉगिन टॅब बंद केल्यावर संपते (token फक्त त्या टॅबमध्ये राहतो), 12 तासांनीही संपते; डाव्या मेनूच्या तळाशी **बाहेर पडा / Sign out**. बॅकएंड नसलेल्या फक्त-फ्रंटएंड होस्टवर `/admin/` पान उघडते, पण त्याला काहीच वाचता येत नाही: आकडे "—" दिसतात आणि वर लाल सूचना येते ("या पत्त्यावर बॅकएंड नाही") — अंक / बातम्या हरवलेल्या नसतात, साईटवर ते जसेच्या तसे असतात. कनेक्शन तुटले तरी (बॅकएंड बंद, MySQL बंद, यादी अर्धवट आली) याच जागी स्पष्ट सूचना येते; चुकीचे "०" कधी दाखवले जात नाही.
 - तारीख: वेबसाईट "२ सप्टेंबर २०२६", "2 September 2026", "02-09-2026", "2026-09-02" वाचते; दुसऱ्या पद्धतीची तारीख वाचता आली नाही तर तो अंक यादीत सर्वात वर येतो.
 - बॅकएंड सुरू असताना वेबसाईट डेटाबेसला **सत्य** मानते: Admin मध्ये शेवटची बातमी / शेवटचा अंक हटवल्यानंतरही साईटच्या आतल्या (built-in) जुन्या नोंदी परत येत नाहीत.
-- वाचकांच्या प्रतिक्रिया (comments) **डेटाबेसमध्ये नाहीत** — त्या फक्त त्या वाचकाच्या ब्राउझरमध्ये साठवल्या जातात (इतर वाचकांना दिसत नाहीत). म्हणून बातमीखालील प्रतिक्रिया-विभाग **बंद** आहे (`frontend/js/config.js` → `COMMENTS = false`) आणि पूर्वी भरलेल्या खोट्या नमुना प्रतिक्रिया (नावे व पदांसह) काढून टाकल्या आहेत. खऱ्या comments चा डेटाबेस बनल्यावरच `COMMENTS = true` करा.
+- **वाचकांच्या प्रतिक्रिया (comments):** प्रत्येक बातमी, ब्लॉग व साप्ताहिक अंकाखाली वाचक प्रतिक्रिया देतो; तिला उत्तर (एकच पातळी), 👍 / 👎 व "तक्रार करा" (⋯ मेनू) आहे. सर्वाधिक प्रतिसाद मिळालेल्या प्रतिक्रियेवर हिरवा "सर्वाधिक प्रतिसाद" बॅज येतो व ती वर दिसते; बाकी नवीन आधी. **प्रतिक्रिया देण्यासाठी साइन इन लागते** — "प्रतिक्रिया पोस्ट करा" दाबल्यावर "तुमची प्रतिक्रिया पोस्ट करा" डायलॉग उघडतो (लिहिलेला मजकूर तसाच राहतो, साइन इन झाल्यावर आपोआप पोस्ट होतो): ① **Google ने साइन इन** (`GOOGLE_CLIENT_ID` भरल्यावरच दिसते) ② **ईमेल कोड** — ईमेलवर ६ अंकी कोड जातो (`SMTP_*` भरल्यावरच दिसते; विकास PC वर SMTP नसेल तर कोड स्क्रीनवर परत येतो व server log मध्ये छापतो) ③ **साइन इन न करता सुरू ठेवा** — पूर्ण नाव + ईमेल + लहान बेरीज (नेहमी उपलब्ध; हा ईमेल सिद्ध झालेला नसतो, म्हणून तो Google / ईमेल कोडने सिद्ध झालेल्या ईमेलचे नाव घेऊ शकत नाही). प्रतिक्रिया साइन इन केलेल्या नावाने जाते; **नाव व ईमेल आमच्या डेटाबेसमध्ये (`commenters`) जतन होतात** — Admin → प्रतिक्रिया मध्ये दिसतात, वेबसाईटवर ईमेल कोणालाही दिसत नाही. साइन इन त्या ब्राउझरमध्ये ९० दिवस टिकते (`COMMENTER_TTL_DAYS`); "बाहेर पडा" ने संपते. आणखी: मजकूर साधा text (टॅग काढले जातात), ≤२००० अक्षरे; एका पत्त्यावरून १० मिनिटांत ५ व दिवसात ३० प्रतिक्रिया, तासात १२० मते व २० तक्रारी; साइन इन प्रयत्न १० मिनिटांत १०; एका ईमेलला तासाला ५ कोड, प्रत्येक कोड १० मिनिटे व ५ चुकीचे प्रयत्न; लपवलेल्या `website` चौकटीत काही भरले (robot) तर काहीही साठवले जात नाही. मोबाईल नंबरने साइन इन (SMS) नाही. बघणे / हटवणे: **Admin → प्रतिक्रिया** (सर्व · तक्रार आलेल्या; नाव, ईमेल व साइन इन कसे केले ते दिसते; हटवल्यास तिची उत्तरे, मते व तक्रारीही जातात). बातमी / अंक हटवला की त्याच्या प्रतिक्रियाही जातात. (कोड: `frontend/js/app.js` → `initComments`, `openCommentLogin`; `backend/commenters.py`; `frontend/admin/admin-comments.js`.)
 - "वाचक संख्या (Views)" हा तुम्ही लिहिलेला मजकूर आहे; तो आपोआप मोजला जात नाही.
 
 **बॅकअप:** बातम्या व अंकांची माहिती आता MySQL मध्ये आहे (Git मध्ये नाही), म्हणून नियमित बॅकअप घ्या: `mysqldump -u root -p lokmangal_news_portal > backup.sql`. फोटो / PDF साठी `frontend/assets/` फोल्डर कॉपी करा (किंवा Git मध्ये commit करा). **व्हिडिओ** Git मध्ये जात नाहीत, म्हणून `frontend/assets/videos/` फोल्डर वेगळा कॉपी करा (व्हिडिओंची नावे / शीर्षके `mysqldump` मध्ये येतात, फाईल्स नाही).
