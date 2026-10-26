@@ -28,10 +28,10 @@ def sum_of(question):
     return int(left) + int(right)
 
 
-def guest(client, name="Sachin", email="sachin@example.com", answer=None, **extra):
+def guest(client, name="Sachin", email="sachin@example.com", answer=None, mobile="9876543210", **extra):
     asked = client.get("/api/commenters/captcha").get_json()
     given = sum_of(asked["question"]) if answer is None else answer
-    return post(client, "guest", name=name, email=email, captcha_token=asked["token"], captcha_answer=given, **extra)
+    return post(client, "guest", name=name, email=email, mobile=mobile, captcha_token=asked["token"], captcha_answer=given, **extra)
 
 
 def comment_with(client, db, token, body="छान"):
@@ -63,21 +63,23 @@ def test_a_reader_signs_in_with_name_email_and_the_sum_and_comments(client, db):
 def test_a_wrong_or_used_sum_is_refused(client, db):
     assert guest(client, answer=99).get_json()["reason"] == "captcha"
     asked = client.get("/api/commenters/captcha").get_json()
-    ok = dict(name="A", email="a@example.com", captcha_token=asked["token"], captcha_answer=sum_of(asked["question"]))
+    ok = dict(name="A", email="a@example.com", mobile="9876543210", captcha_token=asked["token"], captcha_answer=sum_of(asked["question"]))
     assert post(client, "guest", **ok).status_code == 200
     assert post(client, "guest", **ok).get_json()["reason"] == "captcha"                      # a sum counts once
-    assert post(client, "guest", name="A", email="a@example.com", captcha_token="forged", captcha_answer=2).status_code == 400
+    assert post(client, "guest", name="A", email="a@example.com", mobile="9876543210", captcha_token="forged", captcha_answer=2).status_code == 400
 
 
 def test_the_sum_may_be_answered_in_devanagari_digits(client):
     asked = client.get("/api/commenters/captcha").get_json()
     devanagari = "".join("०१२३४५६७८९"[int(d)] for d in str(sum_of(asked["question"])))
-    reply = post(client, "guest", name="A", email="a@example.com", captcha_token=asked["token"], captcha_answer=devanagari)
+    reply = post(client, "guest", name="A", email="a@example.com", mobile="9876543210", captcha_token=asked["token"], captcha_answer=devanagari)
     assert reply.status_code == 200
 
 
-@pytest.mark.parametrize("fields,reason", [({"name": " "}, "name"), ({"name": "न" * 61}, "name"), ({"email": "nope"}, "email"), ({"email": ""}, "email")])
-def test_bad_name_or_email_is_refused(client, fields, reason):
+@pytest.mark.parametrize("fields,reason", [({"name": " "}, "name"), ({"name": "न" * 61}, "name"), ({"email": "nope"}, "email"), ({"email": ""}, "email"),
+                                          ({"mobile": ""}, "mobile"), ({"mobile": "12345"}, "mobile"), ({"mobile": "5876543210"}, "mobile"), ({"mobile": "98765432101"}, "mobile"),
+                                          ({"mobile": "abcdefghij"}, "mobile")])
+def test_bad_name_email_or_mobile_is_refused(client, fields, reason):
     reply = guest(client, **fields)
     assert reply.status_code == 400 and reply.get_json()["reason"] == reason
 
@@ -85,6 +87,28 @@ def test_bad_name_or_email_is_refused(client, fields, reason):
 def test_a_robot_that_fills_the_hidden_field_gets_no_token(client, db):
     reply = guest(client, website="http://spam.example")
     assert reply.status_code == 400 and "token" not in reply.get_json() and db.commenters == {}
+
+
+@pytest.mark.parametrize("typed", ["9876543210", " 98765 43210 ", "+91 98765-43210", "+919876543210", "919876543210", "09876543210", "0091 9876543210", "(98765) 43210", "९८७६५४३२१०"])
+def test_the_mobile_number_is_kept_as_ten_digits(client, db, typed):
+    reply = guest(client, mobile=typed)
+    assert reply.status_code == 200 and db.commenters["sachin@example.com"]["mobile"] == "9876543210"
+
+
+def test_the_mobile_number_is_in_the_admin_list_and_never_on_the_website(client, db, admin):
+    got = guest(client, mobile="98765 43210").get_json()
+    assert comment_with(client, db, got["token"]).status_code == 201
+    one = client.get("/api/admin/comments", headers=admin).get_json()["comments"][0]
+    assert (one["email"], one["mobile"], one["provider"]) == ("sachin@example.com", "9876543210", "guest")
+    public = client.get(f"/api/comments?type=article&id={one['item_id']}").get_data(as_text=True)
+    assert "9876543210" not in public and "sachin@example.com" not in public and "mobile" not in public
+    assert "mobile" not in str(got["user"])
+
+
+def test_a_guest_who_comes_again_gives_the_number_again_and_it_is_kept_up_to_date(client, db):
+    guest(client, mobile="9876543210")
+    guest(client, mobile="9123456789")
+    assert db.commenters["sachin@example.com"]["mobile"] == "9123456789"
 
 
 def test_a_guest_can_not_take_the_address_of_a_signed_in_reader(client, db):

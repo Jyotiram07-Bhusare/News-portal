@@ -407,9 +407,9 @@ def commenter_email_verify():
 def commenter_guest():
     data = body()
     try:
-        name, email = sanitize.comment_name(data.get("name")), sanitize.email_address(data.get("email"))
+        name, email, mobile = sanitize.comment_name(data.get("name")), sanitize.email_address(data.get("email")), sanitize.mobile_number(data.get("mobile"))
     except sanitize.ValidationError as e:
-        return fail(str(e), 400, reason="email" if "e-mail" in str(e) else "name")
+        return fail(str(e), 400, reason="email" if "e-mail" in str(e) else "mobile" if "mobile" in str(e) else "name")
     if str(data.get("website") or "").strip():           # the hidden field only a robot fills in
         return fail("Please try again.", 400, reason="captcha")
     if not database.has_comments():
@@ -418,7 +418,7 @@ def commenter_guest():
         return fail("Too many tries - please try again in a little while.", 429, reason="limit")
     if not commenters.check_captcha(data.get("captcha_token"), data.get("captcha_answer")):
         return fail("The sum is not right.", 400, reason="captcha")
-    commenter = database.sign_in_commenter(email, name, "guest")
+    commenter = database.sign_in_commenter(email, name, "guest", mobile)
     if commenter is None:
         return fail("This e-mail address has an account - please sign in with Google or an e-mailed code.", 409, reason="taken")
     return _signed_in(commenter)

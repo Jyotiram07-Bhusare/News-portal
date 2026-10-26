@@ -117,16 +117,18 @@ class FakeDB:
         return {"total": len(mine), "comments": [view(c) | {"replies": [view(r) for r in sorted(mine, key=lambda r: r["id"]) if r["parent_id"] == c["id"]]}
                                                   for c in tops]}
 
-    def sign_in_commenter(self, email, name, provider):
+    def sign_in_commenter(self, email, name, provider, mobile=None):
         known = self.commenters.get(email)
         if known is None:
-            known = self.commenters[email] = {"id": len(self.commenters) + 1, "email": email, "name": name, "provider": provider}
+            known = self.commenters[email] = {"id": len(self.commenters) + 1, "email": email, "name": name, "provider": provider, "mobile": mobile}
         elif provider == "guest" and known["provider"] != "guest":
             return None
         elif provider != "guest" and known["provider"] == "guest":
             known.update(name=name, provider=provider)
         elif provider == "guest":
             known["name"] = name
+        if provider == "guest" and mobile:
+            known["mobile"] = mobile
         return dict(known)
 
     def get_commenter(self, commenter_id):
@@ -198,7 +200,8 @@ class FakeDB:
                         "created_at": c["created_at"], "item_type": c["item_type"], "item_id": c["item_id"], "item_title": (item or {}).get("title", ""),
                         "item_category": (item or {}).get("category") if c["item_type"] == "article" else None, "item_slug": (item or {}).get("slug"),
                         "reports": c["reports"], "replies_count": sum(1 for r in self.comments.values() if r["parent_id"] == c["id"]),
-                        "email": (self.get_commenter(c["commenter_id"]) or {}).get("email", ""), "provider": (self.get_commenter(c["commenter_id"]) or {}).get("provider", "")})
+                        "email": (self.get_commenter(c["commenter_id"]) or {}).get("email", ""), "provider": (self.get_commenter(c["commenter_id"]) or {}).get("provider", ""),
+                        "mobile": (self.get_commenter(c["commenter_id"]) or {}).get("mobile") or ""})
         return {"total": len(self.comments), "reported_total": sum(1 for c in self.comments.values() if c["reports"] > 0), "comments": out}
 
     def delete_comment(self, comment_id):

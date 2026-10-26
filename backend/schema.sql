@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS commenters (
   email         VARCHAR(190)  NOT NULL,                      -- lower case
   name          VARCHAR(60)   NOT NULL,
   provider      VARCHAR(10)   NOT NULL,                      -- google | email | guest
+  mobile        VARCHAR(15)   NULL,                          -- 10 digits: asked of a reader who goes on without signing in
   created_at    DATETIME      NOT NULL,                      -- UTC
   last_login_at DATETIME      NOT NULL,
   PRIMARY KEY (id),

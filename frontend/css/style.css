@@ -2001,7 +2001,8 @@ html.cm-modal-open {
 }
 
 .cm-login-form input[type="text"],
-.cm-login-form input[type="email"] {
+.cm-login-form input[type="email"],
+.cm-login-form input[type="tel"] {
   width: 100%;
   min-height: 46px;
   padding: 10px 16px;

@@ -97,6 +97,7 @@ function renderCommentsTable() {
           <div class="comment-who">
             <strong data-no-i18n>${escapeHtml(c.name)}</strong>
             ${c.email ? `<a class="comment-email" href="mailto:${escapeHtml(c.email)}" data-no-i18n>${escapeHtml(c.email)}</a>` : ''}
+            ${c.mobile ? `<a class="comment-email" href="tel:${escapeHtml(c.mobile)}" data-no-i18n>${escapeHtml(c.mobile)}</a>` : ''}
             ${c.provider ? `<span class="comment-tag${c.provider === 'guest' ? ' is-guest' : ''}" data-no-i18n>${escapeHtml(commentProvider(c))}</span>` : ''}
             ${c.parent_id ? '<span class="comment-tag">उत्तर</span>' : ''}
             <span class="comment-time" data-no-i18n>${escapeHtml(commentWhen(c.created_at))}</span>

@@ -338,6 +338,27 @@ def email_address(value: Any) -> str:
     return text
 
 
+_MOBILE_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
+
+def mobile_number(value: Any) -> str:
+    """An Indian mobile number as it is kept: 10 digits, the first one 6 to 9. Spaces, dashes, brackets, Devanagari digits and a leading 0, 91 or +91
+    are accepted and taken off."""
+    text = str(value).translate(_MOBILE_DIGITS) if isinstance(value, (str, int)) and not isinstance(value, bool) else ""
+    digits = re.sub(r"[\s\-().]", "", text)
+    if digits.startswith("+91"):
+        digits = digits[3:]
+    elif digits.startswith("0091"):
+        digits = digits[4:]
+    elif len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    if not re.fullmatch(r"[6-9][0-9]{9}", digits):
+        raise ValidationError("Please enter a valid 10 digit mobile number.")
+    return digits
+
+
 def visitor_id(value: Any) -> Optional[str]:
     """The random id the website keeps for a visitor: 8 to 64 characters of A-Z a-z 0-9 and -. None when it is missing or not like that."""
     text = value if isinstance(value, str) else ""

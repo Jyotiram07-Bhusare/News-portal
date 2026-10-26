@@ -2480,6 +2480,7 @@ const COMMENT_ERRORS = {
   server: "काहीतरी चुकले, थोड्या वेळाने पुन्हा प्रयत्न करा.",
   name: "कृपया तुमचे पूर्ण नाव लिहा.",
   email: "कृपया योग्य ईमेल आयडी लिहा.",
+  mobile: "कृपया १० अंकी मोबाईल नंबर लिहा.",
   captcha: "बेरीज चुकली, पुन्हा प्रयत्न करा.",
   code: "हा कोड बरोबर नाही.",
   expired: "कोडची मुदत संपली, नवा कोड मागवा.",
@@ -2960,6 +2961,7 @@ function commentLoginHTML() {
         <form class="cm-login-form" data-form="guest" novalidate>
           <input type="text" name="name" maxlength="${COMMENT_NAME_MAX}" autocomplete="name" placeholder="तुमचे पूर्ण नाव" aria-label="तुमचे पूर्ण नाव" />
           <input type="email" name="email" maxlength="190" autocomplete="email" placeholder="तुमचा ईमेल आयडी" aria-label="तुमचा ईमेल आयडी" />
+          <input type="tel" name="mobile" inputmode="numeric" maxlength="16" autocomplete="tel" placeholder="तुमचा मोबाईल नंबर" aria-label="तुमचा मोबाईल नंबर" />
           <input type="text" name="website" class="cm-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <div class="cm-sum">
             <span class="cm-sum-q" id="cm-sum-q">…</span>
@@ -2969,7 +2971,7 @@ function commentLoginHTML() {
           <button type="submit" class="btn-submit-comment cm-wide">प्रतिक्रिया पोस्ट करा</button>
         </form>
       </section>
-      <p class="cm-privacy"><i class="fa-solid fa-circle-info"></i> तुमचे नाव व ईमेल आमच्याकडे जतन केले जातात. तुमचा ईमेल इतरांना दाखवला जात नाही.</p>
+      <p class="cm-privacy"><i class="fa-solid fa-circle-info"></i> तुमची माहिती (नाव, ईमेल, मोबाईल नंबर) आमच्याकडे जतन केली जाते. ती इतरांना दाखवली जात नाही.</p>
     </div>`;
 }
 
@@ -3116,6 +3118,12 @@ async function onLoginSubmit(e) {
   const which = form.dataset.form;
   const button = form.querySelector("button[type=submit]");
   const looksLikeEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+  const looksLikeMobile = (s) => {                                 // 10 digits, the first 6-9; spaces, Devanagari digits, +91 / 91 / 0 in front are fine
+    let d = s.replace(/[०-९]/g, (c) => "०१२३४५६७८९".indexOf(c)).replace(/[\s\-().]/g, "").replace(/^(\+91|0091)/, "");
+    if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+    if (d.length === 11 && d[0] === "0") d = d.slice(1);
+    return /^[6-9][0-9]{9}$/.test(d);
+  };
   loginFormClear(form);
   if (which === "email-start") {
     const email = form.elements.email.value.trim();
@@ -3142,13 +3150,15 @@ async function onLoginSubmit(e) {
   } else if (which === "guest") {
     const name = form.elements.name.value.trim();
     const email = form.elements.email.value.trim();
+    const mobile = form.elements.mobile.value.trim();
     const answer = form.elements.answer.value.trim();
     if (!name) return loginFormError(form, "name");
     if (!looksLikeEmail(email)) return loginFormError(form, "email");
+    if (!looksLikeMobile(mobile)) return loginFormError(form, "mobile");
     if (!answer || !commentSum) return loginFormError(form, "captcha");
     button.disabled = true;
     try {
-      commentSignedIn(await commentApi("commenters/guest", { name, email, captcha_token: commentSum, captcha_answer: answer, website: form.elements.website.value }));
+      commentSignedIn(await commentApi("commenters/guest", { name, email, mobile, captcha_token: commentSum, captcha_answer: answer, website: form.elements.website.value }));
     } catch (err) {
       loginFormError(form, err.kind);
       if (err.kind === "captcha") { form.elements.answer.value = ""; loadCommentSum(); }

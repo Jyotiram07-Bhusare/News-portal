@@ -904,8 +904,13 @@ def count_click(article_id: int) -> bool:
 # -------------------------------------------------------------
 # Public comments (website: under every news / blog / weekly issue - Admin Panel > Comments)
 # -------------------------------------------------------------
+# The mobile number a reader gives when he goes on without signing in (the Admin Panel shows it with his name and e-mail). The commenters table
+# was made before it: init_db.py adds the column to a database that has the table already.
+COMMENTER_COLUMNS = {
+    "commenters": (("mobile", "VARCHAR(15) NULL"),),
+}
 COMMENT_TABLES = {"comments": (("id", ""), ("reports", ""), ("commenter_id", "")), "comment_votes": (("comment_id", ""),), "comment_reports": (("comment_id", ""),),
-                  "commenters": (("email", ""),), "commenter_codes": (("code_hash", ""),)}
+                  "commenters": (("email", ""), ("mobile", "")), "commenter_codes": (("code_hash", ""),)}
 COMMENT_ITEMS = {"article": ("articles", "id"), "weekly": ("weekly_editions", "issue_no")}
 COMMENT_LIST_MAX = 500                  # the most recent top-level comments one answer carries (their replies come with them)
 _comments_state = {"ok": False, "checked": 0.0}
@@ -927,6 +932,12 @@ def ensure_comment_tables() -> bool:
             for statement in schema_statements():
                 if re.match(r"CREATE TABLE IF NOT EXISTS\s+comment", statement, re.I):
                     cur.execute(statement)
+            for table, columns in COMMENTER_COLUMNS.items():                # (a table made before a column was added)
+                cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s", (config.DB_NAME, table))
+                have = {r["COLUMN_NAME"] for r in cur.fetchall()}
+                for name, ddl in columns:
+                    if name not in have:
+                        cur.execute(f"ALTER TABLE `{table}` ADD COLUMN `{name}` {ddl}")
     except pymysql.err.Error:
         return False
     _comments_state.update(ok=False, checked=0.0)
@@ -938,17 +949,17 @@ COMMENT_CODE_GAP = 45                  # seconds before the same address may ask
 COMMENT_CODES_PER_HOUR = 5
 
 
-def sign_in_commenter(email: str, name: str, provider: str) -> Optional[Dict[str, Any]]:
+def sign_in_commenter(email: str, name: str, provider: str, mobile: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Finds or makes the reader with this e-mail address and returns {id, email, name, provider}. provider = google | email | guest.
     A proven address (google / email) keeps the name it has and a guest who later proves the address takes over (with the proven name).
-    A guest can never be the owner of a proven address: that gives None."""
+    A guest can never be the owner of a proven address: that gives None. `mobile` (a guest's) is kept when given."""
     with connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT * FROM commenters WHERE email = %s FOR UPDATE", (email,))
         row = cur.fetchone()
         if row is None:
-            cur.execute("INSERT INTO commenters (email, name, provider, created_at, last_login_at) VALUES (%s, %s, %s, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
-                        (email, name, provider))
+            cur.execute("INSERT INTO commenters (email, name, provider, mobile, created_at, last_login_at) VALUES (%s, %s, %s, %s, UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+                        (email, name, provider, mobile))
             return {"id": cur.lastrowid, "email": email, "name": name, "provider": provider}
         if provider == "guest" and row["provider"] != "guest":
             return None
@@ -956,7 +967,8 @@ def sign_in_commenter(email: str, name: str, provider: str) -> Optional[Dict[str
             row["name"], row["provider"] = name, provider                     # the guest proved the address
         elif provider == "guest":
             row["name"] = name                                                 # a guest may write under another name each time
-        cur.execute("UPDATE commenters SET name = %s, provider = %s, last_login_at = UTC_TIMESTAMP() WHERE id = %s", (row["name"], row["provider"], row["id"]))
+        cur.execute("UPDATE commenters SET name = %s, provider = %s, mobile = %s, last_login_at = UTC_TIMESTAMP() WHERE id = %s",
+                    (row["name"], row["provider"], mobile or row.get("mobile"), row["id"]))
         return {"id": row["id"], "email": email, "name": row["name"], "provider": row["provider"]}
 
 
@@ -1126,7 +1138,7 @@ def admin_comments(only_reported: bool = False, limit: int = 50, offset: int = 0
     with connection() as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT c.*, (SELECT COUNT(*) FROM comments r WHERE r.parent_id = c.id) AS replies_count, "
-                    f"IF(c.item_type = 'weekly', w.title, a.title) AS item_title, a.category AS item_category, u.email AS email, u.provider AS provider{slug} "
+                    f"IF(c.item_type = 'weekly', w.title, a.title) AS item_title, a.category AS item_category, u.email AS email, u.provider AS provider, u.mobile AS mobile{slug} "
                     "FROM comments c LEFT JOIN articles a ON c.item_type = 'article' AND a.id = c.item_id "
                     "LEFT JOIN weekly_editions w ON c.item_type = 'weekly' AND w.issue_no = c.item_id LEFT JOIN commenters u ON u.id = c.commenter_id "
                     f"{where} ORDER BY {order} LIMIT %s OFFSET %s", (limit, offset))
@@ -1138,7 +1150,7 @@ def admin_comments(only_reported: bool = False, limit: int = 50, offset: int = 0
         one = _comment_json(r)
         one.pop("my_vote")
         one.update(item_type=r["item_type"], item_id=r["item_id"], item_title=r["item_title"] or "", item_category=r["item_category"],
-                   item_slug=r.get("item_slug"), reports=r["reports"], replies_count=r["replies_count"], email=r["email"] or "", provider=r["provider"] or "")
+                   item_slug=r.get("item_slug"), reports=r["reports"], replies_count=r["replies_count"], email=r["email"] or "", provider=r["provider"] or "", mobile=r["mobile"] or "")
         comments.append(one)
     return {"total": counts["total"], "reported_total": int(counts["reported"]), "comments": comments}
 

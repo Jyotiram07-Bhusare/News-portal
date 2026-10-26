@@ -44,6 +44,10 @@ def test_name_and_body_are_cleaned_and_limited():
     for bad in ("", "no-at.example.com", "a@b", "a@@b.com", "a b@c.com", "x" * 200 + "@a.com", None, 5):
         with pytest.raises(sanitize.ValidationError):
             sanitize.email_address(bad)
+    assert sanitize.mobile_number("+91 98765-43210") == "9876543210" and sanitize.mobile_number(9876543210) == "9876543210"
+    for bad in ("", None, True, "12345", "1234567890", "98765432", "98765432100", "+1 9876543210", "98765x3210", 0):
+        with pytest.raises(sanitize.ValidationError):
+            sanitize.mobile_number(bad)
     assert sanitize.comment_body("a\r\n\r\n\r\n\r\n\r\nb\x07 ") == "a\n\n\nb"
     assert sanitize.comment_body("<b>hi</b> <script>alert(1)</script>there") == "hi there"          # (plain text: no markup is kept)
     for bad in ("", "   ", None):
@@ -289,7 +293,7 @@ def test_the_admin_list_has_the_story_and_its_address(client, db, admin):
     assert [c["name"] for c in listed["comments"]] == ["C", "B", "A"]                          # newest first
     one = listed["comments"][1]
     assert one["item_type"] == "article" and one["item_title"] == "मुख्य बातमी" and one["item_category"] == "blogs"
-    assert (one["email"], one["provider"]) == ("b@example.com", "email")             # the Admin Panel sees who wrote it (the website never does)
+    assert (one["email"], one["provider"], one["mobile"]) == ("b@example.com", "email", "")             # the Admin Panel sees who wrote it (the website never does)
     assert one["item_url"].endswith("/blog/mukhya-batami") and one["replies_count"] == 1 and one["reports"] == 0
     assert "item_slug" not in one and "visitor" not in str(one)
 

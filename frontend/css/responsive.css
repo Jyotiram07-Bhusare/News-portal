@@ -1165,7 +1165,8 @@ button:focus-visible,
   }
 
   .cm-login-form input[type="text"],
-  .cm-login-form input[type="email"] {
+  .cm-login-form input[type="email"],
+  .cm-login-form input[type="tel"] {
     font-size: 16px;               /* >=16px: iOS does not zoom */
   }
 
