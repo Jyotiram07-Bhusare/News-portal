@@ -226,6 +226,7 @@ python -m http.server 3000           # किंवा:  npx serve -l 3000
 | `SECRET_KEY` | लॉगिन token वर सही करते (किमान 32 अक्षरे; `python manage.py gen-secret`). विकासात नसेल तर प्रत्येक सुरुवातीला नवी बनते | — |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | Admin लॉगिन (hash `python manage.py set-admin-password` भरतो; पासवर्ड स्वतः कुठेही साठवला जात नाही) | `admin`, — |
 | `TOKEN_TTL_HOURS` | Admin लॉगिन किती तास टिकते | `12` |
+| `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Admin चे चुकीचे पासवर्ड: एका पत्त्यावरून इतके चुकले की तो पत्ता इतके मिनिटे बंद (मग पुन्हा तितकेच प्रयत्न). मोजणी MySQL मध्ये (`login_failures`), सर्व workers साठी एकच; मोकळे करायला `python manage.py unlock-login` | `5`, `60` |
 | `GOOGLE_CLIENT_ID` | "Google ने साइन इन" (प्रतिक्रियांसाठी): Google Cloud console → APIs & Services → Credentials → OAuth client ID (Web application); "Authorized JavaScript origins" मध्ये `https://www.lokmangal.info` (व PC वर पाहण्यासाठी `http://localhost:5001`) टाका. रिकामे = Google बटण दिसत नाही | — |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | ईमेल कोडने साइन इन: कोणताही SMTP (Gmail → "App password"; Amazon SES चे SMTP credentials). रिकामे = server वर हा पर्याय दिसत नाही | `587` |
 | `COMMENTER_TTL_DAYS` | प्रतिक्रिया देणारा किती दिवस साइन इन राहतो | `90` |

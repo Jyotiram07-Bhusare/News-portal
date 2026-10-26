@@ -69,10 +69,16 @@ PUBLIC_WRITE_ENDPOINTS = {"api.login", "api.count_article_read", "api.post_comme
                           "api.commenter_email_start", "api.commenter_email_verify", "api.commenter_guest"}
 
 
+PUBLIC_BODY_MAX = 64 * 1024            # what a login, a comment, a vote or a sign-in may send: the upload limit (up to 200 MB) is for the admin only
+
+
 @api.before_request
 def require_login_for_writes():
     """A safety net on top of the per-route @admin_required: any request that is not a plain read needs the admin token."""
-    if request.method in ("GET", "HEAD", "OPTIONS") or request.endpoint in PUBLIC_WRITE_ENDPOINTS:
+    if request.endpoint in PUBLIC_WRITE_ENDPOINTS:
+        request.max_content_length = PUBLIC_BODY_MAX      # (a bigger body is refused with 413 before anything reads it)
+        return None
+    if request.method in ("GET", "HEAD", "OPTIONS"):
         return None
     if auth.current_admin() is None:
         return fail("Please sign in.", 401, login_required=True)
@@ -981,6 +987,8 @@ def register_errors(app):
         if not request.path.startswith("/api/"):
             return e
         if e.code == 413:
+            if request.endpoint in PUBLIC_WRITE_ENDPOINTS:
+                return fail("The request is too large.", 413)
             return fail(f"File too large. The limit is {_upload_limit_mb(request.path)} MB.", 413)
         return fail(e.description, e.code)
 
@@ -1012,6 +1020,8 @@ def create_app():
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         if request.path.startswith("/api/"):
             response.headers.setdefault("X-Frame-Options", "DENY")
+            if request.path.startswith(("/api/auth/", "/api/admin/", "/api/stats", "/api/media")):
+                response.headers.setdefault("Cache-Control", "no-store")      # the admin's answers are never kept by a browser or a cache
             if response.mimetype == "application/json":      # (search engines still read it to draw the page, but never list it)
                 response.headers.setdefault("X-Robots-Tag", "noindex")
         if config.IS_PRODUCTION:              # (the production API is only reachable over https)

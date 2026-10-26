@@ -99,6 +99,16 @@ CREATE TABLE IF NOT EXISTS site_settings (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Wrong admin passwords per client address, counted here (not in a process's memory) because the API runs several worker processes: after
+-- LOGIN_MAX_FAILURES wrong ones in a row the address is locked until locked_until (LOGIN_LOCK_MINUTES), then it has that many tries again.
+CREATE TABLE IF NOT EXISTS login_failures (
+  address       VARCHAR(64)   NOT NULL,                      -- the visitor's address as the API sees it
+  failures      TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  first_at      DATETIME      NOT NULL,                      -- UTC, when this count started
+  locked_until  DATETIME      NULL,                          -- UTC, NULL = not locked
+  PRIMARY KEY (address)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Readers who comment (the website's "Post Your Comment" dialog). One row per e-mail address: the name and e-mail are kept with the comments.
 -- provider = google or email (the e-mail address is proven) or guest (name + e-mail typed, not proven: it can never take the address of a proven one).
 -- The Admin Panel shows them under Comments. The website never shows an e-mail address.

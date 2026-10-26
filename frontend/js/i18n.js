@@ -211,7 +211,6 @@
     ["तुमचा मोबाईल नंबर", "Enter your Mobile Number"],
     ["कृपया १० अंकी मोबाईल नंबर लिहा.", "Please enter a 10-digit mobile number."],
     ["येथे उत्तर लिहा", "Enter here"],
-    ["तुमची माहिती (नाव, ईमेल, मोबाईल नंबर) आमच्याकडे जतन केली जाते. ती इतरांना दाखवली जात नाही.", "Your details (name, email, mobile number) are saved with us. They are never shown to others."],
     ["ही प्रतिक्रिया किंवा बातमी सापडली नाही.", "This comment or story could not be found."],
     ["थोड्या वेळाने पुन्हा प्रयत्न करा", "Too many tries — please try again in a little while"],
     ["इंटरनेट जोडणी तपासा व पुन्हा प्रयत्न करा.", "Check your internet connection and try again."],

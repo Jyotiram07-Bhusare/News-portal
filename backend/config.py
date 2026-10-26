@@ -99,8 +99,8 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM = _text("SMTP_FROM", SMTP_USER)
 SMTP_SSL = _flag("SMTP_SSL", SMTP_PORT == 465)          # True: SSL from the start (port 465) - else STARTTLS (port 587)
 COMMENTER_TTL_DAYS = max(1, _int("COMMENTER_TTL_DAYS", 90))      # how long a reader stays signed in
-LOGIN_MAX_FAILURES = max(1, _int("LOGIN_MAX_FAILURES", 5))      # wrong passwords from one address ...
-LOGIN_LOCK_MINUTES = max(1, _int("LOGIN_LOCK_MINUTES", 15))     # ... block that address for this long
+LOGIN_MAX_FAILURES = max(1, _int("LOGIN_MAX_FAILURES", 5))      # 5 wrong passwords from one address ...
+LOGIN_LOCK_MINUTES = max(1, _int("LOGIN_LOCK_MINUTES", 60))     # ... lock that address for one hour (then it has 5 tries again; a count older than this is forgotten)
 
 # ---- Files: local disk (development) or Amazon S3 (production) ----
 STORAGE_BACKEND = _text("STORAGE_BACKEND", "local").lower()      # local | s3

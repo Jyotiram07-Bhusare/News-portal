@@ -922,15 +922,13 @@ def has_comments() -> bool:
 
 
 def ensure_comment_tables() -> bool:
-    """A development PC gets the comment tables here (CREATE TABLE IF NOT EXISTS from schema.sql). On the server the deploy's init_db.py does it:
+    """A development PC gets the comment tables (and the table of the admin login lock) here (CREATE TABLE IF NOT EXISTS from schema.sql). On the server the deploy's init_db.py does it:
     the web application's own database user has no CREATE right, so a refusal here is not an error. Returns whether the tables are there."""
-    if has_comments():
-        return True
     try:
         with connection() as conn:
             cur = conn.cursor()
             for statement in schema_statements():
-                if re.match(r"CREATE TABLE IF NOT EXISTS\s+comment", statement, re.I):
+                if re.match(r"CREATE TABLE IF NOT EXISTS\s+(comment|login_failures)", statement, re.I):
                     cur.execute(statement)
             for table, columns in COMMENTER_COLUMNS.items():                # (a table made before a column was added)
                 cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s", (config.DB_NAME, table))
@@ -1153,6 +1151,51 @@ def admin_comments(only_reported: bool = False, limit: int = 50, offset: int = 0
                    item_slug=r.get("item_slug"), reports=r["reports"], replies_count=r["replies_count"], email=r["email"] or "", provider=r["provider"] or "", mobile=r["mobile"] or "")
         comments.append(one)
     return {"total": counts["total"], "reported_total": int(counts["reported"]), "comments": comments}
+
+
+# -------------------------------------------------------------
+# Admin login: wrong passwords per client address (shared by every worker process, and kept over a restart)
+# -------------------------------------------------------------
+def login_locked_for(address: str) -> int:
+    """Seconds this address must still wait before it may try the admin password again (0 = it may)."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), locked_until) AS wait FROM login_failures WHERE address = %s", (address,))
+        row = cur.fetchone()
+    return max(0, int(row["wait"])) + 1 if row and row["wait"] is not None and row["wait"] >= 0 else 0
+
+
+def login_failed(address: str) -> None:
+    """One more wrong password from this address. The LOGIN_MAX_FAILURES-th wrong one locks it for LOGIN_LOCK_MINUTES; once the lock is over (or the
+    count is older than that) the counting starts again from 1."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM login_failures WHERE first_at < UTC_TIMESTAMP() - INTERVAL 2 DAY AND (locked_until IS NULL OR locked_until < UTC_TIMESTAMP())")
+        cur.execute("SELECT failures, TIMESTAMPDIFF(MINUTE, first_at, UTC_TIMESTAMP()) AS minutes, locked_until > UTC_TIMESTAMP() AS locked "
+                    "FROM login_failures WHERE address = %s FOR UPDATE", (address,))
+        row = cur.fetchone()
+        if row and row["locked"]:
+            return                                                    # (already locked: nothing is counted)
+        fresh = row is None or row["failures"] >= config.LOGIN_MAX_FAILURES or row["minutes"] >= config.LOGIN_LOCK_MINUTES
+        failures = 1 if fresh else row["failures"] + 1
+        cur.execute("INSERT INTO login_failures (address, failures, first_at, locked_until) VALUES (%s, %s, UTC_TIMESTAMP(), NULL) "
+                    "ON DUPLICATE KEY UPDATE failures = VALUES(failures), first_at = IF(%s, UTC_TIMESTAMP(), first_at), locked_until = NULL",
+                    (address, failures, 1 if fresh else 0))
+        if failures >= config.LOGIN_MAX_FAILURES:
+            cur.execute("UPDATE login_failures SET locked_until = UTC_TIMESTAMP() + INTERVAL %s MINUTE WHERE address = %s", (config.LOGIN_LOCK_MINUTES, address))
+
+
+def login_succeeded(address: str) -> None:
+    with connection() as conn:
+        conn.cursor().execute("DELETE FROM login_failures WHERE address = %s", (address,))
+
+
+def login_unlock_all() -> int:
+    """Lets every locked address try again (python manage.py unlock-login). Returns how many rows were cleared."""
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM login_failures")
+        return cur.rowcount
 
 
 def delete_comment(comment_id: int) -> bool:

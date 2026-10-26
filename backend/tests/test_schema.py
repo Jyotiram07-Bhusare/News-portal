@@ -2,9 +2,9 @@
 import database
 
 
-def test_schema_sql_is_ten_whole_create_table_statements():
+def test_schema_sql_is_eleven_whole_create_table_statements():
     statements = database.schema_statements()
-    assert len(statements) == 10
+    assert len(statements) == 11
     for statement in statements:
         assert statement.startswith("CREATE TABLE IF NOT EXISTS")
         assert statement.count("(") == statement.count(")")

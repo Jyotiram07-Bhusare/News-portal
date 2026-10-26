@@ -6,15 +6,18 @@ writes - and the admin-only reads (stats, media) - does.
 """
 import hashlib
 import hmac
+import ipaddress
 import threading
 import time
 from functools import wraps
 
+import pymysql
 from flask import jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash
 
 import config
+import database
 
 _serializer = URLSafeTimedSerializer(config.SECRET_KEY, salt="lokmangal-admin-token-v1")
 
@@ -88,11 +91,43 @@ _lock = threading.Lock()
 
 
 def client_address():
-    return request.remote_addr or "unknown"
+    """The visitor's address. An IPv6 address stands for its whole /64: a visitor owns a /64, so counting single addresses would let one machine
+    change address after every wrong password."""
+    raw = request.remote_addr or "unknown"
+    try:
+        ip = ipaddress.ip_address(raw)
+    except ValueError:
+        return raw
+    if ip.version == 6:
+        return str(ip.ipv4_mapped) if ip.ipv4_mapped else str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
 
 
 def locked_for(address):
-    """Seconds this address must still wait (0 = may try)."""
+    """Seconds this address must still wait (0 = may try). The count is in the database, the same for every worker process of the API; only when the
+    database cannot be asked, this worker's own memory counts (still a lock, but one per worker)."""
+    try:
+        return database.login_locked_for(address)
+    except pymysql.MySQLError:
+        return _memory_locked_for(address)
+
+
+def record_failure(address):
+    try:
+        database.login_failed(address)
+    except pymysql.MySQLError:
+        _memory_record_failure(address)
+
+
+def record_success(address):
+    try:
+        database.login_succeeded(address)
+    except pymysql.MySQLError:
+        pass
+    _memory_record_success(address)
+
+
+def _memory_locked_for(address):
     now = time.time()
     window = config.LOGIN_LOCK_MINUTES * 60
     with _lock:
@@ -106,7 +141,7 @@ def locked_for(address):
     return 0
 
 
-def record_failure(address):
+def _memory_record_failure(address):
     with _lock:
         _failures.setdefault(address, []).append(time.time())
         if len(_failures) > 5000:           # never grow without a limit
@@ -115,6 +150,6 @@ def record_failure(address):
                 _failures.pop(a, None)
 
 
-def record_success(address):
+def _memory_record_success(address):
     with _lock:
         _failures.pop(address, None)

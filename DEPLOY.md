@@ -169,7 +169,7 @@ aws s3 sync frontend/assets/pdf s3://<MediaBucketName>/pdf/ --content-type appli
 
 ## सुरक्षा — काय आधीच केले आहे
 
-- Admin Panel व सर्व लिहिणारे API **लॉगिनशिवाय चालत नाहीत** (signed, 12 तासांचा token; चुकीचे पासवर्ड 5 वेळा → 15 मिनिटे बंद; nginx मध्येही rate-limit).
+- Admin Panel व सर्व लिहिणारे API **लॉगिनशिवाय चालत नाहीत** (signed, 12 तासांचा token; चुकीचे पासवर्ड 5 वेळा → त्या पत्त्याला 1 तास बंद, मग पुन्हा 5 प्रयत्न; हे मोजणे MySQL मध्ये (सर्व workers साठी एकच); nginx मध्येही rate-limit).
 - बातमीचा मजकूर सर्व्हरवर **स्वच्छ** केला जातो (script / event handler / `javascript:` लिंक काढल्या जातात) — वाचकांच्या ब्राउझरमध्ये दुसऱ्याचा code चालू शकत नाही. फोटो / PDF / व्हिडिओ फाईल्सचा **आशय** तपासला जातो (नाव बदललेली फाईल नाकारली).
 - Database private; फक्त EC2 च्या security group ला प्रवेश; कनेक्शन TLS ने, सर्टिफिकेट + होस्टनाव तपासून; website चा MySQL user फक्त त्या एका DB चा data बदलू शकतो.
 - S3 bucket private (फक्त CloudFront वाचतो); EC2 कडे access key नाहीत (IAM role); IMDSv2 सक्ती; SSH पोर्ट बंद.
@@ -186,6 +186,6 @@ aws s3 sync frontend/assets/pdf s3://<MediaBucketName>/pdf/ --content-type appli
 | फोटो / PDF अपलोड "The file could not be saved" | `MEDIA_BASE_URL`, `S3_BUCKET` तपासा; `manage.py check` मधील *files* ओळ; EC2 चा IAM role stack मधलाच आहे का |
 | मोठा व्हिडिओ अपलोड अयशस्वी | nginx `client_max_body_size 220m` आहे; `MAX_VIDEO_MB` (डिफॉल्ट 200) पेक्षा मोठा असेल तर वाढवा (दोन्ही) |
 | PDF "येथे दाखवता आला नाही" | CloudFront CORS: `SiteOrigins` मध्ये साईटचा पत्ता असावा; `curl -I -H "Range: bytes=0-99" <PDF पत्ता>` → `206` |
-| "Too many wrong passwords" | 15 मिनिटे थांबा (किंवा `sudo systemctl restart lokmangal-api` — मर्यादा पुसली जाते) |
+| "Too many wrong passwords" | 1 तास थांबा, किंवा सर्व पत्ते मोकळे करा: `python manage.py unlock-login` (docker: `sudo docker compose -f /opt/lokportal/docker-compose.yml exec api python manage.py unlock-login`) — restart ने ती मर्यादा आता पुसली जात नाही |
 
 खर्चाचा अंदाज (मुंबई region, कमी वापर): EC2 `t3.small` + RDS `db.t4g.micro` + 30/20 GB डिस्क हे मुख्य खर्च; S3 / CloudFront / Amplify लहान साईटसाठी थोडे. नेमका आकडा **AWS Pricing Calculator** मध्ये तपासा.

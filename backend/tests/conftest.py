@@ -7,6 +7,7 @@
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -64,7 +65,7 @@ class FakeDB:
         self.articles, self.weekly, self.videos, self.ads = {}, {}, {}, {}
         self.next_article, self.next_video, self.next_ad = 10000, 1, 1
         self.comments, self.next_comment, self.comment_tables = {}, 1, True
-        self.commenters, self.codes = {}, {}
+        self.commenters, self.codes, self.login_rows = {}, {}, {}
 
     # ---- articles
     def get_articles(self, category=None, search=None, limit=None, placement=None):
@@ -102,6 +103,23 @@ class FakeDB:
             return False
         self.articles[article_id]["clicks"] = self.articles[article_id].get("clicks", 0) + 1
         return True
+
+    # ---- the admin login lock (the same rules as database.py)
+    def login_locked_for(self, address):
+        row = self.login_rows.get(address)
+        return int(row["locked_until"] - time.time()) + 1 if row and row["locked_until"] and row["locked_until"] > time.time() else 0
+
+    def login_failed(self, address):
+        now, row = time.time(), self.login_rows.get(address)
+        if row and row["locked_until"] and row["locked_until"] > now:
+            return
+        fresh = row is None or row["failures"] >= config.LOGIN_MAX_FAILURES or now - row["first_at"] >= config.LOGIN_LOCK_MINUTES * 60
+        failures = 1 if fresh else row["failures"] + 1
+        self.login_rows[address] = {"failures": failures, "first_at": now if fresh else row["first_at"],
+                                    "locked_until": now + config.LOGIN_LOCK_MINUTES * 60 if failures >= config.LOGIN_MAX_FAILURES else None}
+
+    def login_succeeded(self, address):
+        self.login_rows.pop(address, None)
 
     # ---- comments (the same rules as database.py, kept simple: rows are dicts)
     def has_comments(self):
@@ -281,7 +299,7 @@ def db(monkeypatch):
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
                  "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
                  "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad",
-                 "has_comments", "sign_in_commenter", "get_commenter", "save_email_code", "check_email_code", "get_comments", "add_comment", "vote_comment", "report_comment", "admin_comments", "delete_comment"):
+                 "login_locked_for", "login_failed", "login_succeeded", "has_comments", "sign_in_commenter", "get_commenter", "save_email_code", "check_email_code", "get_comments", "add_comment", "vote_comment", "report_comment", "admin_comments", "delete_comment"):
         monkeypatch.setattr(database, name, getattr(fake, name))
     monkeypatch.setattr(database, "ping", lambda: True)
     monkeypatch.setattr(database, "has_english", lambda: True)

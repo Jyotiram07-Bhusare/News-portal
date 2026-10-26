@@ -2971,7 +2971,6 @@ function commentLoginHTML() {
           <button type="submit" class="btn-submit-comment cm-wide">प्रतिक्रिया पोस्ट करा</button>
         </form>
       </section>
-      <p class="cm-privacy"><i class="fa-solid fa-circle-info"></i> तुमची माहिती (नाव, ईमेल, मोबाईल नंबर) आमच्याकडे जतन केली जाते. ती इतरांना दाखवली जात नाही.</p>
     </div>`;
 }
 

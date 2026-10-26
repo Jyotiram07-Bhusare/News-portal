@@ -3,6 +3,7 @@
     python manage.py set-admin-password      choose the Admin Panel password (saves its hash in backend/.env)
     python manage.py gen-secret              print a new SECRET_KEY
     python manage.py check                   test the settings, MySQL, the file storage (S3) and the admin login
+    python manage.py unlock-login            let every address that was locked after wrong admin passwords try again
 """
 import argparse
 import getpass
@@ -51,6 +52,15 @@ def gen_secret(_args):
     print(secrets.token_urlsafe(48))
 
 
+def unlock_login(_args):
+    import database
+    import pymysql
+    try:
+        print(f"{database.login_unlock_all()} locked address(es) cleared: they may try the password again.")
+    except pymysql.MySQLError as e:
+        print(f"Nothing cleared: the lock table is not there or MySQL cannot be reached ({e}). Restart the backend (or run python init_db.py --schema-only) and try again.")
+
+
 def check(_args):
     import database
     import storage
@@ -88,6 +98,7 @@ def main():
     p.set_defaults(run=set_admin_password)
     sub.add_parser("gen-secret", help="print a new SECRET_KEY").set_defaults(run=gen_secret)
     sub.add_parser("check", help="test settings, MySQL, S3 and the login").set_defaults(run=check)
+    sub.add_parser("unlock-login", help="let every locked address try the admin password again").set_defaults(run=unlock_login)
     args = parser.parse_args()
     args.run(args)
 

@@ -71,6 +71,82 @@ def test_too_many_wrong_passwords_lock_the_address(client):
     assert int(locked.headers["Retry-After"]) > 0
 
 
+def wrong(client):
+    return client.post("/api/auth/login", json={"username": "admin", "password": "bad"}).status_code
+
+
+def test_the_lock_lasts_an_hour_and_then_the_address_has_its_tries_again(client, monkeypatch):
+    import time
+    for _ in range(3):
+        assert wrong(client) == 401
+    locked = client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD})
+    assert locked.status_code == 429 and 3500 < int(locked.headers["Retry-After"]) <= 3601 and "60 minute" in locked.get_json()["error"]
+    real = time.time
+    monkeypatch.setattr(time, "time", lambda: real() + 59 * 60)                 # 59 minutes later: still locked
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+    monkeypatch.setattr(time, "time", lambda: real() + 61 * 60)                 # after the hour: 3 tries again (LOGIN_MAX_FAILURES=3 here)
+    assert [wrong(client) for _ in range(3)] == [401, 401, 401]
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+
+
+def test_a_right_password_starts_the_count_again(client):
+    assert [wrong(client), wrong(client)] == [401, 401]
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
+    assert [wrong(client), wrong(client)] == [401, 401]                          # (not locked: the two before were forgotten)
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 200
+
+
+def test_another_address_is_not_locked(client):
+    import auth
+    for _ in range(3):
+        wrong(client)
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+    other = client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}, environ_overrides={"REMOTE_ADDR": "203.0.113.9"})
+    assert other.status_code == 200
+
+
+def test_the_count_is_the_databases_so_every_worker_process_sees_it(client):
+    import auth
+    for _ in range(3):
+        wrong(client)
+        auth._failures.clear()                                                    # (a request that another worker answered: this one's memory knows nothing)
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+
+
+def test_when_the_database_cannot_be_asked_a_workers_memory_still_locks(client, db, monkeypatch):
+    import pymysql
+    import database
+
+    def down(*args, **kwargs):
+        raise pymysql.err.OperationalError(2003, "no database")
+    for name in ("login_locked_for", "login_failed", "login_succeeded"):
+        monkeypatch.setattr(database, name, down)
+    for _ in range(3):
+        assert wrong(client) == 401
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}).status_code == 429
+
+
+def test_an_ipv6_address_stands_for_its_whole_64(client):
+    where = lambda addr: {"environ_overrides": {"REMOTE_ADDR": addr}}
+    bad = lambda addr: client.post("/api/auth/login", json={"username": "admin", "password": "bad"}, **where(addr)).status_code
+    assert [bad("2001:db8:abcd:12::1"), bad("2001:db8:abcd:12:ffff::5"), bad("2001:db8:abcd:12:1:2:3:4")] == [401, 401, 401]     # three addresses, one /64
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}, **where("2001:db8:abcd:12::99")).status_code == 429
+    assert client.post("/api/auth/login", json={"username": "admin", "password": PASSWORD}, **where("2001:db8:abcd:13::1")).status_code == 200   # another /64
+
+
+def test_the_public_writes_take_only_a_small_body(client, db):
+    big = "x" * 100_000
+    for path, data in (("/api/auth/login", {"username": "admin", "password": big}), ("/api/comments", {"type": "article", "id": 1, "body": big}),
+                       ("/api/commenters/guest", {"name": big})):
+        reply = client.post(path, json=data)
+        assert reply.status_code == 413 and reply.get_json()["success"] is False and "too large" in reply.get_json()["error"]
+
+
+def test_the_admins_answers_are_never_cached(client, token):
+    for path in ("/api/auth/me", "/api/stats", "/api/admin/comments"):
+        assert client.get(path, headers={"Authorization": f"Bearer {token}"}).headers["Cache-Control"] == "no-store"
+
+
 def test_token_dies_when_the_password_changes(client, token, monkeypatch):
     import config
     from werkzeug.security import generate_password_hash
