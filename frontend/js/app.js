@@ -3959,14 +3959,9 @@ function countRead(article) {
 // --- Footer "कार्यालय संपर्क": office address, phone, e-mail (Admin Panel > Footer) --------------------------------------------------
 // The details come from js/settings-data.js (kept by the backend, for a static host) and then GET /api/settings. A detail that was left
 // empty is not shown, and neither is the block when all three are empty. Text is put in with textContent (never as HTML).
-const defaultSiteSettings = {
-  office_address: "लोकमंगल भवन, मुख्य रस्ता, सोलापूर, महाराष्ट्र – ४१३ ००१",
-  office_address_en: "Lokmangal Bhavan, Main Road, Solapur, Maharashtra – 413 001",
-  office_phone: "+91 98765 43210",
-  office_email: "info@lokmangal.example",
-};
-// (the live site shows no contact details until the API has answered: no placeholder phone / e-mail is ever public there)
+// (no placeholder phone / e-mail / address is written anywhere: the footer block stays hidden until the Admin Panel's real details have arrived)
 const emptySiteSettings = { office_address: "", office_address_en: "", office_phone: "", office_email: "" };
+const defaultSiteSettings = emptySiteSettings;
 let siteSettings = !staticDataAllowed ? emptySiteSettings
   : window.SITE_SETTINGS && typeof window.SITE_SETTINGS === "object" ? { ...defaultSiteSettings, ...window.SITE_SETTINGS } : defaultSiteSettings;
 
