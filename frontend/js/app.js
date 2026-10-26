@@ -690,6 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderFooterContact();
   applyDataLanguage();
   initThemeToggle();
+  prettifyMenuLinks();
   initNavigation();
   initSearch();
   initDrawerSearch();
@@ -1055,6 +1056,17 @@ function initSheetSwipe() {
     };
     bar.addEventListener("touchend", finish);
     bar.addEventListener("touchcancel", finish);
+  });
+}
+
+// The menus are written in index.html with the old ?cat= addresses (they work on any host). Where the pretty addresses are on, their links carry the
+// pretty ones instead (/rajkiy, /blog, /weekly ...): what a crawler follows, and what "open in a new tab" opens. A plain click is still taken over
+// by the router (data-route).
+function prettifyMenuLinks() {
+  if (!prettyUrlsOn()) return;
+  document.querySelectorAll("a[data-route]").forEach((a) => {
+    const route = a.getAttribute("data-route");
+    if (/^(weekly|cat-(rajkiy|samajik|blogs|review))$/.test(route)) a.setAttribute("href", pathForKey(route));
   });
 }
 
