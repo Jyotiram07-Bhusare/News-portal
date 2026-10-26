@@ -13,6 +13,7 @@
 --   mysql -h <DB endpoint> -u <migrate or master user> -p --ssl-ca=/etc/ssl/certs/rds-global-bundle.pem lokmangal_news_portal \
 --         < backend/migrations/2026-10-24-comments.sql
 --
+-- There are no foreign keys on purpose (the migrate user of the server may not create them): the code deletes replies, votes and reports with a comment.
 -- Safe to run again and again: a table that exists already is left alone. No row is changed or deleted. Needs MySQL 8+.
 
 CREATE TABLE IF NOT EXISTS commenters (
@@ -51,25 +52,21 @@ CREATE TABLE IF NOT EXISTS comments (
   PRIMARY KEY (id),
   KEY idx_comments_item (item_type, item_id, parent_id, id),
   KEY idx_comments_parent (parent_id, id),
-  KEY idx_comments_reports (reports, id),
-  CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_commenter FOREIGN KEY (commenter_id) REFERENCES commenters (id) ON DELETE SET NULL
+  KEY idx_comments_reports (reports, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comment_votes (
   comment_id   INT UNSIGNED  NOT NULL,
   visitor_hash CHAR(64)      NOT NULL,
   vote         TINYINT       NOT NULL,
-  PRIMARY KEY (comment_id, visitor_hash),
-  CONSTRAINT fk_comment_votes_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+  PRIMARY KEY (comment_id, visitor_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comment_reports (
   comment_id   INT UNSIGNED  NOT NULL,
   visitor_hash CHAR(64)      NOT NULL,
   created_at   DATETIME      NOT NULL,
-  PRIMARY KEY (comment_id, visitor_hash),
-  CONSTRAINT fk_comment_reports_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+  PRIMARY KEY (comment_id, visitor_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- what exists now

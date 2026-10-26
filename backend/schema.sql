@@ -128,14 +128,15 @@ CREATE TABLE IF NOT EXISTS commenter_codes (
 -- Public comments on a news story, a blog or a weekly issue (website: under the story, Admin Panel > Comments).
 -- item_type = article (a news or blog, item_id = articles.id) or weekly (an issue, item_id = weekly_editions.issue_no). There is no foreign key to the
 -- item itself because it can be one of two tables: database.delete_article() / delete_weekly_edition() delete its comments in the same transaction.
--- A reply (parent_id) points to a TOP-LEVEL comment of the same item, one level only. Deleting a comment deletes its replies, votes and reports.
+-- A reply (parent_id) points to a TOP-LEVEL comment of the same item, one level only. Deleting a comment deletes its replies, votes and reports: the code
+-- does that (database.delete_comment). There are no FOREIGN KEY constraints on purpose: the MySQL user that runs init_db.py on the server may not create them.
 -- Created by init_db.py (every deploy runs it) and, on a development PC, by database.ensure_comment_tables() when the backend starts.
 CREATE TABLE IF NOT EXISTS comments (
   id          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
   item_type   VARCHAR(10)   NOT NULL,                      -- article | weekly
   item_id     INT UNSIGNED  NOT NULL,
   parent_id   INT UNSIGNED  NULL,                          -- NULL = a top-level comment
-  commenter_id INT UNSIGNED NULL,                          -- who wrote it (the name below is the one used when it was written)
+  commenter_id INT UNSIGNED NULL,                          -- who wrote it (commenters.id), the name below is the one used when it was written
   name        VARCHAR(60)   NOT NULL,                      -- plain text
   body        TEXT          NOT NULL,                      -- plain text, at most 2000 characters
   likes       INT UNSIGNED  NOT NULL DEFAULT 0,            -- kept equal to the comment_votes rows in the same transaction
@@ -145,9 +146,7 @@ CREATE TABLE IF NOT EXISTS comments (
   PRIMARY KEY (id),
   KEY idx_comments_item (item_type, item_id, parent_id, id),
   KEY idx_comments_parent (parent_id, id),
-  KEY idx_comments_reports (reports, id),
-  CONSTRAINT fk_comments_parent FOREIGN KEY (parent_id) REFERENCES comments (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_commenter FOREIGN KEY (commenter_id) REFERENCES commenters (id) ON DELETE SET NULL
+  KEY idx_comments_reports (reports, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- One vote per visitor and comment. visitor_hash = sha256 of SECRET_KEY + the visitor id the website made: the visitor id itself is never kept.
@@ -155,8 +154,7 @@ CREATE TABLE IF NOT EXISTS comment_votes (
   comment_id   INT UNSIGNED  NOT NULL,
   visitor_hash CHAR(64)      NOT NULL,
   vote         TINYINT       NOT NULL,                     -- 1 = like, -1 = dislike (no row = no vote)
-  PRIMARY KEY (comment_id, visitor_hash),
-  CONSTRAINT fk_comment_votes_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+  PRIMARY KEY (comment_id, visitor_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- One report per visitor and comment (the count is comments.reports).
@@ -164,6 +162,5 @@ CREATE TABLE IF NOT EXISTS comment_reports (
   comment_id   INT UNSIGNED  NOT NULL,
   visitor_hash CHAR(64)      NOT NULL,
   created_at   DATETIME      NOT NULL,
-  PRIMARY KEY (comment_id, visitor_hash),
-  CONSTRAINT fk_comment_reports_comment FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE
+  PRIMARY KEY (comment_id, visitor_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

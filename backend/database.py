@@ -1144,17 +1144,28 @@ def admin_comments(only_reported: bool = False, limit: int = 50, offset: int = 0
 
 
 def delete_comment(comment_id: int) -> bool:
-    """Deletes a comment with its replies, their votes and reports (foreign keys with ON DELETE CASCADE)."""
+    """Deletes a comment with its replies, their votes and their reports (the schema has no foreign keys: this is the cascade)."""
     with connection() as conn:
         cur = conn.cursor()
-        cur.execute("DELETE FROM comments WHERE id = %s", (comment_id,))
-        return cur.rowcount > 0
+        cur.execute("SELECT id FROM comments WHERE id = %s", (comment_id,))
+        if cur.fetchone() is None:
+            return False
+        _delete_comment_rows(cur, "(c.id = %s OR c.parent_id = %s)", (comment_id, comment_id))
+        return True
+
+
+def _delete_comment_rows(cur, where: str, params: tuple) -> None:
+    """The comments `c` that match `where` and everything that hangs on them: their reports, their votes, then the comments themselves.
+    A reply goes with its top-level comment (one level only), so `where` names the top-level ones and their replies."""
+    cur.execute(f"DELETE x FROM comment_reports x JOIN comments c ON c.id = x.comment_id WHERE {where}", params)
+    cur.execute(f"DELETE x FROM comment_votes x JOIN comments c ON c.id = x.comment_id WHERE {where}", params)
+    cur.execute(f"DELETE c FROM comments c WHERE {where}", params)
 
 
 def _delete_item_comments(cur, item_type: str, item_id: int) -> None:
     """A news / blog / issue that is deleted takes its comments with it (same transaction)."""
     if has_comments():
-        cur.execute("DELETE FROM comments WHERE item_type = %s AND item_id = %s", (item_type, item_id))
+        _delete_comment_rows(cur, "c.item_type = %s AND c.item_id = %s", (item_type, item_id))
 
 
 # -------------------------------------------------------------
