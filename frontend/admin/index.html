@@ -617,13 +617,10 @@
               <label for="form-article-author-en">Reporter / author (English)</label>
               <input type="text" id="form-article-author-en" maxlength="200" class="form-control" placeholder="e.g. Special Correspondent" data-no-i18n>
             </div>
-            <div class="form-group flex-1">
-              <label for="form-article-date">प्रकाशन तारीख <span class="req">*</span></label>
-              <div class="date-field">
-                <input type="text" id="form-article-date" required maxlength="100" class="form-control" placeholder="उदा. १३ ऑक्टोबर २०२६">
-                <button type="button" class="date-field-btn" onclick="openDatePicker('form-article-date')" title="कॅलेंडरमधून तारीख निवडा" aria-label="कॅलेंडरमधून तारीख निवडा"><i class="fa-regular fa-calendar"></i></button>
-                <input type="date" id="form-article-date-pick" class="date-field-picker" tabindex="-1" aria-hidden="true" onchange="pickDate('form-article-date', this.value)">
-              </div>
+            <div class="form-group flex-2">
+              <label for="form-article-date">प्रकाशन तारीख व वेळ (IST)</label>
+              <input type="datetime-local" id="form-article-date" step="1" min="2000-01-01T00:00:00" max="2099-12-31T23:59:59" class="form-control"
+                oninput="appState.publishedTouched = true">
             </div>
             <div class="form-group flex-1">
               <label for="form-article-views">वाचक संख्या (Views)</label>

@@ -487,6 +487,28 @@ function dateValue(text) {
   return month < 0 ? null : Number(m[3]) * 10000 + (month + 1) * 100 + Number(m[1]);
 }
 
+// ---- "Published on: Nov 21, 2026, 14:05:07 IST": the small line under the headline of a news / blog (the place where Hindustan Times has it) ----
+// The time is `published_at` ("YYYY-MM-DD HH:MM:SS", India time): the backend stamps it when a story is created, the Admin Panel can change it.
+// A story written before that has only its date text: it shows the date and NO time (none is invented). Always India time, never the reader's clock.
+// (backend/pubtime.py published_line() writes the same words for the page the server makes for crawlers.)
+const ENGLISH_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const pad2 = (n) => String(n).padStart(2, "0");
+function publishedParts(a) {
+  const m = String((a && a.published_at) || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return { y: +m[1], mo: +m[2], d: +m[3], time: `${m[4]}:${m[5]}:${m[6] || "00"}` };
+  const day = dateValue((a && (a._mr_date || a.date)) || "");
+  return day ? { y: Math.floor(day / 10000), mo: Math.floor(day / 100) % 100, d: day % 100, time: "" } : null;
+}
+function publishedLineHTML(a) {
+  const p = publishedParts(a);
+  if (!p || p.mo < 1 || p.mo > 12) return "";
+  const text = getLang() === "en"
+    ? `Published on: ${ENGLISH_MONTHS_SHORT[p.mo - 1]} ${p.d}, ${p.y}${p.time ? `, ${p.time} IST` : ""}`
+    : `प्रकाशित: ${toDevanagari(p.d)} ${MARATHI_MONTHS[p.mo - 1]} ${toDevanagari(p.y)}${p.time ? `, ${toDevanagari(p.time)} IST` : ""}`;
+  const stamp = `${p.y}-${pad2(p.mo)}-${pad2(p.d)}${p.time ? `T${p.time}+05:30` : ""}`;
+  return `<div class="post-published" data-no-i18n><time datetime="${stamp}">${text}</time></div>`;
+}
+
 // Newest issue first: by DATE (an issue added later for an earlier week still lands in its place); equal / unreadable dates by number.
 // An issue whose date cannot be read counts as the newest, so a freshly added issue never disappears at the bottom.
 const weeklyIssues = () => articlesData.filter((a) => a.category === "weekly" && a.issue).sort((a, b) => {
@@ -2105,7 +2127,10 @@ function renderCategorySection(container, cat) {
 
 // The publication date under a headline (the date typed in the Admin Panel, "प्रकाशन तारीख"), in small letters. <time> also gives it as
 // yyyy-mm-dd when the date can be read.
+// A news / blog / review shows the full "Published on: Nov 21, 2026, 14:05:07 IST" line (publishedLineHTML: the time is `published_at`); a weekly
+// issue shows just its date.
 function headlineDateHTML(article) {
+  if (article && !(article.category === "weekly" && article.issue)) return publishedLineHTML(article);   // a news / blog / review: "Published on: Nov 21, 2026, 14:05:07 IST"
   const text = String((article && article.date) || "").trim();
   if (!text) return "";
   const v = dateValue(text);

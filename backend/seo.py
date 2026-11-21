@@ -34,6 +34,7 @@ from flask import Blueprint, Response, redirect, request
 
 import config
 import database
+import pubtime
 import sanitize
 
 seo = Blueprint("seo", __name__, url_prefix="/api")
@@ -189,13 +190,15 @@ def _iso(day: Optional[date]) -> str:
     return datetime(day.year, day.month, day.day, tzinfo=IST).isoformat() if day else ""
 
 
-def _modified_iso(row: Dict[str, Any], published: Optional[date]) -> str:
+def _modified_iso(row: Dict[str, Any], published: Optional[date], moment: Optional[datetime] = None) -> str:
+    """`moment` = the exact time of publishing when the story has one (else only its day is known: midnight of it)."""
     stamp = _stamp(row.get("updated_at")) or _stamp(row.get("created_at"))
+    first = pubtime.iso(moment) if moment else _iso(published)
     if not stamp:
-        return _iso(published)
+        return first
     stamp = stamp.replace(tzinfo=IST)
-    if published and stamp < datetime(published.year, published.month, published.day, tzinfo=IST):
-        return _iso(published)                      # (never "modified" before it was published)
+    if published and stamp < (moment.replace(tzinfo=IST) if moment else datetime(published.year, published.month, published.day, tzinfo=IST)):
+        return first                                # (never "modified" before it was published)
     return stamp.isoformat()
 
 
@@ -245,7 +248,8 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     except sanitize.ValidationError:
         body = "<p>" + html.escape(plain_text(content)) + "</p>"
     created = _stamp(row.get("created_at"))
-    published = parse_date(row.get("date")) or (created.date() if created else None)
+    moment = pubtime.parse(row.get("published_at"))                 # the exact time of publishing (India time) - older stories only have their date
+    published = moment.date() if moment else (parse_date(row.get("date")) or (created.date() if created else None))
     author = _pick(row, "author", lang)
     canonical = f"{site}/{story_path(row)}"
     image = preview_image(row.get("image"), site)
@@ -263,12 +267,14 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
         "publisher": _publisher(site, lang),
     }
     if published:
-        data["datePublished"] = _iso(published)
-        data["dateModified"] = _modified_iso(row, published)
+        data["datePublished"] = pubtime.iso(moment) if moment else _iso(published)
+        data["dateModified"] = _modified_iso(row, published, moment)
     if author:
         data["author"] = {"@type": "Organization" if _ORGANISATION.search(author) else "Person", "name": author}
     return {"lang": lang, "title": title, "summary": summary, "image": image, "card": card, "body": body,
             "author": author, "section": section_name, "published": published, "published_iso": data.get("datePublished", ""),
+            "published_dt": moment, "published_line": pubtime.published_line(moment, published, lang),
+            "published_attr": pubtime.iso(moment) if moment else (published.isoformat() if published else ""),
             "modified_iso": data.get("dateModified", ""), "canonical": canonical,
             "target": with_lang(canonical, lang), "jsonld": data}
 
@@ -313,8 +319,8 @@ def share_page(story: Dict[str, Any]) -> str:
     esc = lambda text: html.escape(str(text), quote=True)       # noqa: E731
     site_name = SITE_NAME[lang]
     target = story["target"]
-    meta_line = " · ".join(part for part in (story["section"], story["author"],
-                                             story["published"].isoformat() if story["published"] else "") if part)
+    meta_line = " · ".join(part for part in (story["section"], story["author"], story.get("published_line")
+                                             or (story["published"].isoformat() if story["published"] else "")) if part)
     published = f'<meta property="article:published_time" content="{esc(story["published_iso"])}">\n' if story["published_iso"] else ""
     modified = f'<meta property="article:modified_time" content="{esc(story["modified_iso"])}">\n' if story["modified_iso"] else ""
     go = "वेबसाईटवर वाचा" if lang == "mr" else "Read it on the website"
@@ -450,8 +456,12 @@ def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
 
 def _ssr_body(story: Dict[str, Any]) -> str:
     esc = lambda text: html.escape(str(text), quote=True)       # noqa: E731
-    meta = " · ".join(p for p in (story["section"], story["author"], story["published"].isoformat() if story["published"] else "") if p)
+    line = story.get("published_line") or ""                    # "Published on: Nov 21, 2026, 14:05:07 IST" - under the headline, where the website draws it too
+    meta = " · ".join(p for p in (story["section"], story["author"], "" if line else (story["published"].isoformat() if story["published"] else "")) if p)
+    published = (f'<div class="post-published" data-no-i18n><time datetime="{esc(story.get("published_attr", ""))}">{esc(line)}</time></div>\n'
+                 if line else "")
     return (f'<h1 class="single-post-headline">{esc(story["title"])}</h1>\n'
+            f'{published}'
             f'<p class="ssr-meta">{esc(meta)}</p>\n'
             f'<div class="single-post-media"><img src="{esc(story["image"])}" alt="{esc(story["title"])}"></div>\n'
             f'<div class="single-article-content">{story["body"]}</div>')
@@ -665,13 +675,15 @@ def rss():
 
     def newest_first(row):
         created = _stamp(row.get("created_at"))
-        return (parse_date(row.get("date")) or (created.date() if created else date.min), int(row["id"]))
+        moment = pubtime.parse(row.get("published_at"))
+        day = moment.date() if moment else (parse_date(row.get("date")) or (created.date() if created else date.min))
+        return (day, moment or datetime.min, int(row["id"]))
 
     rows.sort(key=newest_first, reverse=True)
     items = []
     for row in rows[:FEED_ITEMS]:
         story = article_story(row, lang, site)
-        stamp = datetime(*(story["published"] or date.today()).timetuple()[:3], tzinfo=IST)
+        stamp = story["published_dt"].replace(tzinfo=IST) if story.get("published_dt") else datetime(*(story["published"] or date.today()).timetuple()[:3], tzinfo=IST)
         picture = f'<p><img src="{html.escape(story["image"])}" alt="{html.escape(story["title"])}"></p>'
         items.append(
             "    <item>"

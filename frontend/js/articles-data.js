@@ -21,7 +21,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "Held without a break for 19 years, the Shikshak Ratna Award Ceremony has honoured around 200 teachers so far, along with two model Zilla Parishad schools every year.",
     "content_en": "<blockquote>“A teacher does not merely teach, but also guides a student towards the right direction in life.”</blockquote>\n<p>Teachers play an invaluable role in shaping society. They do not merely teach lessons in the classroom, but also encourage students to think positively, nurture their abilities and give strength to their dreams. The <strong>Shikshak Ratna Award Ceremony</strong> by Lokmangal Foundation is an initiative that honours such dedicated and sincere teachers. The initiative has been continuing uninterruptedly for the past <strong>19 years</strong>.</p>\n<h2>The Inspiring Beginning of the Award</h2>\n<p>The concept of the <strong>Shikshak Ratna Award</strong> was initiated by Subhash Bapu. Since his parents worked as teachers, he developed a deep respect and affection for teachers from an early age. The award was started with the thought that the work of teachers should be recognised by society, they should be encouraged, and their dedication should inspire others.</p>\n<h2>Four Major Award Categories</h2>\n<p>Teachers who demonstrate outstanding work at different levels of education are honoured through this award.</p>\n<ol><li><strong>Primary Teachers</strong></li><li><strong>Secondary Teachers</strong></li><li><strong>Junior College Teachers</strong></li><li><strong>Senior College Teachers</strong></li></ol>\n<p>Along with teachers, <strong>two Zilla Parishad primary schools</strong> are also honoured every year. This ensures that schools making significant contributions are recognised along with their teachers.</p>\n<h2>Dr. APJ Abdul Kalam Award, A Tribute of Gratitude to Teachers</h2>\n<p>One of the special attractions of the ceremony is the <strong>Dr. APJ Abdul Kalam Award</strong>. A successful former student is asked,</p>\n<blockquote>“Who was the teacher who inspired you to achieve success?”</blockquote>\n<p>The teacher named by the student is honoured with this award. It is a unique expression of gratitude from a successful student towards the teacher who inspired their journey.</p>\n<h2>Selection Process, Beyond Teaching, Overall Contribution Matters</h2>\n<p>While defining <strong>what makes a good teacher</strong>, the selection process considers more than teaching skills. The proposals submitted by teachers are evaluated on the basis of their overall educational and social contribution.</p>\n<ul><li>Educational qualifications</li><li>Number of books at home and annual reading</li><li>Subscriptions to periodicals</li><li>Special initiatives undertaken for students</li><li>Efforts made towards school development</li><li>Significant contributions to society</li></ul>\n<h2>Transparent and Credible Evaluation</h2>\n<ul><li>Proposals are evaluated by a <strong>seven member selection committee</strong>.</li><li>The committee includes education expert <strong>Dr. H. N. Jagtap</strong>, along with teachers who have received national and state level awards.</li><li>Instead of recommendations or personal connections, the teacher’s actual work and quality are given decisive importance.</li></ul>\n<h2>Teachers Who Go the Extra Mile for Their Students</h2>\n<p>Many teachers in rural areas and Zilla Parishad schools make exceptional efforts for their students despite limited resources.</p>\n<ul><li>Setting up laboratories in schools using their own salaries</li><li>Providing computer facilities</li><li>Introducing digital classrooms</li><li>Arranging free breakfast for students</li></ul>\n<p>Such teachers instill in students the confidence that <strong>“I too can achieve something great in life.”</strong> The Shikshak Ratna Award honours and salutes this spirit of dedication.</p>\n<h2>19 Years of Recognition, In Numbers</h2>\n<div class=\"article-table-wrap\"><table><thead><tr><th>Criteria</th><th>Details</th></tr></thead><tbody><tr><td>Duration of the award ceremony</td><td>19 years</td></tr><tr><td>Teachers honoured so far</td><td>Approximately 200</td></tr><tr><td>Award categories</td><td>Primary, Secondary, Junior College and Senior College</td></tr><tr><td>Model schools honoured</td><td>2 Zilla Parishad schools every year</td></tr></tbody></table></div>\n<p>Notably, many teachers who have received the Shikshak Ratna Award have subsequently received various honours at the <strong>national and international levels</strong> as well. The award is not the end of their journey, but a source of encouragement to continue doing meaningful work.</p>\n<h2>Honouring a Teacher is Honouring Education</h2>\n<p>Honouring a teacher creates a far reaching impact.</p>\n<ul><li>Fellow teachers receive new inspiration.</li><li>Students feel proud of their teacher.</li><li>Parents develop a deeper appreciation of the importance of education.</li><li>Society becomes more aware of the contribution made by teachers.</li></ul>\n<p>Therefore, the Shikshak Ratna Award is not merely an honour bestowed upon an individual. It is a recognition of the work that shapes education, knowledge, values and society.</p>\n<h2>A Salute to the Teachers Who Keep the Flame of Knowledge Alive</h2>\n<p>No matter how much technology and teaching methods evolve, the importance of a teacher who places the torch of knowledge in a student’s hands will never diminish. Even a single inspiring sentence from a teacher can change the entire course of a student’s life.</p>\n<p>The <strong>Shikshak Ratna Award Ceremony</strong> identifies such teachers, recognises their contribution and brings their work to the attention of society. This 19 year journey is a respectful tribute to the teachers who are shaping the next generation.</p>\n<blockquote>Honouring teachers is honouring knowledge, values and a brighter future.</blockquote>",
     "updated_at": "2026-10-21 08:07:17",
-    "is_latest": 0
+    "is_latest": 0,
+    "sort_order": 1,
+    "slug": "shikshak-ratna-award-ceremony-honouring-the-contribution-of-outstanding-teachers",
+    "published_at": "2025-01-15 12:44:58",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 103,
@@ -43,7 +50,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "By easing the cost of weddings, this initiative marries couples of different communities and religions on one platform: 3,221 couples have been married in 48 ceremonies so far.",
     "content_en": "<p>Everyone wishes to have a life partner who will stand by them through the joys and challenges of life. Marriage is an important milestone that marks a new beginning in this relationship. However, the cost of a wedding can become a major challenge for financially disadvantaged families. To support such families, Lokmangal Foundation has initiated the <strong>Community Marriage Ceremony</strong>.</p>\n<h2>The Financial Burden of Marriage and the Solution</h2>\n<p>While a wedding is a joyous occasion, it also involves significant expenses:</p>\n<ul><li>Mandap and stage arrangements</li><li>Food arrangements</li><li>Clothes and jewellery</li><li>Religious rituals and other ceremony related expenses</li></ul>\n<p>For economically weaker families, bearing these expenses can be difficult. Through the Community Marriage Ceremony, the financial burden on such families is reduced, making it easier for newly married couples to begin their new lives.</p>\n<h2>Key Features of the Ceremony</h2>\n<h3>1. A Unique Confluence of All Religions</h3>\n<p>The ceremony is not merely a collective marriage event, but a social initiative that brings together people from different communities, religions and faiths:</p>\n<ul><li>The religious and social traditions of each couple are respected.</li><li>Priests and religious leaders from the respective communities are invited.</li><li>Each couple is given the opportunity to marry according to their own traditions.</li></ul>\n<h3>2. Grand Arrangements and Complete Facilities</h3>\n<ul><li>Large mandap and stage arrangements</li><li>Lighting, microphone and sound system</li><li>Music and other necessary facilities</li></ul>\n<h3>3. Support for Setting Up a New Household</h3>\n<p>Participating couples are provided with the following:</p>\n<ul><li>Clothes required for the wedding</li><li>Necessary jewellery</li><li>Essential household items</li></ul>\n<h3>4. Food Arrangements for One Lakh Guests</h3>\n<p>Food arrangements are made for as many as <strong>one lakh guests</strong> in a single day, allowing participating families and guests to become a part of this joyous occasion.</p>\n<h3>5. Assistance for Kanyadan Grant</h3>\n<p>The Foundation also provides assistance to help brides from backward communities access the <strong>Kanyadan Grant</strong> provided by the Social Welfare Department.</p>\n<h2>The Social Objectives Behind the Initiative</h2>\n<p>The Community Marriage Ceremony is not limited to providing financial assistance. Its objectives also include:</p>\n<ul><li>Promoting <strong>social and communal harmony</strong></li><li>Contributing towards curbing the <strong>dowry system</strong></li><li>Promoting the message of simple marriages without unnecessary expenditure</li><li>Encouraging interaction and a sense of belonging among different communities</li></ul>\n<h2>Achievements So Far, In Numbers</h2>\n<div class=\"article-table-wrap\"><table><thead><tr><th>Criteria</th><th>Figures</th></tr></thead><tbody><tr><td>Community marriage ceremonies held so far</td><td>48</td></tr><tr><td>Total couples married</td><td>3,221</td></tr><tr><td>Hindu couples</td><td>2,508</td></tr><tr><td>Buddhist couples</td><td>681</td></tr><tr><td>Muslim couples</td><td>21</td></tr><tr><td>Jain couples</td><td>7</td></tr><tr><td>Christian couples</td><td>4</td></tr></tbody></table></div>\n<p>These numbers are not merely statistics. Behind every couple are two lives, the happiness of two families and the beginning of a new household.</p>\n<h2>A Message of Unity Through Diversity</h2>\n<p>When couples from different communities and religions get married on the same platform, it conveys a beautiful message of unity through diversity to society. Marriage is a sacred bond that brings two individuals together. The Community Marriage Ceremony carries this spirit forward and works towards bringing society together.</p>\n<h2>Let Us Be a Part of This Social Initiative</h2>\n<p>Lokmangal Foundation continues this initiative with the belief that no family should have to worry about the marriage of their son or daughter because of financial difficulties, and that every newly married couple should be able to begin their new life with greater ease.</p>\n<blockquote>A marriage that brings two hearts together, a ceremony that brings two families together, and humanity that brings society together. With this spirit, you too can support this initiative.</blockquote>\n<blockquote>Community Marriage Ceremony, reducing the financial burden, supporting new households and promoting the message of unity in society.</blockquote>",
     "updated_at": "2026-10-21 07:56:56",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 2,
+    "slug": "community-marriage-ceremony-lokmangal-foundations-initiative-to-support-needy-couples",
+    "published_at": "2024-11-25 12:44:58",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": 1
   },
   {
     "id": 102,
@@ -65,7 +79,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "So that no student’s dream is left incomplete for lack of money, LOTUS adopts needy students after Class 12: 225 students adopted so far, with ₹90,99,226 received as financial assistance and scholarships.",
     "content_en": "<p>Education is every child’s fundamental right, as it has the power to transform an individual’s entire life. However, even today, many bright and aspiring students in our society are on the verge of being forced to discontinue their education due to financial difficulties. To support the dreams of such students, Lokmangal Foundation has initiated <strong>LOTUS (Lokmangal Organization for Teaching Underprivileged Students)</strong>.</p>\n<h2>Financial Difficulties and Students’ Dreams</h2>\n<p>Every student has the right to dream big and pursue those dreams, whether it is to become a doctor, engineer, teacher, officer or entrepreneur. However, due to financial constraints, many students find it difficult to continue their education after Class 12. To overcome this barrier, the LOTUS initiative provides students with strong financial support so that no student’s dream remains incomplete simply because of a lack of financial resources.</p>\n<h2>How Does the LOTUS Initiative Work?</h2>\n<ul><li>Economically disadvantaged and deserving students are <strong>adopted</strong> under the initiative.</li><li>Every year, <strong>200 students</strong> who have passed Class 12 receive financial assistance for their education.</li><li>The cost of the student’s further education is supported.</li><li>This support is not limited to financial assistance. It also gives students the confidence that “my education will not stop.”</li></ul>\n<h2>Achievements So Far, The Impact of LOTUS in Numbers</h2>\n<div class=\"article-table-wrap\"><table><thead><tr><th>Criteria</th><th>Figures</th></tr></thead><tbody><tr><td>Total students adopted</td><td>225</td></tr><tr><td>Financial assistance and scholarships received so far</td><td>₹90,99,226</td></tr><tr><td>Students receiving assistance every year</td><td>200</td></tr></tbody></table></div>\n<p>Behind each of these figures is a student’s dream. For some, it has helped them continue their education. For others, it has provided an opportunity to pursue their preferred field, while for many, it has given a new direction to their future.</p>\n<h2>A Bridge Connecting Donors and Students</h2>\n<p>One of the distinctive features of the LOTUS initiative is the <strong>direct connection between donors and students</strong>:</p>\n<ul><li>Generous individuals who wish to support education are connected with needy students.</li><li>The assistance received from donors is directed to the appropriate students.</li><li>Information about the student receiving the support is shared with the donor.</li><li>Donors can track the student’s progress in education.</li></ul>\n<h2>Trust, Transparency and Responsibility, The Foundation of LOTUS</h2>\n<p>Trust is the most important element of any social initiative. LOTUS is built on the following three values:</p>\n<ol><li><strong>Trust</strong>: Ensuring that the donation reaches the right student</li><li><strong>Transparency</strong>: Providing clear information about where and how the funds are utilised</li><li><strong>Responsibility</strong>: Considering every donation as an investment in the student’s future</li></ol>\n<h2>Building Confidence Through Education</h2>\n<blockquote>“Education builds confidence, and confidence creates hope.”</blockquote>\n<p>Education does not merely provide knowledge to a student. It also gives them the strength to move forward, regardless of how difficult their circumstances may be. Therefore, the objective of LOTUS is not limited to financial assistance. Its true purpose is to keep the dreams of students alive.</p>\n<h2>The Long Term Impact of Your Support</h2>\n<p>An educational opportunity provided to a student can give a new direction to their entire life:</p>\n<ul><li>The student completes their education.</li><li>They gain an opportunity for employment.</li><li>They become self reliant.</li><li>They can eventually contribute to the progress of their family and society.</li></ul>\n<p>In this way, support for education does not remain limited to an individual. It contributes to shaping the future of a family and, ultimately, the wider society.</p>\n<h2>Let Us Not Allow Dreams to Stop</h2>\n<p>The underlying belief of LOTUS is that financial circumstances should not come in the way of any student’s dreams. The support provided for a student’s education today can become the reason for their success tomorrow.</p>\n<blockquote>Join the LOTUS initiative of Lokmangal Foundation and contribute towards the bright future of a deserving student.</blockquote>\n<blockquote>LOTUS, supporting dreams of education and creating a new path towards a brighter future.</blockquote>",
     "updated_at": "2026-10-21 08:07:22",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 3,
+    "slug": "lotus-initiative-lokmangal-foundations-support-for-the-education-of-needy-students",
+    "published_at": "2024-08-20 12:44:58",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 101,
@@ -87,7 +108,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "Through the “Silt Free Dams, Silt Enriched Farms” concept, this initiative has removed about 1 million cubic metres of silt, added about 100 crore litres of water storage capacity and benefited around 650 farmers.",
     "content_en": "<p>India is an agriculture based country, and agriculture is the backbone of our economy. The lives of crores of families in the country depend on agriculture. However, the availability of <strong>water</strong>, the most important resource for agriculture, has become a serious challenge today. To address this issue, the <strong>Water Conservation Initiative</strong> undertaken by Lokmangal Foundation is bringing positive change to the lives of thousands of farmers.</p>\n<h2>The Water Crisis Faced by Farmers</h2>\n<p>Due to climate change, farmers in India face several challenges related to water:</p>\n<ul><li>Drought and irregular rainfall</li><li>Crop damage caused by untimely rainfall or excessive rainfall</li><li>Reduction in water storage capacity due to the accumulation of silt in water reservoirs</li><li>Declining groundwater levels</li></ul>\n<p>To address these challenges, Lokmangal Foundation has extended its support to farmers through water conservation initiatives.</p>\n<h2>The “Silt Free Dams, Silt Enriched Farms” Concept and Implementation</h2>\n<p>Over time, large quantities of silt accumulate in many dams, lakes and water reservoirs across Maharashtra. This reduces their water storage capacity. To address this issue, Lokmangal Foundation has implemented the <strong>“Silt Free Dams, Silt Enriched Farms”</strong> concept.</p>\n<ul><li>Silt is removed from lakes, dams and water reservoirs.</li><li>The extracted silt is provided to farmers <strong>completely free of cost</strong> for use on their agricultural land.</li><li>This increases the water storage capacity of water bodies and improves the fertility of agricultural land.</li></ul>\n<p>In this way, the initiative achieves the dual objectives of <strong>water conservation and agricultural land development</strong>.</p>\n<h2>Achievements of the Water Conservation Initiative So Far</h2>\n<p>The impact of this initiative can be clearly seen through the following figures:</p>\n<div class=\"article-table-wrap\"><table><thead><tr><th>Criteria</th><th>Figures</th></tr></thead><tbody><tr><td>Total silt removed</td><td>Approximately 1 million cubic metres</td></tr><tr><td>Increased water storage capacity</td><td>Approximately 100 crore litres</td></tr><tr><td>Population benefiting from the initiative (365 day water supply)</td><td>Approximately 50,000 people</td></tr><tr><td>Agricultural land benefiting from the increased water availability</td><td>Approximately 800 acres</td></tr><tr><td>Farmers benefited so far</td><td>Approximately 650 farmers</td></tr></tbody></table></div>\n<p>These figures are not merely numbers, but a reflection of the concrete efforts undertaken to improve the quality of life in rural communities.</p>\n<h2>Key Locations Where Water Conservation Work Has Been Undertaken</h2>\n<p>Lokmangal Foundation has undertaken significant water conservation work in the following areas:</p>\n<ul><li>Ekrukh Medium Project</li><li>Minor Irrigation Reservoirs</li><li>Soregaon Water Reservoir</li><li>Bibi Darphal</li><li>Hipparga Lake</li></ul>\n<p>In addition, several streams in rural areas have been <strong>deepened and widened</strong>. This has helped improve water flow and increase water storage capacity.</p>\n<h2>Impact on Agriculture and the Lives of Farmers</h2>\n<p>The increased availability of water has provided farmers with the following direct benefits:</p>\n<ul><li>Significant increase in agricultural production</li><li>Improvement in groundwater levels</li><li>Greater ability to plan crops more effectively</li><li>Stability in agricultural income and greater economic stability in the lives of farmers</li></ul>\n<p>When water availability increases, farmers can plan their agricultural activities with greater confidence. This change gives a new direction to the future of their entire family.</p>\n<h2>The Way Forward</h2>\n<p>Lokmangal Foundation’s future objectives regarding its water conservation initiatives are clear:</p>\n<ul><li>Reduce water scarcity in more areas</li><li>Ensure the long term conservation of water resources</li><li>Make adequate water available for agriculture to a greater number of farmers</li></ul>\n<p>Water conservation is not merely about storing water. It is about safeguarding the farmer’s hope for tomorrow. If every drop of water is conserved, agriculture will prosper. If agriculture prospers, farmers will become stronger. And when farmers become stronger, the entire rural community will receive a new direction for development.</p>\n<blockquote>Join Lokmangal Foundation’s water conservation movement. Become a part of this important step towards the prosperity of farmers.</blockquote>",
     "updated_at": "2026-10-21 08:07:25",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 4,
+    "slug": "water-conservation-initiative-lokmangal-foundations-water-conservation-work-for-farmers",
+    "published_at": "2024-06-05 12:44:58",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 100,
@@ -109,7 +137,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "Guided by the belief that food is sacred, Lokmangal Foundation started the Annapurna Yojana on 8 March 2013. Today it delivers fresh, hot meals to the homes of 450 needy senior citizens in Solapur every day.",
     "content_en": "<p><strong>“Food is revered as Purnabrahma”</strong> in Indian culture. Food is not merely a means of satisfying hunger, but a basic necessity for living a healthy and dignified life. Guided by this belief, the <strong>Lokmangal Annapurna Yojana</strong>, initiated by Lokmangal Foundation, has become a source of support for hundreds of needy senior citizens in Solapur.</p>\n<h2>Background and Objective of the Scheme</h2>\n<p>Old age is a stage of life when a person needs support, care and affection the most. However, even today, there are many senior citizens for whom securing two meals a day is a major challenge. Several factors contribute to this:</p>\n<ul><li>Reduced physical capacity due to advancing age</li><li>Financial difficulties and lack of income</li><li>Lack of family support or loneliness</li><li>Inability to cook due to physical ailments</li></ul>\n<p>Recognising this social need, Lokmangal Foundation launched the <strong>Lokmangal Annapurna Yojana on 8 March 2013</strong>, with the objective of delivering fresh, hot meals directly to the homes of senior citizens every day.</p>\n<h2>How Does the Scheme Work?</h2>\n<h3>1. Eligibility and Beneficiary Selection</h3>\n<ul><li>Needy senior citizens above the age of 60 are eligible for the scheme.</li><li>Priority is given to senior citizens who do not have family support or who live alone.</li><li>Information about needy individuals is collected through advertisements published in newspapers.</li><li>The information received is verified, following which eligible beneficiaries are selected.</li></ul>\n<h3>2. Meal Preparation Process</h3>\n<ul><li>Fresh meals are prepared every day in a large and hygienic kitchen.</li><li>Experienced cooks and support staff prepare nutritious and quality meals.</li><li>The meals are packed in clean food containers and prepared for distribution.</li></ul>\n<h3>3. Doorstep Delivery Service</h3>\n<ul><li>Volunteers travel to different parts of the city and deliver the meals directly to the homes of beneficiaries.</li><li>The service continues without interruption in all weather conditions, including heat, rain and fog.</li><li>Two meals a day are provided regularly throughout the year.</li></ul>\n<h2>Current Status and Future Objective of the Scheme</h2>\n<p>At present, the scheme reaches needy senior citizens across Solapur city. The Foundation’s future objectives include:</p>\n<ul><li>Providing daily meals to <strong>450 senior citizen beneficiaries</strong></li><li>Expanding the service to <strong>1,500 senior citizens</strong> in the near future</li><li>The ultimate objective is to ensure that no senior citizen in India goes hungry due to a lack of food.</li></ul>\n<h2>Contribute Through Donations: You Can Help Too</h2>\n<p>The monthly cost of providing one meal service to a senior citizen is <strong>₹1,500</strong>.</p>\n<div class=\"article-table-wrap\"><table><thead><tr><th>Details</th><th>Amount</th></tr></thead><tbody><tr><td>Monthly cost per beneficiary</td><td>₹1,500</td></tr><tr><td>Current beneficiaries</td><td>450</td></tr><tr><td>Total monthly cost</td><td>₹6,75,000</td></tr></tbody></table></div>\n<p>Individuals, organisations and corporates can contribute to this service through donations and CSR initiatives. Taking responsibility for the meals of one senior citizen for an entire month can also become a meaningful contribution to society.</p>\n<h2>Food Donation Is an Expression of Humanity</h2>\n<p>In old age, a person needs not only food but also care, affection and support. The Lokmangal Annapurna Yojana strives to bring this sense of care and companionship into the lives of needy senior citizens. A meal delivered to their doorstep does more than satisfy hunger. It also conveys the comforting feeling that <strong>someone cares for them</strong>.</p>\n<blockquote>Let us come together and contribute to this service. By supporting the Lokmangal Annapurna Yojana, we can bring a smile to the face of a senior citizen.</blockquote>",
     "updated_at": "2026-10-21 08:07:27",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 5,
+    "slug": "lokmangal-annapurna-yojana-free-meal-service-for-senior-citizens-in-solapur",
+    "published_at": "2024-03-08 12:44:58",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 16,
@@ -131,7 +166,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "To free ordinary farmers, small traders and women entrepreneurs from the clutches of moneylenders, Lokmangal Urban Cooperative Bank has started a quick-loan scheme at very low interest rates.",
     "content_en": "<p><strong>Solapur:</strong> Lokmangal Urban Cooperative Bank, which empowers ordinary people financially through cooperation, has brought a special ‘Easy Agriculture and Business Loan’ scheme into effect at all its branches.</p> <p>With minimal paperwork and a quick approval process, small shopkeepers in rural areas, young people running farm-related businesses and farmers will get great support from this scheme. Transparent banking and customer-oriented service are the identity of Lokmangal Bank.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 16,
+    "slug": "lokmangal-urban-cooperative-bank-launch-of-the-easy-agriculture-and-business-loan-scheme",
+    "published_at": "2026-10-04 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 15,
@@ -153,7 +195,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "At a grand meet organised by the Bharatiya Janata Yuva Morcha, MLA Subhash Bapu Deshmukh called on the youth to take the lead in social work and nation-building.",
     "content_en": "<p><strong>Solapur:</strong> MLA Subhash (Bapu) Deshmukh guided the youth at the youth workers' meet held in the presence of thousands of young people from South Solapur taluka. “The young generation is the future of the country. Politics is not merely for power; it is an effective medium of social service,” he said.</p> <p>On the occasion, Deshmukh announced that a special help desk would be started to take the benefits of the government's skill development schemes, Mudra loans and start-up schemes to the aspiring young person in every village.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 15,
+    "slug": "grand-youth-workers-meet-in-south-solapur-taluka-mla-subhash-deshmukhs-appeal-solving-the",
+    "published_at": "2026-10-05 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 14,
@@ -175,7 +224,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "A state-of-the-art digital library and free guidance sessions by expert officers have begun for aspiring rural youth preparing for MPSC, UPSC and police recruitment.",
     "content_en": "<p><strong>Solapur:</strong> For rural youth who dream of higher education but fall behind because of financial difficulties, the competitive exam centre of Lokmangal Shikshan Prasarak Mandal is proving a guiding beacon.</p> <p>The centre provides free Wi-Fi, more than 5,000 reference books, an air-conditioned study room and online test series. A special workshop by successful civil servants and professors is held every Sunday.</p> <p>Over the past year, more than 40 students from this centre have succeeded in government service and the police force, justifying Lokmangal's educational service.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 14,
+    "slug": "lokmangal-education-complex-and-competitive-exam-centre-free-library-and-career-guidance",
+    "published_at": "2026-10-06 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 13,
@@ -197,7 +253,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "So that crops in the rabi season do not suffer a water shortage and water reaches tail-end farmers, MLA Subhash Bapu Deshmukh held an urgent meeting with senior officials of the Water Resources Department.",
     "content_en": "<p><strong>Solapur:</strong> To ensure that crops in South Solapur and Akkalkot get water on time, MLA Subhash (Bapu) Deshmukh has strictly directed Water Resources Department officials to release immediately the rotations of the Sina–Bhima lift irrigation scheme and the Ujani left canal.</p> <p>Presenting the farmers' grievances at the water distribution committee meeting, Deshmukh made it clear that complaints of not a single drop of water reaching farmers at the tail end of the canals would not be tolerated. He cautioned that the canals must be repaired immediately and wastage of water avoided.</p> <p>Following the MLA's aggressive stand, the Water Resources Department has announced a schedule for releasing water into the canals, which has given great relief to thousands of farmers.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 13,
+    "slug": "mla-subhash-deshmukh-gives-strict-directions-to-the-water-resources-department-to-release",
+    "published_at": "2026-10-07 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 12,
@@ -219,7 +282,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "The Lokmangal Udyogini Fair, giving a platform to quality products made by more than 300 rural women's self-help groups, was held with enthusiasm; business worth lakhs and a boost to women's confidence.",
     "content_en": "<p><strong>Solapur:</strong> To help rural women stand on their own feet and get a fair return for their skills, Lokmangal Foundation organised the four-day ‘Lokmangal Udyogini Exhibition and Sales Fair’.</p> <p>More than 100 stalls were set up at the exhibition, offering handloom cloth, traditional foods, organic spices, decorative handicrafts and household goods made by self-help groups of Solapur district. The people of Solapur responded spontaneously and bought goods worth lakhs of rupees.</p> <p>With the cooperation of Lokmangal Bank, interested women were also given easy finance and free training in digital marketing to start their own small businesses.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 11,
+    "slug": "lokmangal-udyogini-exhibition-and-sales-fair-for-womens-economic-empowerment-a-guaranteed",
+    "published_at": "2026-10-08 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 11,
@@ -241,7 +311,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "The rural economy will become stronger only if cooperative institutions adopt modern technology and transparency; former Cooperation Minister Subhash Deshmukh appealed for a focus on strengthening cooperative sugar factories and banks.",
     "content_en": "<p><strong>Pune:</strong> Speaking as the chief speaker at the Maharashtra State Cooperative Conference, former Cooperation and Marketing Minister MLA Subhash (Bapu) Deshmukh put forward forthright views on the present condition and future direction of the state's cooperative sector.</p> <p>Deshmukh said, “The cooperative movement in Maharashtra has given rural people economic freedom. But in changing times, cooperative sugar factories must not depend on sugar alone; they must turn to ethanol, CBG (bio-gas) and co-generation power. Transparent administration and professional management are the saviours of cooperation.”</p> <p>Those present praised the reforms in cooperative law and the computerisation initiatives he carried out during his tenure as Cooperation Minister. Cooperative experts said that Subhash Deshmukh's views have always been a guide for fairness in the cooperative sector.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 12,
+    "slug": "the-cooperative-movement-is-the-lifeblood-of-rural-maharashtra-former-cooperation",
+    "published_at": "2026-10-08 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 10,
@@ -263,7 +340,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "In-depth guidance from agriculture experts on modern farm technology, drip irrigation and balanced use of organic fertilisers to help sugarcane growers reach 100 tonnes per acre.",
     "content_en": "<p><strong>Solapur:</strong> With the aim of cutting the cost of production in farming and doubling farmers' income, the Lokmangal Group organised a grand guidance meet for farmers and sugarcane growers. Thousands of farmers from Solapur and surrounding areas attended the meet.</p> <p>Expert scientists from the Vasantdada Sugar Institute (VSI) and Mahatma Phule Agricultural University guided farmers, with demonstrations, on improved sugarcane varieties, seed treatment, management of water-soluble fertilisers through drip irrigation, and pest control. The Lokmangal Group also held an exhibition of modern farm implements.</p> <p>While guiding the farmers, it was stressed that producing the best quality yield with the least water is the need of the day. On behalf of Lokmangal, drip sets and quality organic fertilisers are being made available to farmers on easy instalments.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 9,
+    "slug": "lokmangal-farmers-guidance-meet-for-agriculture-and-sugarcane-growers-drip-irrigation",
+    "published_at": "2026-10-09 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 9,
@@ -285,7 +369,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "The launch of various development works worth crores of rupees, sanctioned by the government to provide quality roads and clean drinking water to every village in South Solapur taluka, was performed by MLA Subhash Deshmukh.",
     "content_en": "<p><strong>South Solapur:</strong> Saying he is committed to transforming the face of the constituency's rural areas, MLA Subhash (Bapu) Deshmukh performed the bhoomipujan of road asphalting, water supply schemes under the Jal Jeevan Mission and underground drainage works in various villages of the taluka.</p> <p>Thanks to MLA Subhash Deshmukh's consistent follow-up, a special development fund of crores of rupees has been sanctioned for South Solapur from the state government's budget. It includes upgrading rural hospitals, repairing primary health sub-centres and installing new transformers to provide a smooth three-phase power supply to farm pumps.</p> <p>“Meeting the basic needs of every citizen and making villages self-reliant is our politics. Once elections are over, we think only of development,” Deshmukh said at village meetings.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 10,
+    "slug": "bhoomipujan-of-development-works-worth-crores-for-roads-irrigation-and-water-supply-in",
+    "published_at": "2026-10-09 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 8,
@@ -307,7 +398,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "To look after the health of rural people, Lokmangal Foundation held a grand maha-health camp in the presence of expert doctors; free spectacles were distributed to hundreds of patients and surgeries planned.",
     "content_en": "<p><strong>Solapur:</strong> Because of the lack of health facilities in rural areas and the high cost of treatment, many poor patients are deprived of care. To overcome this, Lokmangal Foundation successfully organised a grand maha-health check-up camp and blood donation drive.</p> <p>A team of renowned cardiologists, eye specialists, gynaecologists and paediatricians from Pune, Mumbai and Solapur examined more than 5,000 villagers free of cost. Free ECG, blood tests, sugar and BP checks were done at the camp. All the necessary medicines were distributed free to needy patients.</p> <p><strong>Free cataract surgeries and blood donation:</strong> More than 300 senior citizens found to have cataracts will be operated on completely free of cost by Lokmangal. Young people also took part spontaneously, collecting more than 350 bags of blood and meeting the needs of the blood banks of Solapur district.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 7,
+    "slug": "lokmangal-maha-health-check-up-camp-and-blood-donation-drive-free-check-ups-treatment-and",
+    "published_at": "2026-10-10 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   },
   {
     "id": 7,
@@ -329,7 +427,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "Union Minister Nitin Gadkari, on a visit to Solapur, paid a courtesy call at MLA Subhash Deshmukh's residence and held an in-depth discussion on Solapur's bypass road (Ring Road), flyovers and industrial connectivity.",
     "content_en": "<p><strong>Solapur:</strong> Union Minister for Road Transport and Highways Nitin Gadkari paid a courtesy visit to the residence of South Solapur MLA Subhash (Bapu) Deshmukh during his Solapur tour. During the visit, the two senior leaders had an important discussion on infrastructure development of Solapur city and the rural areas, the network of national highways and industrial growth.</p> <p>MLA Subhash Deshmukh sought special funds from Gadkari for speedy completion of the planned Ring Road around Solapur city, a flyover on the Solapur–Vijayapur highway and the concreting of rural link roads. The Union Minister responded positively to these demands and directed the National Highways Authority officials to carry out the necessary survey immediately.</p> <p>This courtesy visit has brought fresh energy among BJP workers in Solapur district, and road development will give a big boost to Solapur's textile industry and the transport of agricultural produce.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 8,
+    "slug": "union-road-transport-minister-nitin-gadkari-pays-a-courtesy-visit-to-mla-subhash",
+    "published_at": "2026-10-10 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": 2
   },
   {
     "id": 6,
@@ -351,7 +456,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "To end water scarcity for good, Lokmangal Foundation ran a massive water-conservation campaign in drought-hit villages; thousands of acres of farmland now have protected irrigation.",
     "content_en": "<p><strong>Solapur:</strong> The drought-hit areas of Solapur and the neighbouring Dharashiv district had to depend on tankers for water every year. To overcome this crisis permanently, Lokmangal Foundation took up ‘Lokmangal Jalkranti’, a grand people's movement.</p> <p>With the help of the Foundation's heavy machinery, stream deepening, silt removal, cement stream bunds and farm ponds were completed on a war footing in over 100 villages in the Solapur South, North and Barshi areas. By stopping every drop of rainwater and letting it percolate into the ground, the water level of wells and borewells in the area has been recorded to have risen by as much as 4 to 6 feet.</p> <p><strong>Green crops in farmers' fields:</strong> With water available, farmers have been able to harvest a bumper yield of onion, jowar and vegetables in the rabi season. Many villages have proudly declared themselves tanker-free, and villagers have sincerely thanked Lokmangal for this Bhagirath effort.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 5,
+    "slug": "lokmangal-jalkranti-for-a-drought-free-future-stream-deepening-and-cement-check-dams-in",
+    "published_at": "2026-10-11 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": 3
   },
   {
     "id": 5,
@@ -373,7 +485,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "Ahead of the Solapur DCC Bank election, the resolution naming MLA Subhash Deshmukh as Lokmangal Bank's voting representative has been approved; he has raised his voice for transparency in the district bank and for the interests of farmers.",
     "content_en": "<p><strong>Solapur:</strong> Senior cooperative leader and MLA Subhash (Bapu) Deshmukh has made a powerful entry into the political arena of the Solapur District Central Cooperative Bank (DCC Bank) election. A resolution naming Subhash Deshmukh as the official representative of Lokmangal Urban Cooperative Bank has been passed unanimously.</p> <p>As Maharashtra's Cooperation Minister earlier, Subhash Deshmukh had taken significant legal steps to curb corruption in the cooperative sector and to bring financial discipline to cooperative banks. His active participation in the Solapur DCC Bank election has now turned the equations in the cooperative sector of the entire district.</p> <p><strong>Demand for transparency from the Divisional Joint Registrar:</strong> To prevent malpractice in the resolution process and to ensure that all primary cooperative societies get an equal right to vote, MLA Deshmukh has given the cooperation department a written request to follow the rules strictly. “The District Central Bank has been built from the hard-earned money of ordinary farmers. This bank must protect only the interests of farmers,” Deshmukh warned plainly.</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 6,
+    "slug": "solapur-district-central-bank-dcc-bank-election-mla-subhash-bapu-deshmukhs-resolution",
+    "published_at": "2026-10-11 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": 4
   },
   {
     "id": 4,
@@ -395,7 +514,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "The Lokmangal Annapurna Yojana is proving a lifeline for thousands of senior citizens, disabled and destitute people who go without two square meals a day; tiffins prepared with cleanliness and love are delivered straight to their homes.",
     "content_en": "<p><strong>Solapur:</strong> Putting into practice the motto “a morsel for the hungry and water for the thirsty”, the ‘Lokmangal Annapurna Yojana’ has become a genuine support for thousands of elderly and destitute people in Solapur city today. The initiative was started from the compassionate vision of Subhash Bapu Deshmukh, founder of Lokmangal Foundation.</p> <p>There are many elderly couples and destitute people who, because of illness or poverty, cannot cook for themselves. Tracing such families, Lokmangal's volunteers deliver a box of hot, fresh and nutritious food to their homes every afternoon and evening.</p> <p><strong>Special emphasis on cleanliness and quality:</strong> Extremely pure and sattvic food is prepared in Lokmangal's central kitchen. It contains a balanced meal of chapati, vegetable, dal-rice and nutritious ingredients. Thousands of families have benefited from the scheme so far, and many senior citizens have praised this service of Lokmangal wholeheartedly, with gratitude.</p>",
     "updated_at": "2026-10-19 05:56:35",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 3,
+    "slug": "lokmangal-annapurna-yojana-a-pillar-of-support-delivering-a-free-nutritious-meal-box",
+    "published_at": "2026-10-12 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": 2,
+    "random_order": null
   },
   {
     "id": 3,
@@ -417,7 +543,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "The Bharatiya Janata Party has announced a new 13-member core committee for Solapur city and the eastern region, in which senior leader MLA Subhash Deshmukh has been given a place of honour in the party's decision-making.",
     "content_en": "<p><strong>Solapur:</strong> The BJP's state leadership has announced a special 13-member core committee to give new momentum to the organisation in Solapur city and the eastern region. It includes the party's senior leader and South Solapur MLA Subhash (Bapu) Deshmukh.</p> <p>After the political developments of the past few months, Subhash Deshmukh has regained a place of honour in the party's highest local decision-making body, creating a wave of enthusiasm among workers. In the run-up to the upcoming Solapur Municipal Corporation, Zilla Parishad and Panchayat Samiti elections, this committee will draw up the party's strategy.</p> <p>Guiding the core committee at its very first review meeting, MLA Subhash Deshmukh said, “To work for the development of Solapur and to prove worthy of the trust of ordinary people, all the party's office-bearers and workers must work with one mind. Taking the people-friendly schemes of the Centre and the State to the last person will remain our main objective.”</p>",
     "updated_at": "2026-10-19 05:48:37",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 4,
+    "slug": "mla-subhash-bapu-deshmukh-included-in-the-new-core-committee-of-bjp-solapur-city-and",
+    "published_at": "2026-10-12 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": 5
   },
   {
     "id": 2,
@@ -439,7 +572,14 @@ window.ARTICLES_DATA = [
     "excerpt_en": "At the inter-faith community wedding ceremony organised with the inspiration of founder Subhash Bapu Deshmukh, hundreds of couples were married; Lokmangal Foundation stood by the brides and grooms by giving them a free mangalsutra, household utensils and a token of honour.",
     "content_en": "<p><strong>Solapur:</strong> Because economically weak families cannot afford the heavy cost of a wedding, farmers and working-class families are pushed into a mountain of debt. To overcome this social problem and to nurture the spirit of equal respect for all religions, Lokmangal Foundation once again organised a grand inter-faith community wedding ceremony in Solapur this year.</p> <p>Under the concept of founder-president Subhash Bapu Deshmukh, this initiative has been run without a break for the past two decades, and this year too hundreds of couples were married in a joyous ceremony according to their religious customs. The Foundation gave every participating bride and groom wedding clothes, haldi outfits, and, for the bride, a ceremonial gold mangalsutra, toe rings and a complete 51-piece set of utensils useful for setting up a home, all free of cost.</p> <p><strong>Meals and arrangements for thousands of relatives:</strong> A grand arrangement of delicious mahaprasad was made for the relatives and wedding guests of all the couples who took part. The brides and grooms were also counselled on the prevention of female foeticide and on family health.</p> <p>“Community weddings are the need of the hour, and they save poor farmers from sliding into the abyss of suicide. This ceremony is not merely a wedding; it is a step towards social revolution,” the office-bearers of Lokmangal Foundation said.</p>",
     "updated_at": "2026-10-21 06:48:19",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 1,
+    "slug": "grand-inter-faith-community-wedding-ceremony-in-solapur-by-lokmangal-foundation-hundreds",
+    "published_at": "2026-10-13 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": 1,
+    "random_order": null
   },
   {
     "id": 1,
@@ -461,6 +601,13 @@ window.ARTICLES_DATA = [
     "excerpt_en": "In the Solapur South Assembly constituency, Mahayuti and BJP candidate MLA Subhash (Bapu) Deshmukh secured 1,16,932 votes and won a resounding victory by a record margin of 77,127 votes.",
     "content_en": "<p><strong>Solapur:</strong> In the fiercely contested election in the Solapur South Assembly constituency, senior BJP leader and former Cooperation Minister MLA Subhash (Bapu) Sureshchandra Deshmukh has scored a historic victory. Fielded by the Mahayuti in this election, Subhash Deshmukh polled a record 1 lakh 16 thousand 932 votes. His nearest rival, Amar Ratikant Patil of the Shiv Sena (UBT), received 39,805 votes, and Deshmukh won this resounding victory by a huge margin of 77,127 votes.</p> <p>This is Subhash Bapu Deshmukh's third consecutive victory in the Solapur South constituency, and the people have once again expressed firm faith in his leadership. As soon as the result was announced, party workers in Solapur city and the southern taluka celebrated wildly with fireworks and showers of gulal.</p> <p><strong>MLA Subhash Deshmukh's address at the victory meeting:</strong> “This victory is not mine; it belongs to the people of South Solapur, the farmers, the mothers and sisters, and the loyal workers who toil day and night. I will repay the debt of this unprecedented mandate by keeping the stream of development in the constituency flowing without a break,” Deshmukh said confidently.</p> <p>In this election, voters gave an overwhelming verdict in favour of the firm stand Deshmukh took on rural irrigation projects, village roads, industrialisation and welfare schemes for farmers.</p>",
     "updated_at": "2026-10-19 06:00:05",
-    "is_latest": 1
+    "is_latest": 1,
+    "sort_order": 2,
+    "slug": "solapur-south-assembly-election-mla-subhash-bapu-deshmukhs-historic-victory-opponents",
+    "published_at": "2026-10-13 11:54:00",
+    "clicks": 0,
+    "is_review": 0,
+    "popular_order": null,
+    "random_order": null
   }
 ];

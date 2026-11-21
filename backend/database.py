@@ -113,6 +113,12 @@ CLICK_COLUMNS = {
     "articles": (("clicks", "INT UNSIGNED NOT NULL DEFAULT 0"),),
 }
 
+# The time a news / blog was published, in INDIA time (see pubtime.py): "Published on: Nov 21, 2026, 14:05:07 IST" on the website. Stamped with the current
+# time when a story is created (the Admin Panel can change it); NULL = an older story that only has its date text, which is shown without a time.
+PUBLISHED_COLUMNS = {
+    "articles": (("published_at", "DATETIME NULL"),),
+}
+
 
 # -------------------------------------------------------------
 # Connection
@@ -307,6 +313,7 @@ _placement_order_state = {"ok": False, "checked": 0.0}
 _order_state = {"ok": False, "checked": 0.0}
 _slug_state = {"ok": False, "checked": 0.0}
 _clicks_state = {"ok": False, "checked": 0.0}
+_published_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -455,6 +462,47 @@ def ensure_clicks_column() -> bool:
             raise
     _clicks_state.update(ok=False, checked=0.0)
     return has_clicks()
+
+
+def has_published() -> bool:
+    """True when `articles` has published_at (the time of publishing)."""
+    return _has_columns(PUBLISHED_COLUMNS, _published_state)
+
+
+def ensure_published_column() -> bool:
+    """An older database gets articles.published_at here (once, at start-up; every existing story = NULL: it keeps showing its date). Returns whether the column is there."""
+    if has_published():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN published_at DATETIME NULL")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _published_state.update(ok=False, checked=0.0)
+    return has_published()
+
+
+def backfill_published() -> int:
+    """Give every story that has only a date (published_at NULL) a time (start-up): its own date at the time of day - India time - the record was
+    created (created_at is UTC), so the website can show "Published on: Oct 13, 2026, 11:54:00 IST" on every story. A story that has a time is never
+    touched, a date that cannot be read is skipped. The Admin Panel can change any of these times. Returns how many stories were given one."""
+    if not has_published():
+        return 0
+    from seo import parse_date                                  # (seo imports this module)
+    done = 0
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, `date`, created_at FROM articles WHERE published_at IS NULL")
+        for row in cur.fetchall():
+            day, created = parse_date(row["date"]), row["created_at"]
+            if day is None or not isinstance(created, datetime):
+                continue
+            clock = (created + timedelta(hours=5, minutes=30)).time()
+            moment = datetime(day.year, day.month, day.day, clock.hour, clock.minute, clock.second)
+            cur.execute("UPDATE articles SET published_at = %s WHERE id = %s AND published_at IS NULL", (moment.strftime("%Y-%m-%d %H:%M:%S"), row["id"]))
+            done += cur.rowcount
+    return done
 
 
 def slugify(text: Any, limit: int = SLUG_LIMIT, _apostrophes: bool = False) -> str:
@@ -614,7 +662,8 @@ def _renumber_articles(cur, categories: tuple, move_id: Optional[int] = None, po
 
 def _date_order(rows: List[Dict[str, Any]]) -> List[int]:
     """Ids newest first by the publication date ("२४ ऑक्टोबर २०२६"); a date that cannot be read counts as the day the story was added
-    (or, without that, as the newest - a fresh story never disappears at the bottom). Same date: the later added first."""
+    (or, without that, as the newest - a fresh story never disappears at the bottom). Same date: the later published TIME (published_at) first,
+    then the later added."""
     from seo import parse_date                                  # (seo imports this module)
 
     def key(row):
@@ -622,14 +671,15 @@ def _date_order(rows: List[Dict[str, Any]]) -> List[int]:
         if day is None:
             added = row.get("created_at")
             day = added.date() if isinstance(added, datetime) else (parse_date(str(added or "")[:10]) or date.max)
-        return (day, int(row["id"]))
+        return (day, row.get("published_at") or datetime.min, int(row["id"]))        # (same day: the later TIME first, then the later added)
     return [r["id"] for r in sorted(rows, key=key, reverse=True)]
 
 
 def _renumber_by_date(cur, categories: tuple) -> None:
     """Number one AUTO_NUMBERED list 1..K by publication date (only the numbers that change are written)."""
     marks = ", ".join(["%s"] * len(categories))
-    cur.execute(f"SELECT id, `date`, created_at, sort_order FROM articles WHERE category IN ({marks})", tuple(categories))
+    published = ", published_at" if has_published() else ""
+    cur.execute(f"SELECT id, `date`, created_at, sort_order{published} FROM articles WHERE category IN ({marks})", tuple(categories))
     rows = cur.fetchall()
     now = {r["id"]: r["sort_order"] for r in rows}
     for number, row_id in enumerate(_date_order(rows), start=1):
@@ -689,6 +739,7 @@ def create_article(data: Dict[str, Any]) -> int:
     is_lead, is_popular, is_random = (_flag(data.get(f, 0)) for f in PLACEMENT_FIELDS)
     english = ARTICLE_EN if has_english() else ()
     flags = _optional_flags()
+    published = ("published_at",) if has_published() and data.get("published_at") else ()      # (an older story / a request with only a date: NULL)
 
     with connection() as conn:
         cur = conn.cursor()
@@ -697,8 +748,8 @@ def create_article(data: Dict[str, Any]) -> int:
         cur.execute(
             f"""INSERT INTO articles
                    (title, category, categoryLabel, author, `date`, image, excerpt, content, views,
-                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *flags))})
-               VALUES ({", ".join(["%s"] * (12 + len(english) + len(flags)))})""",
+                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *flags, *published))})
+               VALUES ({", ".join(["%s"] * (12 + len(english) + len(flags) + len(published)))})""",
             (
                 _text(data, "title"),
                 category,
@@ -714,6 +765,7 @@ def create_article(data: Dict[str, Any]) -> int:
                 is_random,
                 *(_text(data, c) for c in english),
                 *(_flag(data.get(f, 1 if f == "is_latest" else 0)) for f in flags),     # (listed in Latest News unless the form says no)
+                *((data["published_at"],) if published else ()),                 # (India time, 'YYYY-MM-DD HH:MM:SS' - see pubtime.py)
             ),
         )
         new_id = cur.lastrowid
@@ -740,7 +792,8 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
     fields: List[str] = []
     values: List[Any] = []
     for key in ("title", "category", "categoryLabel", "author", "date", "image", "excerpt", "content", "views",
-                *PLACEMENT_FIELDS, *_optional_flags(), *(ARTICLE_EN if has_english() else ())):
+                *PLACEMENT_FIELDS, *_optional_flags(), *(("published_at",) if has_published() else ()),
+                *(ARTICLE_EN if has_english() else ())):
         if key in data:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest", "is_review") else data[key])

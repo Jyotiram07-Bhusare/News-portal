@@ -23,7 +23,7 @@
   const LOGO = ORIGIN + "/assets/logo-192.jpg";
   const ORGANIZATION_ID = ORIGIN + "/#organization";
   const SUMMARY_CHARS = 190;
-  const OFFSET = "+05:30";                 // India: the editorial dates have no time of day
+  const OFFSET = "+05:30";                 // India. A story's time of day is its published_at; an older story only has its date (shown as midnight of that day)
   const PREVIEW_HOST = /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|\[::1\])$|\.(vercel\.app|amplifyapp\.com|local)$/i;
   const ROBOTS_LISTED = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
   const ROBOTS_HIDDEN = "noindex, nofollow";
@@ -163,10 +163,13 @@
       const title = String(a.title || "").trim();
       const summary = summaryOf(a.excerpt, a.content);
       const image = previewImage(a.image);
-      const published = isoDay(a._mr_date || a.date);
+      // the exact time of publishing (India time) when the story has one (published_at), else only its day (midnight of it)
+      const at = String(a.published_at || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
+      const published = at ? at[1] : isoDay(a._mr_date || a.date);
+      const publishedAt = at ? `${at[1]}T${at[2]}:${at[3] || "00"}${OFFSET}` : published ? `${published}T00:00:00${OFFSET}` : "";
       const stamp = String(a.updated_at || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
       let modified = stamp ? `${stamp[1]}T${stamp[2]}${OFFSET}` : "";
-      if (published && (!modified || modified < `${published}T00:00:00${OFFSET}`)) modified = `${published}T00:00:00${OFFSET}`;
+      if (publishedAt && (!modified || modified < publishedAt)) modified = publishedAt;
       const author = String(a.author || "").trim();
       const canonical = ORIGIN + "/" + view.path;
       const blog = a.category === "blogs";
@@ -181,7 +184,7 @@
         articleSection: section ? section[lang][0] : String(a.categoryLabel || ""),
         publisher: publisher(lang),
       };
-      if (published) { ld.datePublished = `${published}T00:00:00${OFFSET}`; ld.dateModified = modified; }
+      if (publishedAt) { ld.datePublished = publishedAt; ld.dateModified = modified; }
       if (author) ld.author = { "@type": /foundation|bureau|team|desk|portal|news|फाऊंडेशन|फाउंडेशन|ब्युरो|प्रतिनिधी|टीम|पोर्टल|न्यूज|मंच/i.test(author) ? "Organization" : "Person", name: author };
       return {
         title: `${title} | ${SITE[lang]}`, description: summary, image, type: "article", published: ld.datePublished, modified: ld.dateModified,

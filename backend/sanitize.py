@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 import nh3
 
+import pubtime
+
 
 class ValidationError(ValueError):
     """The request cannot be saved. The text is an English sentence for the Admin Panel."""
@@ -181,6 +183,20 @@ def article(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
             if text and not re.fullmatch(r"\d{1,4}", text):
                 raise ValidationError("The place number must be a whole number from 1 to 9999.")
             out[key] = whole_number(text, "The place number", minimum=1, maximum=9999) if text else None
+    # The time of publishing ("Published on: Nov 21, 2026, 14:05:07 IST"), India time. Empty = not sent: an update leaves it alone, a new story gets the
+    # current time below. The date text of the lists (`date`) is MADE from it, so a date that came along is ignored.
+    if "published_at" in data:
+        raw = data.get("published_at")
+        text = "" if raw is None else str(raw).strip()
+        if text:
+            moment = pubtime.parse(text)
+            if moment is None:
+                raise ValidationError("The publish date and time is not valid (write it like 2026-11-21 14:05).")
+            out["published_at"] = pubtime.stamp_text(moment)
+            out["date"] = pubtime.date_text(moment)
+    if creating and "published_at" not in out and not out.get("date"):
+        moment = pubtime.now()                                  # nothing about the date was said: it is published right now
+        out["published_at"], out["date"] = pubtime.stamp_text(moment), pubtime.date_text(moment)
     return out
 
 

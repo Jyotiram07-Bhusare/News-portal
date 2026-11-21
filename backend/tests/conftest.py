@@ -45,6 +45,8 @@ import database  # noqa: E402
 
 database.ensure_latest_column = lambda: True          # no MySQL in the tests
 database.ensure_order_column = lambda: True
+database.ensure_published_column = lambda: True
+database.backfill_published = lambda: 0
 database.ensure_slug_column = lambda: False          # (no MySQL: nothing to fill in)
 database.ensure_clicks_column = lambda: True
 database.ensure_review_column = lambda: True

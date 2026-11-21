@@ -2128,6 +2128,14 @@ body:has(.admin-modal-backdrop.open) {
   opacity: 1;
 }
 
+/* the time (India time) under the date of a news in the lists */
+.article-time {
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .lang-badge {
   display: inline-block;
   margin-left: 4px;

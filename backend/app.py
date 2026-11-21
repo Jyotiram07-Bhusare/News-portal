@@ -1033,6 +1033,8 @@ def create_app():
     try:
         database.ensure_latest_column()      # an older database gets articles.is_latest (the Latest News placement) once, here
         database.ensure_order_column()       # ... and articles.sort_order (the place number set in the Admin Panel)
+        if database.ensure_published_column():   # ... and articles.published_at (the time shown as "Published on: ... IST"); a story that has only a date gets a time
+            database.backfill_published()
         if database.ensure_slug_column():    # ... and articles.slug (the words of the address, /blog/<words>), filled in for the news that has none
             database.backfill_slugs()
         database.ensure_clicks_column()      # ... and articles.clicks (how often readers opened a news / blog: the Review section)

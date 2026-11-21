@@ -37,7 +37,8 @@ let appState = {
   commentsTotal: 0,              // every comment and reply there is / how many of them are reported (the numbers of the API's answer)
   commentsReported: 0,
   commentsLoaded: false,         // true once the first page really came from the backend
-  commentsFailed: false
+  commentsFailed: false,
+  publishedTouched: false        // the editor changed the publish date & time box of the open news form by hand (else a new news gets the second it is saved)
 };
 
 // Where the Python backend lives (js/config.js). "" = same address as this page.
@@ -406,10 +407,7 @@ function initDateDisplay() {
   const el = document.getElementById('current-date-text');
   if (el) el.textContent = formatted;
 
-  // Default date for new article form
-  const formDate = document.getElementById('form-article-date');
-  if (formDate && !formDate.value) formDate.value = formatted;
-
+  // (the news form has its own date-and-time box: see nowIst() / openNewArticleModal)
   const formWeeklyDate = document.getElementById('form-weekly-date');
   if (formWeeklyDate && !formWeeklyDate.value) formWeeklyDate.value = formatted;
 }
@@ -457,6 +455,40 @@ function pickDate(fieldId, iso) {
   field.value = marathiDateText(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
   field.dispatchEvent(new Event('input', { bubbles: true }));     // (the weekly form: a date chosen by hand is not replaced from the PDF's name)
 }
+
+// ---- Publish date & time of a news ("Published on: Nov 21, 2026, 14:05:07 IST" under its headline on the website) ----------------------------------
+// The news form's box holds INDIA time. A new news starts with the current India time and - while the editor does not touch the box - is published with
+// the exact second it is saved. An older news that has only a date (no time yet) starts with an EMPTY box and stays as it was until a time is chosen.
+const IST_CLOCK = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+});
+
+// the current India time as a date-and-time box wants it: 2026-11-21T14:05:07 (whatever time zone this computer is set to)
+function nowIst() {
+  const p = {};
+  IST_CLOCK.formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+}
+
+// "2026-11-21 14:05:07" (what the API keeps) <-> "2026-11-21T14:05:07" (what the box shows); '' when the news has no time
+const publishedToBox = (a) => (a && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(String(a.published_at || '')) ? String(a.published_at).replace(' ', 'T') : '');
+
+// The date of a news as the lists show it: the date text, and under it the time (India time) when the news has one
+function articleWhenHTML(a) {
+  const time = /^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2}:\d{2})/.exec(String(a.published_at || ''));
+  const dev = (s) => String(s).replace(/\d/g, (d) => '०१२३४५६७८९'[d]);
+  return escapeHtml(a.date) + (time ? `<div class="article-time">${dev(time[1])} IST</div>` : '');
+}
+
+// The date-and-time of the box (or of a saved news) as text for the preview: "२१ नोव्हेंबर २०२६, १४:०५:०७ IST"; '' when it is not a date and time
+function whenText(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(value || ''));
+  if (!m || +m[2] < 1 || +m[2] > 12) return '';
+  const months = ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'];
+  const dev = (s) => String(s).replace(/\d/g, (d) => '०१२३४५६७८९'[d]);
+  return `${dev(+m[3])} ${months[+m[2] - 1]} ${dev(m[1])}, ${dev(`${m[4]}:${m[5]}:${m[6] || '00'}`)} IST`;
+}
+const articleWhenText = (a) => whenText(publishedToBox(a)) || (a.date || '');
 
 // -------------------------------------------------------------
 // Data Fetching: REST API Calls
@@ -706,7 +738,7 @@ function renderRecentArticles() {
         <h4 class="recent-title" data-no-i18n>${escapeHtml(a.title)}</h4>
         <div class="recent-meta">
           <span class="category-pill pill-${escapeHtml(a.category)}">${escapeHtml(a.categoryLabel || a.category)}</span>
-          <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(a.date)}</span>
+          <span><i class="fa-regular fa-calendar"></i> ${escapeHtml(articleWhenText(a))}</span>
           <span><i class="fa-regular fa-eye"></i> ${escapeHtml(a.views)}</span>
         </div>
       </div>
@@ -840,7 +872,7 @@ function renderArticlesTable() {
           </button>
         </div>
       </td>
-      <td style="font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(a.date)}</td>
+      <td style="font-size: 0.85rem; color: var(--text-secondary);">${articleWhenHTML(a)}</td>
       <td style="font-weight: 600;">${escapeHtml(a.views || '1.2K')}</td>
       <td>
         <div class="table-actions">
@@ -942,7 +974,7 @@ function openNewArticleModal() {
   if (reviewChk) reviewChk.checked = false;
 
   document.getElementById('form-article-author').value = 'विशेष बातमीदार';
-  document.getElementById('form-article-date').value = '';                 // (initDateDisplay below puts today's date: never what the form held before)
+  document.getElementById('form-article-date').value = '';                 // (the current India time is put in below: never what the form held before)
   document.getElementById('form-article-views').value = '1.8K';
   document.getElementById('form-article-order').value = '';               // (news / blog: its date gives the number; Review: empty = by recency)
   syncOrderField();
@@ -958,7 +990,8 @@ function openNewArticleModal() {
   setFormLang('article-modal', sidebarLang());
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बातमी प्रकाशित करा';
 
-  initDateDisplay();
+  document.getElementById('form-article-date').value = nowIst();           // (the current India time; saved with the exact second of saving unless the editor changes it)
+  appState.publishedTouched = false;
   document.getElementById('article-modal').classList.add('open');
 }
 
@@ -985,7 +1018,8 @@ function openEditArticleModal(articleId) {
   if (reviewChk) reviewChk.checked = Number(a.is_review) === 1;
 
   document.getElementById('form-article-author').value = a.author || 'प्रतिनिधी';
-  document.getElementById('form-article-date').value = a.date || '';
+  document.getElementById('form-article-date').value = publishedToBox(a);      // (empty for an older news that has only a date: it stays as it is until a time is chosen)
+  appState.publishedTouched = false;
   document.getElementById('form-article-views').value = a.views || '1.5K';
   document.getElementById('form-article-order').value = a.sort_order || '';
   syncOrderField();
@@ -1126,7 +1160,10 @@ async function handleArticleFormSubmit(e) {
   const title = document.getElementById('form-article-title').value.trim();
   const category = document.getElementById('form-article-category').value;
   const author = document.getElementById('form-article-author').value.trim();
-  const date = document.getElementById('form-article-date').value.trim();
+  // the time of publishing (India time): a NEW news that the editor did not change gets the exact second it is saved; an edited news keeps what the box
+  // shows (an empty box = an older news without a time: nothing is sent, it stays as it was)
+  const dateBox = document.getElementById('form-article-date').value.trim();
+  const published_at = appState.editingArticleId ? dateBox : (appState.publishedTouched && dateBox ? dateBox : nowIst());
   const views = document.getElementById('form-article-views').value.trim() || '1.5K';
   const image = document.getElementById('form-article-image').value.trim();
   if (!image) {
@@ -1168,7 +1205,7 @@ async function handleArticleFormSubmit(e) {
     popular_order: is_popular ? (parseInt(document.getElementById('form-article-popular-order').value, 10) || null) : null,   // (empty: put in now = #1)
     random_order: is_random ? (parseInt(document.getElementById('form-article-random-order').value, 10) || null) : null,
     author,
-    date,
+    ...(published_at ? { published_at } : {}),                  // (the date text of the lists is made from it by the backend)
     views,
     image,
     excerpt,
@@ -1256,7 +1293,7 @@ function openPreviewArticle(articleId) {
   document.getElementById('prev-badge').textContent = a.categoryLabel || a.category;
   document.getElementById('prev-title').textContent = a.title;
   document.getElementById('prev-author').textContent = a.author || 'प्रतिनिधी';
-  document.getElementById('prev-date').textContent = a.date || '';
+  document.getElementById('prev-date').textContent = articleWhenText(a);
   document.getElementById('prev-views').textContent = `${a.views || '1.5K'} वाचक`;
   
   const img = document.getElementById('prev-img');
@@ -1270,7 +1307,8 @@ function previewArticleBeforeSubmit() {
   const title = document.getElementById('form-article-title').value.trim() || 'नमुना शीर्षक';
   const cat = document.getElementById('form-article-category').value;
   const author = document.getElementById('form-article-author').value.trim() || 'प्रतिनिधी';
-  const date = document.getElementById('form-article-date').value.trim() || 'आज';
+  const known = appState.editingArticleId ? (appState.articles || []).find((x) => x.id === appState.editingArticleId) : null;
+  const date = whenText(document.getElementById('form-article-date').value) || (known && known.date) || 'आज';
   const image = document.getElementById('form-article-image').value.trim();
   const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim()) || '<p>बातमी मजकूर...</p>';
 

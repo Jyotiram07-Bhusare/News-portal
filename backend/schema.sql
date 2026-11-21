@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS articles (
   random_order  INT           NULL,                                 -- the place inside the Random widget (1 = top), NULL when not in Random
   slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>): made when the news is created, never changed by an edit
   clicks        INT UNSIGNED  NOT NULL DEFAULT 0,                   -- how often readers opened it (POST /api/articles/<id>/read): the website shows views + clicks, its Review section lists the most viewed
+  published_at  DATETIME      NULL,                                 -- when it was published, in INDIA time (IST), shown on the website as "Published on ... IST" - NULL = an older story that only has its date text
   PRIMARY KEY (id),
   KEY idx_articles_category (category)
 ) ENGINE=InnoDB AUTO_INCREMENT=10000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

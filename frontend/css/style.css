@@ -836,6 +836,14 @@ a.ad-slide:focus-visible {
   letter-spacing: -0.2px;
 }
 
+/* "Published on: Nov 21, 2026, 14:05:07 IST" - the small grey line right under the headline of a news / blog, above the photo (js/app.js publishedLineHTML) */
+.post-published {
+  margin: -4px 0 14px;                 /* tucked under the headline (which has its own bottom margin) */
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--meta-color);
+}
+
 /* Author Meta Line */
 .author-meta-bar {
   display: flex;

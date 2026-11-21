@@ -175,6 +175,7 @@
     E("पोर्टलवरील स्थान व विभाग व्यवस्थापन", "Section placements", "Section Placements"),
     E("बातमीदार / प्रतिनिधी", "Reporter / author"),
     E("बातमीदार / प्रतिनिधी (इंग्रजी)", "Reporter / author (English)"),
+    E("प्रकाशन तारीख व वेळ (IST)", "Publish date & time (IST)"),
     E("वाचक संख्या", "View count", "Views"),
     E("बातमीचा फोटो", "Article photo", "Image"),
     E("संगणकातून फोटो निवडा", "Choose a photo from your computer", "Upload Image"),

@@ -1885,6 +1885,11 @@ button:focus-visible,
     line-height: 1.4;
   }
 
+  .view-home .post-published {
+    order: 0;                                   /* (same place as the headline: it follows it in the page, so it stays right under it, above the photo) */
+    margin: -6px 0 14px;
+  }
+
   .more-posts-title {
     font-size: 18px;
   }
