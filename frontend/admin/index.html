@@ -666,11 +666,21 @@
           <!-- Content with Rich Helpers -->
           <div class="form-group" data-lang-field="mr">
             <label for="form-article-content">सविस्तर बातमी मजकूर <span class="req">*</span></label>
-            <textarea id="form-article-content" rows="9" class="form-control" required placeholder="बातमीचा सविस्तर मजकूर येथे लिहा… (नवा परिच्छेद सुरू करण्यासाठी एक ओळ सोडा)"></textarea>
+            <textarea id="form-article-content" rows="9" class="form-control" required placeholder="बातमीचा सविस्तर मजकूर येथे लिहा… (नवा परिच्छेद: Enter दाबा)"></textarea>
           </div>
           <div class="form-group" data-lang-field="en" hidden>
             <label for="form-article-content-en">Full story (English)</label>
-            <textarea id="form-article-content-en" rows="9" class="form-control" placeholder="Write the full story in English here… (leave a blank line to start a new paragraph)"></textarea>
+            <textarea id="form-article-content-en" rows="9" class="form-control" placeholder="Write the full story in English here… (press Enter for a new paragraph)"></textarea>
+          </div>
+
+          <!-- Tags (topics): chips - admin-tags.js -->
+          <div class="form-group" data-lang-field="mr">
+            <label for="form-article-tags-input">टॅग (विषय)</label>
+            <input type="hidden" id="form-article-tags" data-placeholder="टॅग लिहा आणि Enter दाबा">
+          </div>
+          <div class="form-group" data-lang-field="en" hidden>
+            <label for="form-article-tags-en-input">Tags (English)</label>
+            <input type="hidden" id="form-article-tags-en" data-placeholder="Type a tag and press Enter">
           </div>
 
           <div class="modal-footer">
@@ -1007,6 +1017,8 @@
   <script src="/js/env-config.js"></script>
   <script src="/js/config.js"></script>
   <script src="/admin/admin-i18n.js"></script>
+  <script src="/admin/admin-editor.js"></script>
+  <script src="/admin/admin-tags.js"></script>
   <script src="/admin/admin.js"></script>
   <script src="/admin/admin-videos.js"></script>
   <script src="/admin/admin-ads.js"></script>

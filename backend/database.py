@@ -118,6 +118,11 @@ CLICK_COLUMNS = {
 PUBLISHED_COLUMNS = {
     "articles": (("published_at", "DATETIME NULL"),),
 }
+# The tags (topics) of a news / blog, Marathi and English: "tag one, tag two" (sanitize.tags). The website shows them under the story; a tag opens
+# all the stories that carry it.
+TAG_COLUMNS = {
+    "articles": (("tags", "VARCHAR(1000) NOT NULL DEFAULT ''"), ("tags_en", "VARCHAR(1000) NOT NULL DEFAULT ''")),
+}
 
 
 # -------------------------------------------------------------
@@ -314,6 +319,7 @@ _order_state = {"ok": False, "checked": 0.0}
 _slug_state = {"ok": False, "checked": 0.0}
 _clicks_state = {"ok": False, "checked": 0.0}
 _published_state = {"ok": False, "checked": 0.0}
+_tags_state = {"ok": False, "checked": 0.0}
 
 
 def _has_columns(spec: Dict[str, Any], state: Dict[str, Any]) -> bool:
@@ -483,6 +489,26 @@ def ensure_published_column() -> bool:
     return has_published()
 
 
+def has_tags() -> bool:
+    """True when `articles` has tags and tags_en."""
+    return _has_columns(TAG_COLUMNS, _tags_state)
+
+
+def ensure_tag_columns() -> bool:
+    """An older database gets articles.tags / tags_en here (once, at start-up; every existing story has no tags). Returns whether the columns are there."""
+    if has_tags():
+        return True
+    for name, ddl in TAG_COLUMNS["articles"]:
+        try:
+            with connection() as conn:
+                conn.cursor().execute(f"ALTER TABLE articles ADD COLUMN {name} {ddl}")
+        except pymysql.err.OperationalError as e:
+            if not (e.args and e.args[0] == 1060):              # 1060 = the column exists already (another process was first)
+                raise
+    _tags_state.update(ok=False, checked=0.0)
+    return has_tags()
+
+
 def backfill_published() -> int:
     """Give every story that has only a date (published_at NULL) a time (start-up): its own date at the time of day - India time - the record was
     created (created_at is UTC), so the website can show "Published on: Oct 13, 2026, 11:54:00 IST" on every story. A story that has a time is never
@@ -599,8 +625,9 @@ def get_articles(category: Optional[str] = None, search: Optional[str] = None,
         sql += f" AND {column} = 1"
 
     if search:
-        sql += " AND (title LIKE %s OR excerpt LIKE %s OR content LIKE %s OR author LIKE %s)"
-        params.extend([_like(search)] * 4)
+        columns = ("title", "excerpt", "content", "author", *(("tags", "tags_en") if has_tags() else ()))
+        sql += " AND (" + " OR ".join(f"{c} LIKE %s" for c in columns) + ")"
+        params.extend([_like(search)] * len(columns))
 
     sql += " ORDER BY id DESC"
     if limit and limit > 0:
@@ -740,6 +767,7 @@ def create_article(data: Dict[str, Any]) -> int:
     english = ARTICLE_EN if has_english() else ()
     flags = _optional_flags()
     published = ("published_at",) if has_published() and data.get("published_at") else ()      # (an older story / a request with only a date: NULL)
+    tag_columns = ("tags", "tags_en") if has_tags() else ()
 
     with connection() as conn:
         cur = conn.cursor()
@@ -748,8 +776,8 @@ def create_article(data: Dict[str, Any]) -> int:
         cur.execute(
             f"""INSERT INTO articles
                    (title, category, categoryLabel, author, `date`, image, excerpt, content, views,
-                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *flags, *published))})
-               VALUES ({", ".join(["%s"] * (12 + len(english) + len(flags) + len(published)))})""",
+                    is_lead, is_popular, is_random{"".join(f", {c}" for c in (*english, *flags, *published, *tag_columns))})
+               VALUES ({", ".join(["%s"] * (12 + len(english) + len(flags) + len(published) + len(tag_columns)))})""",
             (
                 _text(data, "title"),
                 category,
@@ -766,6 +794,7 @@ def create_article(data: Dict[str, Any]) -> int:
                 *(_text(data, c) for c in english),
                 *(_flag(data.get(f, 1 if f == "is_latest" else 0)) for f in flags),     # (listed in Latest News unless the form says no)
                 *((data["published_at"],) if published else ()),                 # (India time, 'YYYY-MM-DD HH:MM:SS' - see pubtime.py)
+                *(_text(data, c) for c in tag_columns),
             ),
         )
         new_id = cur.lastrowid
@@ -793,7 +822,7 @@ def update_article(article_id: int, data: Dict[str, Any]) -> bool:
     values: List[Any] = []
     for key in ("title", "category", "categoryLabel", "author", "date", "image", "excerpt", "content", "views",
                 *PLACEMENT_FIELDS, *_optional_flags(), *(("published_at",) if has_published() else ()),
-                *(ARTICLE_EN if has_english() else ())):
+                *(("tags", "tags_en") if has_tags() else ()), *(ARTICLE_EN if has_english() else ())):
         if key in data:
             fields.append(f"`{key}` = %s")
             values.append(_flag(data[key]) if key in (*PLACEMENT_FIELDS, "is_latest", "is_review") else data[key])

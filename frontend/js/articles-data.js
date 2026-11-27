@@ -28,7 +28,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 103,
@@ -57,7 +59,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": 1
+    "random_order": 1,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 102,
@@ -86,7 +90,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 101,
@@ -115,7 +121,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 100,
@@ -144,7 +152,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 16,
@@ -173,7 +183,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 15,
@@ -202,7 +214,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 14,
@@ -231,7 +245,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 13,
@@ -260,7 +276,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 12,
@@ -289,7 +307,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 11,
@@ -318,7 +338,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 10,
@@ -347,7 +369,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 9,
@@ -376,7 +400,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 8,
@@ -405,7 +431,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 7,
@@ -434,7 +462,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": 2
+    "random_order": 2,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 6,
@@ -463,7 +493,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": 3
+    "random_order": 3,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 5,
@@ -492,7 +524,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": 4
+    "random_order": 4,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 4,
@@ -521,7 +555,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": 2,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 3,
@@ -550,7 +586,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": 5
+    "random_order": 5,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 2,
@@ -579,7 +617,9 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": 1,
-    "random_order": null
+    "random_order": null,
+    "tags": "",
+    "tags_en": ""
   },
   {
     "id": 1,
@@ -608,6 +648,8 @@ window.ARTICLES_DATA = [
     "clicks": 0,
     "is_review": 0,
     "popular_order": null,
-    "random_order": null
+    "random_order": null,
+    "tags": "सुभाष बापू देशमुख, सोलापूर दक्षिण, विधानसभा निवडणूक, भाजप, महायुती",
+    "tags_en": "Subhash Bapu Deshmukh, Solapur South, Assembly Election, BJP, Mahayuti"
   }
 ];

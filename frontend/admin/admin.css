@@ -2681,3 +2681,355 @@ body.dark-theme .uploader-preview-wrap.is-empty {
   background: #fef3c7;
   color: #92400e;
 }
+
+/* ============================================================
+   The writing boxes with formatting tools (admin-editor.js)
+   ============================================================ */
+.re {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.re:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
+}
+
+.re-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--border-subtle);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.re-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.re-btn:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.re-btn.is-on,
+.re-btn.is-on:hover {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+}
+
+.re-btn:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
+.re-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  background: var(--border-color);
+}
+
+.re-body {
+  position: relative;
+}
+
+.re-area {
+  overflow-y: auto;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  outline: none;
+  resize: vertical;
+}
+
+.re-full .re-area {
+  height: 320px;
+  min-height: 160px;
+}
+
+.re-inline .re-area {
+  min-height: 62px;
+  max-height: 220px;
+}
+
+.re-placeholder {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.re.is-empty .re-placeholder {
+  display: block;
+}
+
+/* what is written looks the way it will on the website (the preview too) */
+.re-area p {
+  margin: 0 0 12px;
+}
+
+.re-area h2,
+.preview-content h2 {
+  margin: 16px 0 8px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.re-area h3,
+.preview-content h3 {
+  margin: 14px 0 6px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.re-area h4,
+.preview-content h4 {
+  margin: 12px 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.re-area ul,
+.re-area ol,
+.preview-content ul,
+.preview-content ol {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.re-area ul,
+.preview-content ul {
+  list-style: disc;
+}
+
+.re-area ol,
+.preview-content ol {
+  list-style: decimal;
+}
+
+.re-area li,
+.preview-content li {
+  margin-bottom: 4px;
+}
+
+.re-area blockquote,
+.preview-content blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 4px solid var(--brand-primary);
+}
+
+.re-area img,
+.preview-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.re-area .article-table-wrap,
+.preview-content .article-table-wrap {
+  overflow-x: auto;
+}
+
+.re-area table,
+.preview-content table {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+}
+
+.re-area th,
+.re-area td,
+.preview-content th,
+.preview-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.re-area a {
+  color: var(--brand-blue);
+  text-decoration: underline;
+}
+
+@media (max-width: 992px) {
+  .re-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .re-area,
+  .re-placeholder {
+    font-size: 16px;                    /* 16 px: iPhones do not zoom into the box */
+  }
+}
+
+/* ============================================================
+   Tags (topics) of a news - admin-tags.js
+   ============================================================ */
+.tag-box {
+  padding: 6px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: text;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tag-box:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
+}
+
+.tag-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag-list,
+.tag-suggest-list {
+  display: contents;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  background: rgba(211, 47, 47, 0.1);
+  border: 1px solid rgba(211, 47, 47, 0.3);
+  border-radius: var(--radius-full);
+}
+
+.tag-chip-text,
+.tag-chip-remove {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.tag-chip-text {
+  padding: 4px 4px 4px 12px;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.tag-chip-remove {
+  padding: 3px 10px 3px 6px;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.tag-chip-remove:hover {
+  color: var(--brand-primary);
+}
+
+.tag-entry {
+  flex: 1 1 180px;
+  min-width: 140px;
+  padding: 5px 4px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.tag-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.tag-suggest[hidden] {
+  display: none;
+}
+
+.tag-suggest-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.tag-suggestion {
+  padding: 3px 11px;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.tag-suggestion:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.article-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.article-tag-list span {
+  padding: 1px 8px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 992px) {
+  .tag-chip-text,
+  .tag-chip-remove,
+  .tag-suggestion {
+    min-height: 38px;
+  }
+
+  .tag-entry {
+    min-height: 40px;
+    font-size: 16px;                    /* 16 px: iPhones do not zoom into the box */
+  }
+}

@@ -365,6 +365,38 @@ const issueLabel = (a) => (a && a.date) || "";
 const thumbOf = (img) => (/^assets\/weekly\/\d+\.jpg$/.test(String(img || "")) ? String(img).replace(/\.jpg$/, "-s.jpg") : img);
 const hasViews = (v) => !!String(v == null ? "" : v).trim() && String(v).trim() !== "—";
 const escText = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));   // also safe inside an attribute
+// A SHORT text (summary, weekly introduction, video description) may carry bold / italic / underline and line breaks (Admin Panel writing boxes).
+// inlineHTML: shown that way - everything is escaped first and only exactly those tags are switched on again. plainOf: the words only (search, speech).
+const ENTITIES = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&nbsp;": " " };
+const decodeEntities = (t) => String(t == null ? "" : t).replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (e) => ENTITIES[e]);
+const inlineHTML = (t) => escText(decodeEntities(t)).replace(/&lt;(\/?(?:strong|b|em|i|u)|br\s*\/?)&gt;/gi, "<$1>");
+const plainOf = (t) => decodeEntities(String(t == null ? "" : t).replace(/<br\s*\/?>/gi, " ").replace(/<\/?(?:strong|b|em|i|u)>/gi, ""));
+
+// ---- Tags (topics) ------------------------------------------------------------------------------------------------------------------------
+// A story keeps its tags as one text, "tag one, tag two" (tags = Marathi, tags_en = English: shown in English when there are any, else the Marathi
+// ones). A tag opens ?tag=<name>: every news / blog / review that carries it in either language, so the link keeps working after a language switch.
+const splitTags = (t) => String(t == null ? "" : t).split(",").map((x) => x.trim()).filter(Boolean);
+const tagKey = (t) => String(t).normalize("NFC").trim().toLowerCase();
+const tagsOf = (a) => { const en = getLang() === "en" ? splitTags(a.tags_en) : []; return en.length ? en : splitTags(a.tags); };
+const tagKeysOf = (a) => [...splitTags(a.tags), ...splitTags(a.tags_en)].map(tagKey);
+const storiesWithTag = (tag) => articlesData.filter((a) => a.category !== "weekly" && tagKeysOf(a).includes(tagKey(tag)));
+// "#भाजप" typed into a search box: that tag (as it is written in the stories), "" when no story has it
+const tagSearched = (q) => {
+  const typed = String(q || "").trim();
+  if (!typed.startsWith("#")) return "";
+  const wanted = tagKey(typed.slice(1));
+  for (const a of articlesData) {
+    const hit = [...splitTags(a.tags), ...splitTags(a.tags_en)].find((t) => tagKey(t) === wanted);
+    if (hit) return hit;
+  }
+  return "";
+};
+const sharedTags = (a, b) => { const mine = tagKeysOf(a); return tagKeysOf(b).filter((t) => mine.includes(t)).length; };
+const tagLinkHTML = (t) => `<span class="article-tag" data-no-i18n><a class="tag-link" href="${escText(pathForKey("tag-" + t))}" data-route="${escText("tag-" + t)}">#${escText(t)}</a></span>`;
+const articleTagsHTML = (a) => {
+  const list = tagsOf(a);
+  return list.length ? `<div class="article-tags"><span class="article-tags-label"><i class="fa-solid fa-tags"></i> <span>टॅग</span>:</span>${list.map(tagLinkHTML).join("")}</div>` : "";
+};
 // English text of the content that is built into the site (js/content-en.js): the news by id, the weekly issues by number.
 // It only FILLS what is empty - English typed in the Admin Panel (title_en ...) always wins.
 const BUILT_IN_EN = (window.LOKMANGAL_CONTENT_EN && window.LOKMANGAL_CONTENT_EN.articles) || {};
@@ -377,7 +409,7 @@ function makeWeeklyArticle(item) {
   return {
     title_en: item.titleEn || builtIn.title || "",
     excerpt_en: descEn,
-    content_en: descEn ? `<p>${escText(descEn)}</p>` : "",
+    content_en: descEn ? `<p>${inlineHTML(descEn)}</p>` : "",
     id: 1000 + item.no,
     issue: item.no,
     title: item.title,
@@ -389,7 +421,7 @@ function makeWeeklyArticle(item) {
     image: item.img,
     thumb: item.thumb || thumbOf(item.img),
     excerpt: desc,
-    content: desc ? `<p>${escText(desc)}</p>` : "",
+    content: desc ? `<p>${inlineHTML(desc)}</p>` : "",
     views: item.views
   };
 }
@@ -595,8 +627,8 @@ const searchKey = (s) => devToAscii(String(s == null ? "" : s).toLowerCase());
 // The first news item whose headline / text has the words; otherwise the NEWEST weekly issue that matches
 // (by headline, short text or date: "२४ सप्टेंबर २०२५", "24 सप्टेंबर 2025").
 function findArticleByQuery(q) {
-  const k = searchKey(q);
-  const hit = (a) => searchKey([a.title, a._mr_title, a.title_en, a.excerpt, a._mr_excerpt, a.excerpt_en].filter(Boolean).join(" ")).includes(k)
+  const k = searchKey(q).trim().replace(/^#/, "");
+  const hit = (a) => searchKey([a.title, a._mr_title, a.title_en, plainOf(a.excerpt), plainOf(a._mr_excerpt), plainOf(a.excerpt_en), a.tags, a.tags_en].filter(Boolean).join(" ")).includes(k)
     || (a.category === "weekly" && searchKey(a.date + " " + (a._mr_date || "")).includes(k));
   return articlesData.find((a) => a.category !== "weekly" && hit(a)) || weeklyIssues().find(hit);
 }
@@ -1365,13 +1397,13 @@ function videoDateText(createdAt) {
 // A video as the page shows it right now: the language chosen (title_en / description_en when English is on), its length and date, and
 // every text made safe for HTML (a title may contain " or <). The sample videos are Marathi text that js/i18n.js translates after drawing.
 function videoView(v) {
-  if (!v.uploaded) return { ...v, title: escText(v.title), description: escText(v.description) };
+  if (!v.uploaded) return { ...v, title: escText(v.title), description: inlineHTML(v.description) };
   const en = getLang() === "en";
   const text = (mr, enText) => escText(en && enText && String(enText).trim() ? enText : mr);
   return {
     ...v,
     title: text(v.title, v.title_en),
-    description: text(v.description, v.description_en),
+    description: inlineHTML(en && v.description_en && plainOf(v.description_en).trim() ? v.description_en : v.description),
     duration: videoLengthText(v.duration_sec),
     date: videoDateText(v.created_at),
     categoryLabel: "व्हिडिओ",
@@ -1610,6 +1642,12 @@ function initDrawerSearch() {
     const q = input.value.trim().toLowerCase();
     if (!q) return;
 
+    const tag = tagSearched(q);
+    if (tag) {                                       // "#tag": all the stories of that tag
+      closeDrawer();
+      navigate("tag-" + tag);
+      return;
+    }
     const found = findArticleByQuery(q);
 
     if (found) {
@@ -1652,6 +1690,12 @@ function initSearch() {
       const query = input.value.trim().toLowerCase();
       if (!query) return;
 
+      const tag = tagSearched(query);
+      if (tag) {                                     // "#tag": all the stories of that tag
+        if (bar) bar.classList.remove("show");
+        navigate("tag-" + tag);
+        return;
+      }
       const found = findArticleByQuery(query);
 
       if (found) {
@@ -1696,6 +1740,7 @@ const routeForCategory = (cat) => (cat === "all" ? "" : cat === "weekly" ? "week
 function queryForKey(key) {
   let m;
   if (!key) return "";
+  if (key.startsWith("tag-")) return "tag=" + encodeURIComponent(key.slice(4));
   if (key === "weekly") return "cat=weekly";
   if ((m = key.match(/^(post|issue)-(\d+)$/))) return m[1] + "=" + m[2];
   if ((m = key.match(/^cat-(rajkiy|samajik|blogs|review)$/))) return "cat=" + m[1];
@@ -1770,7 +1815,8 @@ const routeKeyOf = (r) =>
     : r.type === "issue" ? "issue-" + r.no
       : r.type === "cat" ? "cat-" + r.cat
         : r.type === "post" ? "post-" + r.id
-          : "";
+          : r.type === "tag" ? "tag-" + r.tag
+            : "";
 
 // the view named in the address: "?post=12" (or ?issue= / ?cat=); null when the query names none
 function routeFromQuery(search) {
@@ -1778,6 +1824,7 @@ function routeFromQuery(search) {
   const unknown = { type: "home", unknown: true };
   if (q.has("post")) return /^\d+$/.test(q.get("post")) ? { type: "post", id: parseInt(q.get("post"), 10) } : unknown;
   if (q.has("issue")) return /^\d+$/.test(q.get("issue")) ? { type: "issue", no: parseInt(q.get("issue"), 10) } : unknown;
+  if (q.has("tag")) { const tag = q.get("tag").trim(); return tag && tag.length <= 80 ? { type: "tag", tag } : unknown; }
   if (q.has("cat")) {
     const cat = q.get("cat");
     return cat === "weekly" ? { type: "weekly" } : /^(rajkiy|samajik|blogs|review)$/.test(cat) ? { type: "cat", cat } : unknown;
@@ -1900,11 +1947,22 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     showRouteLoading();
     return;
   }
+  if (r.type === "tag" && !storiesWithTag(r.tag).length && apiSyncPending) {     // (the tag may belong to a story the backend still brings)
+    showRouteLoading();
+    return;
+  }
   if (r.unknown) replaceUrl("");
   // an old "#post-<weekly article id>" link becomes the proper "#issue-<number>" address
   if (r.type === "post" && article.category === "weekly" && article.issue) replaceUrl("issue-" + article.issue);
 
-  if (article) {
+  if (r.type === "tag") {
+    currentCategory = "tag";
+    renderedRoute = routeKeyOf(r);
+    renderTagView(r.tag);
+    updateNavActiveStates(currentCategory);
+    setDocTitle(`#${r.tag}`);
+    seoForView("tag", renderedRoute, { tag: r.tag });
+  } else if (article) {
     renderedRoute = routeForArticle(article);
     renderArticleView(article);
     updateNavActiveStates(article.category);
@@ -1935,10 +1993,10 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
 
 // What search engines and a pasted link read for the view that is on the screen (js/seo.js): title, description, canonical address, preview
 // tags, structured data. The page works without it.
-function seoForView(kind, key, { article = null, section = "" } = {}) {
+function seoForView(kind, key, { article = null, section = "", tag = "" } = {}) {
   if (!window.LokmangalSEO) return;
   window.LokmangalSEO.apply({
-    kind, section, article, path: pathForKey(key).slice(1),
+    kind, section, article, tag, path: pathForKey(key).slice(1),
     sectionPath: article ? pathForKey(routeForCategory(article.category)).slice(1) : "",
   });
 }
@@ -2000,6 +2058,26 @@ const crumbHTML = (items) => items.map((it, i) => {
     ? `<a href="${it.route === undefined ? "javascript:void(0)" : hrefForKey(it.route)}"${it.route === undefined ? "" : ` data-route="${it.route}"`} onclick="${it.onclick}">${it.label}</a>`
     : `<span class="crumb-current">${it.label}</span>`);
 }).join("");
+
+// ---- ONE TAG: every news / blog / review that carries it ----
+function renderTagView(tag) {
+  currentView = "tag";
+  currentArticleId = null;
+  const container = document.getElementById("main-content-container");
+  if (!container) return;
+  const stories = storiesWithTag(tag);
+  const name = `#${escText(tag)}`;
+  const count = getLang() === "en" ? `${stories.length} ${stories.length === 1 ? "story" : "stories"}`
+    : `${toDevanagari(stories.length)} ${stories.length === 1 ? "बातमी" : "बातम्या"}`;
+  container.className = "main-content-box view-tag";
+  container.innerHTML = `
+    <div class="breadcrumb-bar" id="main-breadcrumb">
+      ${crumbHTML([{ label: "Home", onclick: "returnToHomeFeed()", route: "" }, { label: `<span data-no-i18n>${name}</span>` }])}
+    </div>
+    <h1 class="tag-page-title" id="main-headline-text" data-no-i18n>${name}</h1>
+    <p class="tag-page-count" data-no-i18n>${count}</p>
+    <div id="secondary-posts-feed">${stories.length ? stories.map(postRowHTML).join("") : `<p class="empty-note">या टॅगच्या बातम्या सध्या नाहीत.</p>`}</div>`;
+}
 
 // ---- HOME: latest news story first, then the News section ----
 function renderHomeView(container) {
@@ -2085,7 +2163,7 @@ function weeklyLatestHTML(a) {
           <span><i class="fa-regular fa-calendar"></i> ${a.date}</span>
           ${hasViews(a.views) ? `<span><i class="fa-regular fa-eye"></i> ${a.views} वाचक</span>` : ""}
         </div>
-        ${a.excerpt ? `<p class="weekly-latest-excerpt">${a.excerpt}</p>` : ""}
+        ${a.excerpt ? `<p class="weekly-latest-excerpt">${inlineHTML(a.excerpt)}</p>` : ""}
         ${WEEKLY_PDF ? `<div class="weekly-latest-actions" data-pdf-url="${pdf}">
           <button class="btn-pdf-read" data-pdf-action onclick="openWeeklyModal(${a.id})"><i class="fa-solid fa-book-open"></i> PDF ऑनलाईन वाचा</button>
           <button class="btn-card-read" onclick="openArticlePage(${a.id})"><i class="fa-solid fa-arrow-right"></i> अंकाचे पान</button>
@@ -2153,7 +2231,7 @@ function leadStoryHTML(article, { pdf = false, label = "", heading = "h1" } = {}
     </div>
 
     <div class="main-article-body" id="main-story-body">
-      <p><strong>${article.categoryLabel} विशेष अहवाल:</strong> ${article.excerpt}</p>
+      <p><strong>${article.categoryLabel} विशेष अहवाल:</strong> ${inlineHTML(article.excerpt)}</p>
       <p>${teaserHTML(article.content)}</p>
     </div>
 
@@ -2365,7 +2443,7 @@ const yearOfDate = (text) => { const v = dateValue(text); return v ? String(Math
 
 function weeklyRowHTML(item, folded) {
   return `
-    <div class="secondary-post-item weekly-edition-item" data-year="${yearOfDate(item.date)}" data-search="${escText([item.title, item._mr_title, item.title_en, item.date, item._mr_date, item.excerpt, item._mr_excerpt, item.excerpt_en].filter(Boolean).join(" ").toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
+    <div class="secondary-post-item weekly-edition-item" data-year="${yearOfDate(item.date)}" data-search="${escText([item.title, item._mr_title, item.title_en, item.date, item._mr_date, plainOf(item.excerpt), plainOf(item._mr_excerpt), plainOf(item.excerpt_en)].filter(Boolean).join(" ").toLowerCase())}"${folded ? ' style="display:none"' : ""} onclick="openArticlePage(${item.id})">
       <div class="secondary-post-thumb">
         ${thumbImg(item.thumb || item.image, issueLabel(item) + " — " + item.title, 320)}
       </div>
@@ -3221,14 +3299,14 @@ function renderArticleView(article) {
     nextText = "पुढील बातमी";
   }
 
-  // related: other issues for an issue; the same section first (then other news) for an article
+  // related: other issues for an issue; for an article the ones that share tags first, then the same section, then other news
   const related = isIssue
     ? weeklyIssues().filter((a) => a.id !== article.id).slice(0, 6)
     : [
         ...articlesData.filter((a) => a.id !== article.id && a.category === article.category),
         ...articlesData.filter((a) => a.id !== article.id && a.category !== article.category && NEWS_CATEGORIES.includes(a.category)),
         ...articlesData.filter((a) => a.id !== article.id && a.category !== "weekly" && !NEWS_CATEGORIES.includes(a.category) && a.category !== article.category),
-      ].slice(0, 3);
+      ].sort((a, b) => sharedTags(article, b) - sharedTags(article, a)).slice(0, 3);      // (the sort keeps the order of the ones that share as many)
 
   const pdf = isIssue ? pdfUrlFor(article) : "";
 
@@ -3274,7 +3352,7 @@ function renderArticleView(article) {
 
     <div class="single-article-content">
       <p style="font-weight:600; font-size:16px; line-height:1.75; color:var(--title-color)">
-        ${article.excerpt}
+        ${inlineHTML(article.excerpt)}
       </p>
       ${article.content}
       <blockquote>
@@ -3284,6 +3362,7 @@ function renderArticleView(article) {
         या संदर्भातील पुढील ताज्या घडामोडी आणि विशेष विश्लेषणासाठी लोकमंगल न्यूज पोर्टलशी जोडलेले राहा. आपल्या परिसरातील बातम्या आमच्या प्रतिनिधींना कळवा.
       </p>
     </div>
+    ${isIssue ? "" : articleTagsHTML(article)}
 
     <!-- Social Share Bar -->
     <div class="single-share-bar">
@@ -3832,7 +3911,7 @@ window.toggleReadAloud = function(articleId) {
     return;
   }
   const article = articlesData.find(a => a.id === articleId) || articlesData[0];
-  const utter = new SpeechSynthesisUtterance(article.title + ". " + article.excerpt);
+  const utter = new SpeechSynthesisUtterance(article.title + ". " + plainOf(article.excerpt));
   utter.lang = "mr-IN";
   window.speechSynthesis.speak(utter);
   showToast("🔊 बातमी वाचन सुरू झाले...");

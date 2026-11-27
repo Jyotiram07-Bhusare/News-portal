@@ -71,6 +71,9 @@ PRETTY_URLS = _flag("PRETTY_URLS", True)
 # WhatsApp draws no picture when the photo is several MB. PUBLIC_API_URL = where crawlers reach this API (a development PC: the address of the request).
 PREVIEW_IMAGES = _flag("PREVIEW_IMAGES", IS_PRODUCTION)
 PUBLIC_API_URL = _text("PUBLIC_API_URL", "https://api.lokmangal.info" if IS_PRODUCTION else "").rstrip("/")
+# IndexNow (indexnow.py): a saved / deleted story is told to Bing and the other IndexNow search engines at once. The key proves the website is ours; it is
+# public - the same text is in frontend/<key>.txt. Set only on the live server; INDEXNOW_KEY= (empty) switches it off.
+INDEXNOW_KEY = os.getenv("INDEXNOW_KEY", "e864295f42b98dedc93ab7ef9e86e75d" if IS_PRODUCTION else "").strip()
 MAX_UPLOAD_MB = _int("MAX_UPLOAD_MB", 50)       # images and weekly PDFs
 MAX_VIDEO_MB = _int("MAX_VIDEO_MB", 200)        # videos (Admin Panel > Videos)
 # How many reverse proxies (nginx, a load balancer) stand in front of the app: their X-Forwarded-* headers are then trusted.

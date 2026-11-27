@@ -12,6 +12,8 @@ card for every story, and a crawler that does not run JavaScript would find no s
                              preview tags, structured data and text put in. The website passes /blog/... on to it (deploy.yml adds the Amplify rules), so a
                              link preview and a crawler see the story; the page then starts the website, which opens the same story.
     /api/page/<kind>         the same for a section's address (/blog, /rajkiy ...): the section's own name and description in the preview, not Home's.
+    /api/sitemap.xml .txt    every address, made fresh from the database (the website's /sitemap.xml passes it on: deploy.yml)
+    /api/news-sitemap.xml    Google News: the news of the last 48 hours
     /api/og-image/<id>.jpg   the photo of a news / blog as a small JPEG (1200 px, under 300 KB) for the preview card (WhatsApp skips photos of several MB)
 
 They live under /api/ because that is the only part of this server the production nginx lets through (deploy/docker/nginx.conf).
@@ -82,6 +84,8 @@ DEFAULT_IMAGE = "assets/og-default.jpg"                        # the card shown 
 LOGO = "assets/logo-192.jpg"
 IST = timezone(timedelta(hours=5, minutes=30))
 FEED_ITEMS = 30
+NEWS_SECTIONS = ("rajkiy", "samajik", "review")        # what Google News is told about (the foundation's blogs are not news)
+NEWS_HOURS = 48
 SUMMARY_CHARS = 190
 
 _DEVANAGARI = str.maketrans("०१२३४५६७८९", "0123456789")
@@ -186,17 +190,22 @@ def summary_of(excerpt: str, content: str) -> str:
     return cut.rstrip(" ,.;:-") + "…"
 
 
+def _india(value: Any) -> Optional[datetime]:
+    """A database time (updated_at / created_at are kept in UTC) as India time; None when it is none."""
+    stamp = _stamp(value)
+    return stamp.replace(tzinfo=timezone.utc).astimezone(IST) if stamp else None
+
+
 def _iso(day: Optional[date]) -> str:
     return datetime(day.year, day.month, day.day, tzinfo=IST).isoformat() if day else ""
 
 
 def _modified_iso(row: Dict[str, Any], published: Optional[date], moment: Optional[datetime] = None) -> str:
     """`moment` = the exact time of publishing when the story has one (else only its day is known: midnight of it)."""
-    stamp = _stamp(row.get("updated_at")) or _stamp(row.get("created_at"))
+    stamp = _india(row.get("updated_at")) or _india(row.get("created_at"))
     first = pubtime.iso(moment) if moment else _iso(published)
     if not stamp:
         return first
-    stamp = stamp.replace(tzinfo=IST)
     if published and stamp < (moment.replace(tzinfo=IST) if moment else datetime(published.year, published.month, published.day, tzinfo=IST)):
         return first                                # (never "modified" before it was published)
     return stamp.isoformat()
@@ -235,6 +244,12 @@ def with_lang(url: str, lang: str) -> str:
 
 
 # ---------------------------------------------------------------------------------------------------- a story as a plain description
+def tags_of(row: Dict[str, Any], lang: str) -> List[str]:
+    """The tags of a story as a list: the English ones for an English page when there are any, otherwise the Marathi ones."""
+    split = lambda text: [t.strip() for t in str(text or "").split(",") if t.strip()]       # noqa: E731
+    return (split(row.get("tags_en")) if lang == "en" else []) or split(row.get("tags"))
+
+
 def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     """Everything a preview / crawler page needs about one news item or blog (row of the articles table)."""
     lang = "en" if lang == "en" and str(row.get("title_en") or "").strip() else "mr"        # (a story without English text is shown in Marathi)
@@ -271,7 +286,10 @@ def article_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
         data["dateModified"] = _modified_iso(row, published, moment)
     if author:
         data["author"] = {"@type": "Organization" if _ORGANISATION.search(author) else "Person", "name": author}
-    return {"lang": lang, "title": title, "summary": summary, "image": image, "card": card, "body": body,
+    tags = tags_of(row, lang)
+    if tags:
+        data["keywords"] = tags
+    return {"lang": lang, "tags": tags, "title": title, "summary": summary, "image": image, "card": card, "body": body,
             "author": author, "section": section_name, "published": published, "published_iso": data.get("datePublished", ""),
             "published_dt": moment, "published_line": pubtime.published_line(moment, published, lang),
             "published_attr": pubtime.iso(moment) if moment else (published.isoformat() if published else ""),
@@ -305,7 +323,7 @@ def issue_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
     }
     if published:
         data["datePublished"] = _iso(published)
-    body = "<p>" + html.escape(description or headline) + "</p>"
+    body = "<p>" + html.escape(plain_text(description) or headline) + "</p>"     # (the introduction may carry bold / underline: words only here)
     return {"lang": lang, "title": title, "summary": summary, "image": image, "body": body, "author": WEEKLY_NAME[lang],
             "section": SECTIONS["weekly"][0 if lang == "mr" else 1], "published": published, "published_iso": data.get("datePublished", ""),
             "modified_iso": data.get("datePublished", ""), "canonical": canonical,
@@ -323,6 +341,7 @@ def share_page(story: Dict[str, Any]) -> str:
                                              or (story["published"].isoformat() if story["published"] else "")) if part)
     published = f'<meta property="article:published_time" content="{esc(story["published_iso"])}">\n' if story["published_iso"] else ""
     modified = f'<meta property="article:modified_time" content="{esc(story["modified_iso"])}">\n' if story["modified_iso"] else ""
+    topics = "".join(f'<meta property="article:tag" content="{esc(t)}">\n' for t in story.get("tags") or [])
     go = "वेबसाईटवर वाचा" if lang == "mr" else "Read it on the website"
     return f"""<!DOCTYPE html>
 <html lang="{lang}">
@@ -340,7 +359,7 @@ def share_page(story: Dict[str, Any]) -> str:
 <meta property="og:description" content="{esc(story["summary"])}">
 <meta property="og:image" content="{esc(story.get("card") or story["image"])}">
 <meta property="og:image:alt" content="{esc(story["title"])}">
-{published}{modified}<meta name="twitter:card" content="summary_large_image">
+{published}{modified}{topics}<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{esc(story["title"])}">
 <meta name="twitter:description" content="{esc(story["summary"])}">
 <meta name="twitter:image" content="{esc(story.get("card") or story["image"])}">
@@ -442,6 +461,7 @@ def _seo_head(story: Dict[str, Any], lang: str, crumbs: List[Any]) -> str:
         parts.append(f'<meta property="article:published_time" content="{esc(story["published_iso"])}" />')
     if story["modified_iso"]:
         parts.append(f'<meta property="article:modified_time" content="{esc(story["modified_iso"])}" />')
+    parts += [f'<meta property="article:tag" content="{esc(t)}" />' for t in story.get("tags") or []]
     parts += [
         '<meta name="twitter:card" content="summary_large_image" />',
         f'<meta name="twitter:title" content="{esc(story["title"])}" />',
@@ -464,7 +484,9 @@ def _ssr_body(story: Dict[str, Any]) -> str:
             f'{published}'
             f'<p class="ssr-meta">{esc(meta)}</p>\n'
             f'<div class="single-post-media"><img src="{esc(story["image"])}" alt="{esc(story["title"])}"></div>\n'
-            f'<div class="single-article-content">{story["body"]}</div>')
+            f'<div class="single-article-content">{story["body"]}</div>'
+            + (('\n<p class="article-tags">' + " ".join(f'<span class="article-tag"><a class="tag-link" href="/?tag={quote(t, safe="")}">#{esc(t)}</a></span>' for t in story["tags"]) + "</p>")
+               if story.get("tags") else ""))
 
 
 def render_page(template: str, head: str, body: Optional[str], lang: str) -> str:
@@ -614,7 +636,7 @@ def og_image(article_id):
 
 # ---------------------------------------------------------------------------------------------------- sitemap.xml
 def _day(value: Any) -> str:
-    stamp = _stamp(value)
+    stamp = _india(value)
     return stamp.date().isoformat() if stamp else ""
 
 
@@ -662,6 +684,42 @@ def sitemap():
     return response
 
 
+@seo.get("/sitemap.txt")
+def sitemap_txt():
+    """The same addresses, one per line (a second way for Google to read them)."""
+    xml = sitemap().get_data(as_text=True)
+    response = Response("".join(html.unescape(loc) + "\n" for loc in re.findall(r"<loc>([^<]*)</loc>", xml)), mimetype="text/plain")
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
+
+@seo.get("/news-sitemap.xml")
+def news_sitemap():
+    """Google News: the news published in the last NEWS_HOURS hours (Google News reads only the newest ones), with their title and exact time."""
+    site, now = site_url(), pubtime.now()
+    recent = []
+    for row in database.get_articles():
+        moment = pubtime.parse(row.get("published_at"))
+        if moment and str(row.get("category")) in NEWS_SECTIONS and now - timedelta(hours=NEWS_HOURS) <= moment <= now + timedelta(minutes=5):
+            recent.append((moment, int(row["id"]), row))
+    entries = [
+        "  <url>"
+        f"<loc>{xml_escape(f'{site}/{story_path(row)}')}</loc>"
+        "<news:news>"
+        f"<news:publication><news:name>{xml_escape(SITE_NAME['mr'])}</news:name><news:language>mr</news:language></news:publication>"
+        f"<news:publication_date>{pubtime.iso(moment)}</news:publication_date>"
+        f"<news:title>{xml_escape(str(row.get('title') or ''))}</news:title>"
+        "</news:news></url>"
+        for moment, _, row in sorted(recent, key=lambda item: item[:2], reverse=True)[:1000]
+    ]
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n'
+           + "".join(entry + "\n" for entry in entries) + "</urlset>\n")
+    response = Response(xml, mimetype="application/xml")
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
+
 # ---------------------------------------------------------------------------------------------------- rss.xml
 def _cdata(markup: str) -> str:
     return "<![CDATA[" + markup.replace("]]>", "]]]]><![CDATA[>") + "]]>"
@@ -693,7 +751,8 @@ def rss():
             f"<pubDate>{format_datetime(stamp)}</pubDate>"
             + (f"<dc:creator>{xml_escape(story['author'])}</dc:creator>" if story["author"] else "")
             + f"<category>{xml_escape(story['section'])}</category>"
-            f"<description>{xml_escape(story['summary'])}</description>"
+            + "".join(f"<category>{xml_escape(t)}</category>" for t in story.get("tags") or [])
+            + f"<description>{xml_escape(story['summary'])}</description>"
             f"<content:encoded>{_cdata(picture + story['body'])}</content:encoded>"
             f'<media:content url="{xml_escape(story["image"])}" medium="image"/>'
             "</item>")

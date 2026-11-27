@@ -98,7 +98,7 @@ function renderVideosTable() {
     const thumb = v.thumbnail
       ? `<img src="${escapeHtml(formatAssetUrl(v.thumbnail))}" class="table-thumb video-table-thumb" alt="" data-no-i18n>`
       : '<div class="table-thumb video-table-thumb video-thumb-empty"><i class="fa-solid fa-film"></i></div>';
-    const desc = v.description ? (v.description.length > 75 ? v.description.slice(0, 75) + '…' : v.description) : '';
+    const desc = shortText(RichEditor.plain(v.description));           // (the words only: no bold / underline tags in the list)
     return `
       <tr>
         <td><div class="video-thumb-wrap">${thumb}<span class="video-order-badge" title="क्रम क्रमांक">${v.sort_order || i + 1}</span><span class="video-thumb-play"><i class="fa-solid fa-play"></i></span></div></td>

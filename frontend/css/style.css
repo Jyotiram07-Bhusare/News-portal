@@ -1337,6 +1337,14 @@ html.is-dark .x-share-btn.share-toggle-more {
   color: var(--title-color);
 }
 
+.single-article-content h4 {
+  margin: 16px 0 6px;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--title-color);
+}
+
 .single-article-content ul,
 .single-article-content ol {
   margin: 0 0 16px;
@@ -1378,6 +1386,78 @@ html.is-dark .x-share-btn.share-toggle-more {
   background: rgba(127, 42, 29, 0.08);
   color: var(--title-color);
   font-weight: 700;
+}
+
+/* Tags (topics) under a story: a quiet line of text links - "टॅग: #भाजप • #महायुती" - no boxes or buttons. And the page of one tag (?tag=...) */
+.article-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 2px;
+  margin: 22px 0 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.article-tags-label {
+  margin-right: 12px;
+  font-weight: 700;
+  color: var(--title-color);
+}
+
+.article-tags-label i {
+  margin-right: 4px;
+  font-size: 13px;
+  color: var(--accent-orange);
+}
+
+.article-tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.article-tag:not(:last-child)::after {
+  content: "•";
+  margin: 0 10px;
+  color: var(--meta-color);
+  opacity: 0.55;
+}
+
+.tag-link {
+  font-weight: 500;
+  color: var(--main-color);
+}
+
+.tag-link:hover,
+.tag-link:focus-visible {
+  color: var(--title-hover-color);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+html.is-dark .tag-link {
+  color: #F2A46B;                       /* (the maroon is hard to read on the dark page) */
+}
+
+html.is-dark .tag-link:hover,
+html.is-dark .tag-link:focus-visible {
+  color: var(--title-hover-color);
+}
+
+.tag-page-title {
+  margin: 4px 0 2px;
+  font-family: var(--title-font);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--title-color);
+  overflow-wrap: anywhere;
+}
+
+.tag-page-count {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--meta-color);
 }
 
 .single-share-bar {

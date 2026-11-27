@@ -114,7 +114,10 @@ jobs:
             {"source": "/rajkiy",      "target": "$LOKMANGAL_API_BASE/api/page/rajkiy",  "status": "200"},
             {"source": "/samajik",     "target": "$LOKMANGAL_API_BASE/api/page/samajik", "status": "200"},
             {"source": "/review",      "target": "$LOKMANGAL_API_BASE/api/page/review",  "status": "200"},
-            {"source": "/weekly",      "target": "$LOKMANGAL_API_BASE/api/page/weekly",  "status": "200"}
+            {"source": "/weekly",      "target": "$LOKMANGAL_API_BASE/api/page/weekly",  "status": "200"},
+            {"source": "/sitemap.xml",      "target": "$LOKMANGAL_API_BASE/api/sitemap.xml",      "status": "200"},
+            {"source": "/sitemap.txt",      "target": "$LOKMANGAL_API_BASE/api/sitemap.txt",      "status": "200"},
+            {"source": "/news-sitemap.xml", "target": "$LOKMANGAL_API_BASE/api/news-sitemap.xml", "status": "200"}
           ]
           EOF
           aws amplify get-app --app-id "$AMPLIFY_APP_ID" --query 'app.customRules' --output json > current.json \
@@ -174,6 +177,18 @@ jobs:
           curl --fail --silent --show-error -o aenv.out "$ADMIN_URL/js/env-config.js"
           grep -q "$LOKMANGAL_API_BASE" aenv.out
           grep -q "$SITE_BASE" aenv.out
+
+      # (information only: the website's /sitemap.xml must be the live one - the rule above passes it on to the API - so a story added in the Admin Panel
+      # is in it at once. The API deploy runs at the same time, so the numbers may differ for a minute.)
+      - name: Check the live sitemap
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          API=$(curl --silent --max-time 40 "$LOKMANGAL_API_BASE/api/sitemap.xml" | grep -o '<loc>' | wc -l)
+          WWW=$(curl --silent --max-time 40 "$SITE_URL/sitemap.xml?check=$GITHUB_RUN_ID" | grep -o '<loc>' | wc -l)
+          NEWS=$(curl --silent --max-time 40 -o news.out -w '%{http_code}' "$SITE_URL/news-sitemap.xml?check=$GITHUB_RUN_ID")
+          echo "addresses: API $API, website $WWW; news-sitemap.xml answers $NEWS"
+          if [ "$API" -gt 0 ] && [ "$WWW" -ge "$API" ] && [ "$NEWS" = "200" ]; then echo "OK: the website serves the live sitemaps"; else echo "::warning::The website's sitemaps are not the live ones yet (the Amplify rules or the API deploy)."; fi
 
       # (information only: does a story's pretty address answer? The API deploy runs at the same time, so it may need a minute to catch up.)
       - name: Check a story address

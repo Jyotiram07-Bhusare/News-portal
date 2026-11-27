@@ -103,7 +103,7 @@ def test_share_page_structured_data_is_a_news_article(client, db):
     assert data["@type"] == "NewsArticle" and data["headline"] == "बातमी 7" and data["inLanguage"] == "mr"
     assert data["mainEntityOfPage"]["@id"] == f"{SITE}/?post=7"
     assert data["image"] == [f"{SITE}/assets/images/a.jpg"]
-    assert data["datePublished"] == "2026-10-13T00:00:00+05:30" and data["dateModified"] == "2026-10-14T08:00:00+05:30"
+    assert data["datePublished"] == "2026-10-13T00:00:00+05:30" and data["dateModified"] == "2026-10-14T13:30:00+05:30"
     assert data["author"] == {"@type": "Organization", "name": "लोकमंगल प्रतिनिधी"}
     assert data["publisher"]["@type"] == "NewsMediaOrganization" and data["publisher"]["logo"]["url"] == f"{SITE}/assets/logo-192.jpg"
     assert data["articleSection"] == "राजकीय"

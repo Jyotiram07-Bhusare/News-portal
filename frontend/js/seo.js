@@ -69,7 +69,7 @@
   // ---------------------------------------------------------------------------------------------------- small helpers
   const plain = (markup) => {
     try {
-      return (new DOMParser().parseFromString(String(markup || ""), "text/html").body.textContent || "").replace(/\s+/g, " ").trim();
+      return (new DOMParser().parseFromString(String(markup || "").replace(/<br\s*\/?>|<\/(p|h[1-6]|li)>/gi, " "), "text/html").body.textContent || "").replace(/\s+/g, " ").trim();
     } catch (e) { return ""; }                         // (nothing is run or loaded: a parsed document is inert)
   };
 
@@ -167,8 +167,10 @@
       const at = String(a.published_at || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?/);
       const published = at ? at[1] : isoDay(a._mr_date || a.date);
       const publishedAt = at ? `${at[1]}T${at[2]}:${at[3] || "00"}${OFFSET}` : published ? `${published}T00:00:00${OFFSET}` : "";
+      // (updated_at is kept in UTC by the database: shown as the same moment in India time)
       const stamp = String(a.updated_at || "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
-      let modified = stamp ? `${stamp[1]}T${stamp[2]}${OFFSET}` : "";
+      const utc = stamp ? Date.parse(`${stamp[1]}T${stamp[2]}Z`) : NaN;
+      let modified = Number.isFinite(utc) ? `${new Date(utc + 19800000).toISOString().slice(0, 19)}${OFFSET}` : "";
       if (publishedAt && (!modified || modified < publishedAt)) modified = publishedAt;
       const author = String(a.author || "").trim();
       const canonical = ORIGIN + "/" + view.path;
@@ -185,10 +187,14 @@
         publisher: publisher(lang),
       };
       if (publishedAt) { ld.datePublished = publishedAt; ld.dateModified = modified; }
+      const split = (t) => String(t || "").split(",").map((x) => x.trim()).filter(Boolean);
+      const english = lang === "en" ? split(a.tags_en) : [];
+      const tags = english.length ? english : split(a.tags);
+      if (tags.length) ld.keywords = tags;
       if (author) ld.author = { "@type": /foundation|bureau|team|desk|portal|news|फाऊंडेशन|फाउंडेशन|ब्युरो|प्रतिनिधी|टीम|पोर्टल|न्यूज|मंच/i.test(author) ? "Organization" : "Person", name: author };
       return {
         title: `${title} | ${SITE[lang]}`, description: summary, image, type: "article", published: ld.datePublished, modified: ld.dateModified,
-        section: ld.articleSection, structured: [ld, breadcrumb([[SITE[lang], ""], [ld.articleSection, view.sectionPath || `?cat=${a.category}`], [title, view.path]])],
+        section: ld.articleSection, tags, structured: [ld, breadcrumb([[SITE[lang], ""], [ld.articleSection, view.sectionPath || `?cat=${a.category}`], [title, view.path]])],
       };
     }
     if (view.kind === "issue" && a) {
@@ -213,6 +219,18 @@
       return {
         title: `${name} | ${SITE[lang]}`, description: summary, image, type: "article", published: ld.datePublished, modified: "", section: SECTIONS.weekly[lang][0],
         structured: [ld, breadcrumb([[SITE[lang], ""], [SECTIONS.weekly[lang][0], view.sectionPath || "?cat=weekly"], [name, view.path]])],
+      };
+    }
+    if (view.kind === "tag" && view.tag) {
+      const name = `#${view.tag}`;
+      const description = lang === "en" ? `News and blogs about ${name} on Lokmangal News Portal.` : `${name} या विषयावरील बातम्या व ब्लॉग्स - लोकमंगल न्यूज पोर्टल.`;
+      const url = ORIGIN + "/" + view.path;
+      return {
+        title: `${name} | ${SITE[lang]}`, description, image: DEFAULT_IMAGE, type: "website",
+        structured: [
+          { "@context": "https://schema.org", "@type": "CollectionPage", name, description, url, inLanguage: lang, isPartOf: { "@id": ORIGIN + "/#website" } },
+          breadcrumb([[SITE[lang], ""], [name, view.path]]),
+        ],
       };
     }
     if (view.kind === "section" && SECTIONS[view.section]) {
@@ -254,6 +272,12 @@
       setMeta("property", "article:published_time", page.published || "");
       setMeta("property", "article:modified_time", page.modified || "");
       setMeta("property", "article:section", page.section || "");
+      head.querySelectorAll('meta[property="article:tag"]').forEach((el) => el.remove());     // (one tag each: written again for every view)
+      (page.tags || []).forEach((tag) => {
+        const el = head.appendChild(document.createElement("meta"));
+        el.setAttribute("property", "article:tag");
+        el.setAttribute("content", tag);
+      });
       setMeta("name", "twitter:card", "summary_large_image");
       setMeta("name", "twitter:title", page.title.replace(/ \| [^|]+$/, ""));
       setMeta("name", "twitter:description", page.description);

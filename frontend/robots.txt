@@ -6,3 +6,5 @@ Disallow: /admin/
 Sitemap: https://www.lokmangal.info/sitemap.xml
 # every story and weekly issue (made from the database; it lists https://www.lokmangal.info/ addresses)
 Sitemap: https://api.lokmangal.info/api/sitemap.xml
+# Google News: the news of the last two days
+Sitemap: https://api.lokmangal.info/api/news-sitemap.xml

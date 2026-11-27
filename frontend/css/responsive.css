@@ -1890,6 +1890,16 @@ button:focus-visible,
     margin: -6px 0 14px;
   }
 
+  .article-tags {
+    row-gap: 4px;
+    font-size: 15.5px;                          /* tags as text links: a little bigger, with room for a finger */
+  }
+
+  .tag-link {
+    display: inline-block;
+    padding: 3px 0;
+  }
+
   .more-posts-title {
     font-size: 18px;
   }

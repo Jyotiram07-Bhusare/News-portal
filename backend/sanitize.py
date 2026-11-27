@@ -2,11 +2,13 @@
 
 The website puts the news texts into its pages as HTML, so the rule is: what is saved must already be safe.
  - plain fields (title, author, date ...)  -> text only; every tag is removed
+ - short texts (excerpt, introductions)    -> bold / italic / underline / line break only (inline()); without any of them plain text
  - story fields (content, content_en)      -> a small list of formatting tags is kept (p, strong, a ...), scripts / handlers / javascript: links are removed
  - pictures / files                         -> only an uploaded file of this site or an https:// address; nothing that could leave an attribute
 """
 import html
 import re
+import unicodedata
 from typing import Any, Dict, Optional
 
 import nh3
@@ -64,6 +66,49 @@ def story(value: Any, max_len: int = 400_000, label: str = "The story") -> str:
     if len(text) > max_len:
         raise ValidationError(f"{label} is too long.")
     return text
+
+
+# the formatting a SHORT text (summary, weekly introduction, video description) may carry: it is shown inside one paragraph of the website
+INLINE_TAGS = {"strong", "b", "em", "i", "u", "br"}
+_INLINE_MARK = re.compile(r"<(?:strong|b|em|i|u|br)>")
+
+
+def inline(value: Any, max_len: int = 10_000, label: str = "Text") -> str:
+    """A short text with bold / italic / underline and line breaks; everything else is removed. A text without any of them is kept as plain
+    text (like plain()), so it stays what it always was."""
+    text = "" if value is None else str(value)
+    cleaned = nh3.clean(text, tags=INLINE_TAGS, attributes={}).replace("\x00", "").strip()
+    if not _INLINE_MARK.search(cleaned):
+        return plain(text, max_len, label)
+    if not html.unescape(re.sub(r"<[^>]+>", "", cleaned)).strip():
+        return ""                                                   # only line breaks / empty tags: nothing was written
+    if len(cleaned) > max_len:
+        raise ValidationError(f"{label} is too long (at most {max_len} characters).")
+    return cleaned
+
+
+# ---- tags ----
+MAX_TAGS, TAG_LENGTH = 15, 40
+
+
+def tags(value: Any, label: str = "A tag") -> str:
+    """The tags of a story: a list, or one text with commas between them -> 'tag one, tag two'. No '#', no markup, no doubles (upper / lower case
+    counts as the same), at most MAX_TAGS of TAG_LENGTH characters."""
+    parts = value if isinstance(value, (list, tuple)) else [value]
+    found, seen = [], set()
+    for part in parts:
+        for piece in ("" if part is None else str(part)).split(","):
+            tag = " ".join(plain(piece, 2_000, label).split()).lstrip("#").strip()
+            key = unicodedata.normalize("NFC", tag).casefold()
+            if not tag or key in seen:
+                continue
+            if len(tag) > TAG_LENGTH:
+                raise ValidationError(f"A tag is too long (at most {TAG_LENGTH} characters).")
+            seen.add(key)
+            found.append(tag)
+    if len(found) > MAX_TAGS:
+        raise ValidationError(f"At most {MAX_TAGS} tags for one story.")
+    return ", ".join(found)
 
 
 # ---- addresses ----
@@ -166,10 +211,13 @@ def article(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
         out["views"] = plain(data.get("views"), 20, "The readers text")
     for key, limit, label in (("excerpt", 10_000, "The summary"), ("excerpt_en", 10_000, "The English summary")):
         if key in data:
-            out[key] = plain(data.get(key), limit, label)
+            out[key] = inline(data.get(key), limit, label)
     for key, label in (("content", "The story"), ("content_en", "The English story")):
         if key in data:
             out[key] = story(data.get(key), label=label)
+    for key in ("tags", "tags_en"):                             # the topics of the story: Marathi and English
+        if key in data:
+            out[key] = tags(data.get(key))
     if "image" in data:
         out["image"] = picture(data.get("image"), label="The news picture")
     for key in FLAG_FIELDS:
@@ -220,9 +268,9 @@ def weekly(data: Dict[str, Any]) -> Dict[str, Any]:
         "image": picture(data.get("image"), label="The cover"),
         "pdf_filename": pdf_reference(data.get("pdf_filename"), f"lokmangal-weekly-{issue_no}.pdf"),
         "views": plain(data.get("views"), 20, "The readers text"),
-        "description": plain(data.get("description"), 10_000, "The introduction"),
+        "description": inline(data.get("description"), 10_000, "The introduction"),
         "title_en": plain(data.get("title_en"), 500, "The English title"),
-        "description_en": plain(data.get("description_en"), 10_000, "The English introduction"),
+        "description_en": inline(data.get("description_en"), 10_000, "The English introduction"),
     }
 
 
@@ -238,7 +286,7 @@ def video(data: Dict[str, Any], creating: bool) -> Dict[str, Any]:
         out["title_en"] = plain(data.get("title_en"), 500, "The English video title")
     for key in ("description", "description_en"):
         if key in data:
-            out[key] = plain(data.get(key), 10_000, "The video description")
+            out[key] = inline(data.get(key), 10_000, "The video description")
     if creating or "video_url" in data:
         out["video_url"] = video_address(data.get("video_url"))
     if "thumbnail" in data:

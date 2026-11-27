@@ -29,6 +29,7 @@ import auth
 import commenters
 import config
 import database
+import indexnow
 import sanitize
 import seo
 import storage
@@ -144,8 +145,10 @@ def create_article():
     ignored = database.english_ignored(clean)
     new_id = database.create_article(clean)
     database.publish_articles_file()
+    article = database.get_article(new_id)
+    indexnow.story_changed(article)                       # search engines hear of the new page at once (live server only)
     return jsonify({"success": True, "message": "बातमी यशस्वीरीत्या प्रकाशित झाली!",
-                    "article": database.get_article(new_id), **_english_warning(ignored)}), 201
+                    "article": article, **_english_warning(ignored)}), 201
 
 
 @api.route("/articles/<int:article_id>", methods=["PUT", "POST"])
@@ -165,7 +168,9 @@ def update_article(article_id):
         return fail("No update data provided", 400)
     database.settle_if_unplaced(article_id, before)       # taken out of Popular / Random and in no section now: it goes to place 8 of the latest news
     database.publish_articles_file()
-    return ok(message="बातमी अद्यतनित करण्यात आली!", article=database.get_article(article_id),
+    article = database.get_article(article_id)
+    indexnow.story_changed(before, article)               # (both addresses: a story moved to another section gets a new one)
+    return ok(message="बातमी अद्यतनित करण्यात आली!", article=article,
               **_english_warning(database.english_ignored(clean)))
 
 
@@ -189,9 +194,11 @@ def toggle_article_placement(article_id):
 @api.delete("/articles/<int:article_id>")
 @auth.admin_required
 def delete_article(article_id):
+    before = database.get_article(article_id)
     if not database.delete_article(article_id):
         return fail("Article not found", 404)
     database.publish_articles_file()
+    indexnow.story_changed(before)                        # (search engines look again and drop it)
     return ok(message="बातमी यशस्वीरीत्या हटवली!")
 
 
@@ -505,6 +512,7 @@ def create_weekly():
         return fail(str(e), 400)
     ignored = database.english_ignored(clean)
     database.create_weekly_edition(clean)
+    indexnow.issue_changed(clean["issue_no"])
     return jsonify({"success": True, "message": "साप्ताहिक अंक यशस्वीरीत्या जोडला!",
                     "issue": database.get_weekly_edition(clean["issue_no"]), **_english_warning(ignored)}), 201
 
@@ -514,6 +522,7 @@ def create_weekly():
 def delete_weekly(issue_no):
     if not database.delete_weekly_edition(issue_no):
         return fail("Weekly issue not found", 404)
+    indexnow.issue_changed(issue_no)
     return ok(message="साप्ताहिक अंक यशस्वीरीत्या हटवला!")
 
 
@@ -1035,6 +1044,7 @@ def create_app():
         database.ensure_order_column()       # ... and articles.sort_order (the place number set in the Admin Panel)
         if database.ensure_published_column():   # ... and articles.published_at (the time shown as "Published on: ... IST"); a story that has only a date gets a time
             database.backfill_published()
+        database.ensure_tag_columns()        # ... and articles.tags / tags_en (the topics of a news / blog)
         if database.ensure_slug_column():    # ... and articles.slug (the words of the address, /blog/<words>), filled in for the news that has none
             database.backfill_slugs()
         database.ensure_clicks_column()      # ... and articles.clicks (how often readers opened a news / blog: the Review section)

@@ -17,7 +17,6 @@ let appState = {
   articlesLoaded: false,         // true once the list really came from the backend (an empty list that failed to load is not "no news")
   weeklyLoaded: false,
   weeklyPdfChosen: false,        // a PDF was uploaded in the open weekly form (an issue being edited already has its PDF)
-  storyOnOpen: null,             // the saved HTML of the story + the plain text the box showed on opening (see storyHtml)
   dbEnglish: true,               // false while the database has no English columns yet (python init_db.py adds them)
   videos: [],                    // the Videos section (admin-videos.js)
   videosLoaded: false,           // true once the list really came from the backend
@@ -812,7 +811,8 @@ function renderArticlesTable() {
     list = list.filter(a =>
       (a.title && a.title.toLowerCase().includes(q)) ||
       (a.excerpt && a.excerpt.toLowerCase().includes(q)) ||
-      (a.author && a.author.toLowerCase().includes(q))
+      (a.author && a.author.toLowerCase().includes(q)) ||
+      `${a.tags || ''}, ${a.tags_en || ''}`.toLowerCase().includes(q.replace(/^#/, ''))
     );
   }
 
@@ -837,6 +837,7 @@ function renderArticlesTable() {
       <td>
         <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 3px;" data-no-i18n>${escapeHtml(a.title)}${a.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
         <div style="font-size: 0.78rem; color: var(--text-muted);"><span>by</span> <span data-no-i18n>${escapeHtml(a.author || 'प्रतिनिधी')}</span></div>
+        ${tagListHTML(a.tags)}
       </td>
       <td>
         <span class="category-pill pill-${escapeHtml(a.category)}">${escapeHtml(a.categoryLabel || a.category)}</span>
@@ -985,8 +986,8 @@ function openNewArticleModal() {
   updateArticleImgPreview('');
   document.getElementById('form-article-excerpt').value = '';
   document.getElementById('form-article-content').value = '';
-  appState.storyOnOpen = null;
-  ['title', 'author', 'excerpt', 'content'].forEach((f) => { document.getElementById('form-article-' + f + '-en').value = ''; });
+  document.getElementById('form-article-tags').value = '';
+  ['title', 'author', 'excerpt', 'content', 'tags'].forEach((f) => { document.getElementById('form-article-' + f + '-en').value = ''; });
   setFormLang('article-modal', sidebarLang());
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बातमी प्रकाशित करा';
 
@@ -1029,14 +1030,14 @@ function openEditArticleModal(articleId) {
   document.getElementById('form-article-image').value = a.image || '';
   updateArticleImgPreview(a.image);
   document.getElementById('form-article-excerpt').value = a.excerpt || '';
-  // the story boxes show plain text (no tags); what they showed is remembered, so an untouched story is saved back as it was
-  const plain = htmlToPlainText(a.content), plainEn = htmlToPlainText(a.content_en);
-  appState.storyOnOpen = { content: { html: a.content || '', plain }, content_en: { html: a.content_en || '', plain: plainEn } };
-  document.getElementById('form-article-content').value = plain;
+  // (the writing boxes show the formatting; a text that is not changed is saved back exactly as it was - admin-editor.js)
+  document.getElementById('form-article-content').value = a.content || '';
   document.getElementById('form-article-title-en').value = a.title_en || '';
   document.getElementById('form-article-author-en').value = a.author_en || '';
   document.getElementById('form-article-excerpt-en').value = a.excerpt_en || '';
-  document.getElementById('form-article-content-en').value = plainEn;
+  document.getElementById('form-article-content-en').value = a.content_en || '';
+  document.getElementById('form-article-tags').value = a.tags || '';           // (the tag box shows them as chips - admin-tags.js)
+  document.getElementById('form-article-tags-en').value = a.tags_en || '';
   setFormLang('article-modal', sidebarLang());
   document.getElementById('btn-save-article').innerHTML = '<i class="fa-solid fa-check"></i> बदल जतन करा';
 
@@ -1087,16 +1088,6 @@ async function handleArticleImageUpload(input) {
   }
 }
 
-// The story box is a PLAIN text box: the editor writes normal text, a blank line starts a new paragraph, no HTML tags are needed.
-// The website gets the text as paragraphs (<p>…</p>, a single line break becomes <br>, & < > are escaped). Text that the editor
-// pastes WITH HTML tags in it is kept exactly as typed.
-function plainTextToParagraphs(text) {
-  if (!text || /<[a-z!\/][^>]*>/i.test(text)) return text;
-  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return text.split(/\r?\n\s*\r?\n/).map((p) => p.trim()).filter(Boolean)
-    .map((p) => `<p>${esc(p).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>').replace(/\r?\n/g, '<br>')}</p>`).join('\n');   // (**bold** = Ctrl+B in the story box)
-}
-
 // HTML for a preview: parsed in an inert document, then scripts / frames / event handlers / javascript: addresses are taken out.
 // (The backend cleans every story before it is saved; this protects the preview of older rows and of text still being typed.)
 function safeHtml(html) {
@@ -1112,45 +1103,6 @@ function safeHtml(html) {
     });
   });
   return body.innerHTML;
-}
-
-// The saved HTML of a story -> the plain text the editor sees in the box (paragraphs separated by a blank line, no tags,
-// &amp; & co. turned back into characters).
-function htmlToPlainText(html) {
-  // (parsed in an inert document: an <img onerror=...> inside a saved story must not run just because the story is opened)
-  const box = new DOMParser().parseFromString(`<body>${String(html || '')}</body>`, 'text/html').body;
-  const blocks = [];
-  let line = '';
-  const flush = () => { const t = line.replace(/[ \t]*\n[ \t]*/g, '\n').trim(); if (t) blocks.push(t); line = ''; };
-  const walk = (node) => {
-    node.childNodes.forEach((n) => {
-      if (n.nodeType === 3) line += n.nodeValue.replace(/\s+/g, ' ');
-      else if (n.nodeType === 1) {
-        if (n.tagName === 'BR') line += '\n';
-        else if (n.tagName === 'STRONG' || n.tagName === 'B') {      // bold text is shown between ** ** (what Ctrl+B writes), so editing a story keeps its bold
-          const at = line.length;
-          line += '**';
-          walk(n);
-          if (line.slice(at, at + 2) === '**' && line.slice(at + 2).trim()) line += '**';
-          else if (line.slice(at, at + 2) === '**') line = line.slice(0, at) + line.slice(at + 2);
-        }
-        else if (/^(P|DIV|H[1-6]|BLOCKQUOTE|UL|OL|LI|TABLE|TR|HR|FIGURE)$/.test(n.tagName)) { flush(); walk(n); flush(); }
-        else walk(n);
-      }
-    });
-  };
-  walk(box);
-  flush();
-  return blocks.join('\n\n');
-}
-
-// What goes to the database for one story box: the text the editor sees is made into paragraphs; but when it was NOT changed
-// (the box still holds exactly what it showed on opening), the saved HTML stays as it was (an old story keeps its bold dateline etc.).
-function storyHtml(fieldId, key) {
-  const typed = document.getElementById(fieldId).value.trim();
-  const open = appState.storyOnOpen && appState.storyOnOpen[key];
-  if (open && open.html && typed === open.plain) return open.html;
-  return plainTextToParagraphs(typed);
 }
 
 // Form Submit: Create or Update Article
@@ -1172,11 +1124,22 @@ async function handleArticleFormSubmit(e) {
     return;
   }
   const excerpt = document.getElementById('form-article-excerpt').value.trim();
-  const content = storyHtml('form-article-content', 'content');
+  const content = document.getElementById('form-article-content').value.trim();
+  // (the two writing boxes of the Marathi tab are needed: the browser cannot check a formatted box, so it is checked here)
+  const missing = [[excerpt, 'form-article-excerpt', 'आधी थोडक्यात सारांश लिहा.'], [content, 'form-article-content', 'आधी सविस्तर बातमी मजकूर लिहा.']]
+    .find(([value]) => RichEditor.isEmpty(value));
+  if (missing) {
+    setFormLang('article-modal', 'mr');
+    showToast(missing[2], 'error');
+    document.getElementById(missing[1]).focus();
+    return;
+  }
   const title_en = document.getElementById('form-article-title-en').value.trim();
   const author_en = document.getElementById('form-article-author-en').value.trim();
   const excerpt_en = document.getElementById('form-article-excerpt-en').value.trim();
-  const content_en = storyHtml('form-article-content-en', 'content_en');
+  const content_en = document.getElementById('form-article-content-en').value.trim();
+  const tags = document.getElementById('form-article-tags').value;
+  const tags_en = document.getElementById('form-article-tags-en').value;
 
   // Placement checkbox states
   const is_lead = document.getElementById('form-article-is-lead')?.checked ? 1 : 0;
@@ -1213,7 +1176,9 @@ async function handleArticleFormSubmit(e) {
     title_en,
     author_en,
     excerpt_en,
-    content_en
+    content_en,
+    tags,
+    tags_en
   };
 
   const saveBtn = document.getElementById('btn-save-article');
@@ -1299,7 +1264,7 @@ function openPreviewArticle(articleId) {
   const img = document.getElementById('prev-img');
   img.src = formatAssetUrl(a.image);
   
-  document.getElementById('prev-content').innerHTML = safeHtml(a.content) || `<p>${escapeHtml(a.excerpt)}</p>`;
+  document.getElementById('prev-content').innerHTML = (safeHtml(a.content) || `<p>${safeHtml(a.excerpt)}</p>`) + tagListHTML(a.tags);
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -1310,7 +1275,7 @@ function previewArticleBeforeSubmit() {
   const known = appState.editingArticleId ? (appState.articles || []).find((x) => x.id === appState.editingArticleId) : null;
   const date = whenText(document.getElementById('form-article-date').value) || (known && known.date) || 'आज';
   const image = document.getElementById('form-article-image').value.trim();
-  const content = plainTextToParagraphs(document.getElementById('form-article-content').value.trim()) || '<p>बातमी मजकूर...</p>';
+  const content = document.getElementById('form-article-content').value.trim() || '<p>बातमी मजकूर...</p>';
 
   document.getElementById('prev-badge').textContent = cat;
   document.getElementById('prev-title').textContent = title;
@@ -1323,7 +1288,7 @@ function previewArticleBeforeSubmit() {
   if (image) img.src = formatAssetUrl(image);
   else img.removeAttribute('src');
 
-  document.getElementById('prev-content').innerHTML = safeHtml(content);
+  document.getElementById('prev-content').innerHTML = safeHtml(content) + tagListHTML(document.getElementById('form-article-tags').value);
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -1354,7 +1319,7 @@ function renderWeeklyTable() {
         </td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary);" data-no-i18n>${escapeHtml(w.title)}${w.title_en ? ' <span class="lang-badge" title="English आवृत्ती आहे">EN</span>' : ''}</div>
-          <div style="font-size: 0.8rem; color: var(--text-muted);" data-no-i18n>${w.description ? escapeHtml(w.description.length > 75 ? w.description.slice(0, 75) + '…' : w.description) : ''}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" data-no-i18n>${escapeHtml(shortText(RichEditor.plain(w.description)))}</div>
         </td>
         <td style="font-size: 0.85rem;">${escapeHtml(w.date)}</td>
         <td>
@@ -1741,42 +1706,16 @@ function showToast(message, type = 'info') {
   }, 3500);
 }
 
-// Text for HTML (element content and attribute values): & < > " ' become entities, so a title like  'लोकमंगल' & "विवाह" <b>  shows as typed
-// ---- Ctrl + B in a story box: the selected words (or lines) become bold ---------------------------------------------------------------------
-// The story boxes are plain text; bold is written between ** **. Ctrl+B puts them around the selection (every line of it on its own), or takes them
-// off again when the selection is already bold; with nothing selected the word at the cursor is used. The ** become <strong> when the story is saved.
-function toggleBoldInStoryBox(box) {
-  let start = box.selectionStart, end = box.selectionEnd;
-  const text = box.value;
-  if (start === end) {                                            // nothing selected: the word under the cursor
-    while (start > 0 && !/\s/.test(text[start - 1])) start--;
-    while (end < text.length && !/\s/.test(text[end])) end++;
-    if (start === end) return;
-  }
-  if (text.slice(start - 2, start) === '**' && text.slice(end, end + 2) === '**') { start -= 2; end += 2; }   // the ** right around the selection belong to it
-  const lines = text.slice(start, end).split('\n');
-  const filled = lines.filter((l) => l.trim());
-  const allBold = filled.length > 0 && filled.every((l) => /^\s*\*\*[^*]+\*\*\s*$/.test(l));
-  const changed = lines.map((l) => {
-    if (!l.trim()) return l;
-    const m = l.match(/^(\s*)([\s\S]*?)(\s*)$/);                  // the spaces stay outside the **
-    return allBold ? m[1] + m[2].replace(/^\*\*|\*\*$/g, '') + m[3] : m[1] + '**' + m[2].replace(/\*\*/g, '') + '**' + m[3];
-  }).join('\n');
-  box.focus();
-  box.setSelectionRange(start, end);
-  if (!document.execCommand || !document.execCommand('insertText', false, changed)) box.setRangeText(changed, start, end, 'select');   // (insertText keeps Ctrl+Z working)
-  box.setSelectionRange(start, start + changed.length);
-  box.dispatchEvent(new Event('input', { bubbles: true }));
+// the tags of a news as small chips (the news list and the preview)
+function tagListHTML(tags) {
+  const list = String(tags || '').split(',').map((t) => t.trim()).filter(Boolean);
+  return list.length ? `<div class="article-tag-list" data-no-i18n>${list.map((t) => `<span>#${escapeHtml(t)}</span>`).join('')}</div>` : '';
 }
 
-document.addEventListener('keydown', (e) => {
-  const isB = (e.key || '').toLowerCase() === 'b' || e.code === 'KeyB';                    // (a Marathi keyboard layout sends another letter as e.key)
-  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && isB && /^form-article-content(-en)?$/.test((e.target && e.target.id) || '')) {
-    e.preventDefault();
-    toggleBoldInStoryBox(e.target);
-  }
-});
+// the start of a text, for the lists
+const shortText = (t) => (t.length > 75 ? t.slice(0, 75) + '…' : t);
 
+// Text for HTML (element content and attribute values): & < > " ' become entities, so a title like  'लोकमंगल' & "विवाह" <b>  shows as typed
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

@@ -131,13 +131,13 @@ def test_structured_data_and_preview_tags_carry_the_exact_time(client, db):
     story(db, 7, "first-blog", published_at="2026-11-21 14:05:07", updated_at="2026-11-22 10:00:00")
     page = client.get("/api/share/7").get_data(as_text=True)
     data = ld(page)
-    assert data["datePublished"] == "2026-11-21T14:05:07+05:30" and data["dateModified"] == "2026-11-22T10:00:00+05:30"
+    assert data["datePublished"] == "2026-11-21T14:05:07+05:30" and data["dateModified"] == "2026-11-22T15:30:00+05:30"
     assert '<meta property="article:published_time" content="2026-11-21T14:05:07+05:30">' in page
     assert "प्रकाशित: २१ नोव्हेंबर २०२६, १४:०५:०७ IST" in page
 
 
 def test_modified_is_never_before_the_exact_time(client, db):
-    story(db, 7, "first-blog", published_at="2026-11-21 14:05:07", updated_at="2026-11-21 09:00:00")
+    story(db, 7, "first-blog", published_at="2026-11-21 14:05:07", updated_at="2026-11-21 08:00:00")      # (13:30 India time: before publishing)
     data = ld(client.get("/api/share/7").get_data(as_text=True))
     assert data["dateModified"] == data["datePublished"] == "2026-11-21T14:05:07+05:30"
 
