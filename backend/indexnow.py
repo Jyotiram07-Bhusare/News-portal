@@ -2,7 +2,7 @@
 what one of them receives). Google does not take IndexNow: it reads the sitemaps, which are made fresh from the database (/sitemap.xml and, for
 Google News, /news-sitemap.xml).
 
-Called by app.py after the Admin Panel saves or deletes a news / blog / weekly issue - nothing has to be done by hand. Only the live server sends
+Called by app.py after the Admin Panel saves or deletes a news / blog / weekly issue / video - nothing has to be done by hand. Only the live server sends
 (config.INDEXNOW_KEY is set there, a development PC sends nothing). It runs in the background: saving a story never waits for it or fails because
 of it.
 """
@@ -54,6 +54,15 @@ def issue_changed(number: int) -> List[str]:
         return []
     site = config.SITE_URL
     return submit([f"{site}/{seo.issue_path(number)}", f"{site}/{seo.section_path('weekly')}", site + "/"])
+
+
+def video_changed(*rows: Optional[Dict[str, Any]]) -> List[str]:
+    """A video's own page and the Home page that lists it."""
+    if not enabled():
+        return []
+    site = config.SITE_URL
+    urls = [f"{site}/{seo.video_path(row)}" for row in rows if row and seo.video_path(row)]
+    return submit(urls + [site + "/"]) if urls else []
 
 
 def _send(urls: List[str]) -> None:

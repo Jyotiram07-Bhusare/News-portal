@@ -48,7 +48,8 @@ def add_missing_columns():
     with database.connection() as conn:
         cur = conn.cursor()
         for spec in (database.ENGLISH_COLUMNS, database.UPDATED_COLUMNS, database.LATEST_COLUMNS, database.ORDER_COLUMNS, database.SLUG_COLUMNS,
-                     database.CLICK_COLUMNS, database.REVIEW_COLUMNS, database.PLACEMENT_ORDER_COLUMNS, database.COMMENTER_COLUMNS, database.PUBLISHED_COLUMNS, database.TAG_COLUMNS):
+                     database.CLICK_COLUMNS, database.REVIEW_COLUMNS, database.PLACEMENT_ORDER_COLUMNS, database.COMMENTER_COLUMNS, database.PUBLISHED_COLUMNS, database.TAG_COLUMNS,
+                     database.OLD_SLUG_COLUMNS, database.VIDEO_SLUG_COLUMNS):
             for table, columns in spec.items():
                 cur.execute("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
                             (config.DB_NAME, table))
@@ -68,6 +69,8 @@ def add_missing_columns():
     database._comments_state.update(ok=False, checked=0.0)
     database._published_state.update(ok=False, checked=0.0)
     database._tags_state.update(ok=False, checked=0.0)
+    database._old_slug_state.update(ok=False, checked=0.0)
+    database._videos_state.update(ok=False, slug=False)
     if added:
         database.backfill_slugs()                                 # (a news without the words of its address gets them)
     return added

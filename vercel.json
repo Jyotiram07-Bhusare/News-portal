@@ -2,6 +2,6 @@
   "outputDirectory": "frontend",
   "rewrites": [
     { "source": "/:section(blog|rajkiy|samajik|review|weekly)", "destination": "/index.html" },
-    { "source": "/:section(blog|rajkiy|samajik|review|weekly)/:slug", "destination": "/index.html" }
+    { "source": "/:section(blog|rajkiy|samajik|review|weekly|video)/:slug", "destination": "/index.html" }
   ]
 }

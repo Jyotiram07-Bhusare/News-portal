@@ -99,7 +99,8 @@ class FakeDB:
         return self.articles.pop(article_id, None) is not None
 
     def get_article_by_slug(self, slug):
-        return next((r for r in self.articles.values() if r.get("slug") == slug), None)
+        return (next((r for r in self.articles.values() if r.get("slug") == slug), None)
+                or next((r for r in self.articles.values() if slug in str(r.get("old_slugs") or "").split(",")), None))
 
     def count_click(self, article_id):
         if article_id not in self.articles:
@@ -253,6 +254,9 @@ class FakeDB:
     def get_video(self, video_id):
         return self.videos.get(video_id)
 
+    def get_video_by_slug(self, slug):
+        return next((r for r in self.videos.values() if str(r.get("slug") or "").lower() == slug.lower()), None)      # (case-blind, like MySQL)
+
     def create_video(self, data):
         new_id, self.next_video = self.next_video, self.next_video + 1
         self.videos[new_id] = {"id": new_id, "title_en": "", "description": "", "description_en": "", "thumbnail": "",
@@ -300,7 +304,7 @@ def db(monkeypatch):
     fake = FakeDB()
     for name in ("get_articles", "get_article", "get_article_by_slug", "create_article", "update_article", "toggle_placement", "delete_article", "count_click",
                  "get_weekly_editions", "get_weekly_edition", "create_weekly_edition", "delete_weekly_edition",
-                 "get_videos", "get_video", "create_video", "update_video", "delete_video", "upload_in_use",
+                 "get_videos", "get_video", "get_video_by_slug", "create_video", "update_video", "delete_video", "upload_in_use",
                  "get_ads", "get_ad", "create_ad", "update_ad", "delete_ad",
                  "login_locked_for", "login_failed", "login_succeeded", "has_comments", "sign_in_commenter", "get_commenter", "save_email_code", "check_email_code", "get_comments", "add_comment", "vote_comment", "report_comment", "admin_comments", "delete_comment"):
         monkeypatch.setattr(database, name, getattr(fake, name))

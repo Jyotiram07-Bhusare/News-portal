@@ -758,6 +758,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // (the slide-out "Popular Items" list is rendered the first time the menu opens - see openDrawer)
 
   initRouter();   // draws the view that matches the address (Home when there is no #hash)
+  openVideoFromAddress();                               // (/video/<words>: that video, if the page already knows it)
   initBackToTop();
   initSmartHeader();
   initAdSlider();
@@ -1361,6 +1362,7 @@ function videoFromRow(row) {
     id: "u" + row.id,
     uploaded: true,
     yt,
+    slug: row.slug || "",
     src: row.video_url,
     title: row.title,
     title_en: row.title_en,
@@ -1506,10 +1508,53 @@ window.copyVideoLink = function(btn) {
   showToast("व्हिडिओ लिंक कॉपी केली!");
 };
 
+// A video's own address, /video/<words>: Home with that video open. The address bar shows it while the video is open, and it is what the Share
+// button copies (where there are no pretty addresses, or for a video without words yet, the address of the video file as before).
+const videoSlugInPath = () => {
+  const m = /^\/video\/([^/]+)\/?$/.exec(window.location.pathname);
+  try { return m ? decodeURIComponent(m[1]) : ""; } catch (e) { return ""; }
+};
+const videoPagePath = (v) => (v.slug && prettyUrlsOn() ? "/video/" + encodeURIComponent(v.slug) + (getLang() === "en" ? "?lang=en" : "") : "");
+const videoShareUrl = (v) => (videoPagePath(v) ? window.location.origin + videoPagePath(v) : new URL(v.src, document.baseURI).href);
+let videoOnShow = null;                // { before, title, landed } while a video is open (see leaveVideoAddress)
+let videoAddressDone = false;          // the video of the address the page was opened with has been shown (or there is none)
+
+// The page was opened with a video's address: open that video as soon as the list that has it is there.
+function openVideoFromAddress() {
+  if (videoAddressDone) return;
+  const slug = videoSlugInPath();
+  const video = slug ? videoPostsData.find((v) => v.slug === slug) : null;
+  if (!slug || video) videoAddressDone = true;
+  if (video) openVideoModal(video.id);
+}
+
+// The video is open: the address bar shows its address and the tab its title.
+function showVideoAddress(video) {
+  const landed = !!videoSlugInPath();                  // (the page was opened with a video's address)
+  const before = document.title;
+  const path = videoPagePath(video);
+  if (path) { try { history.replaceState(history.state, "", path); } catch (e) { /* ignore */ } }
+  setDocTitle((getLang() === "en" && video.title_en) || video.title);
+  videoOnShow = { before, title: document.title, landed };
+}
+
+// The video is closed: the address bar and the tab show the page under it again.
+function leaveVideoAddress() {
+  const shown = videoOnShow;
+  videoOnShow = null;
+  if (!shown) return;
+  whenHistorySettled(() => {                           // (a phone first goes one step back in the history)
+    if (videoSlugInPath()) replaceUrl(renderedRoute);
+    if (shown.landed) renderRoute({ scroll: false });  // opened by its address: Home gets its own title and tags
+    else if (document.title === shown.title) document.title = shown.before;
+  });
+}
+
 // --- Video Player Modal Opener ---
 window.openVideoModal = function(videoId) {
   const raw = videoPostsData.find(v => v.id === videoId);
   if (!raw) return;
+  videoAddressDone = true;
   const video = videoView(raw);
 
   const modal = document.getElementById("video-player-modal");
@@ -1545,7 +1590,7 @@ window.openVideoModal = function(videoId) {
     ? `<i class="fa-regular fa-clock"></i> ${video.date}`
     : `<i class="fa-solid fa-eye"></i> ${video.views} • <i class="fa-regular fa-clock"></i> ${video.date}`;
   const buttons = video.uploaded
-    ? `<button class="btn-listen-audio" data-url="${escText(new URL(raw.src, document.baseURI).href)}" onclick="copyVideoLink(this)">
+    ? `<button class="btn-listen-audio" data-url="${escText(videoShareUrl(raw))}" onclick="copyVideoLink(this)">
             <i class="fa-solid fa-share-nodes"></i> शेअर करा
           </button>`
     : `<button class="btn-read-full" onclick="showToast('व्हिडिओ प्लेलिस्टमध्ये सेव्ह केला')">
@@ -1578,6 +1623,7 @@ window.openVideoModal = function(videoId) {
   `;
 
   showModal(modal);
+  showVideoAddress(raw);
 
   const player = body.querySelector("video.video-player-el");
   if (player) {
@@ -1772,7 +1818,7 @@ function pathForKey(key) {
     }
   }
   const query = queryForKey(key);
-  return (/^\/(blog|rajkiy|samajik|review|weekly)(\/|$)/.test(window.location.pathname) ? "/" : window.location.pathname) + (query ? "?" + query : "");
+  return (/^\/(blog|rajkiy|samajik|review|weekly|video)(\/|$)/.test(window.location.pathname) ? "/" : window.location.pathname) + (query ? "?" + query : "");
 }
 
 // (the chosen language stays in the address when it came in it: ?lang=en)
@@ -1832,6 +1878,9 @@ function routeFromQuery(search) {
   return null;
 }
 
+// the story with these words in its address - or the one that had them before (old_slugs: an address made shorter later)
+const articleBySlug = (slug) => articlesData.find((a) => a.slug === slug) || articlesData.find((a) => String(a.old_slugs || "").split(",").includes(slug));
+
 // the view named by a pretty address: /blog/<words> (the story is found by its words; its id is not known until the stories are loaded), /blog, /weekly/68 ...
 function routeFromPath(pathname) {
   let parts;
@@ -1841,7 +1890,7 @@ function routeFromPath(pathname) {
   if (parts.length === 1 && PATH_SECTION[first]) return { type: "cat", cat: PATH_SECTION[first] };
   if (parts.length === 2 && first === "weekly") return /^\d+$/.test(parts[1]) ? { type: "issue", no: parseInt(parts[1], 10) } : { type: "home", unknown: true };
   if (parts.length === 2 && PATH_SECTION[first] && parts[1]) {
-    const article = articlesData.find((a) => a.slug === parts[1]);
+    const article = articleBySlug(parts[1]);
     return { type: "post", slug: parts[1], id: article ? article.id : undefined };
   }
   return null;
@@ -1853,7 +1902,9 @@ const routeFromLocation = () => routeFromPath(window.location.pathname) || route
 // The address bar shows a page's own (pretty) address: an old ?post=12 / ?cat=blogs / #post-12 address, or /index.html, is turned into it.
 function normalizeAddress() {
   if (renderedRoute === null) return;
-  const old = routeFromQuery(window.location.search) || (window.location.hash && parseRoute(window.location.hash).type !== "home") || /\/index\.html$/.test(window.location.pathname);
+  const named = routeFromPath(window.location.pathname);
+  const before = named && named.slug && named.id && !articlesData.some((a) => a.slug === named.slug);      // words the story had before
+  const old = before || routeFromQuery(window.location.search) || (window.location.hash && parseRoute(window.location.hash).type !== "home") || /\/index\.html$/.test(window.location.pathname);
   if (old && urlForKey(renderedRoute) !== window.location.pathname + window.location.search) replaceUrl(renderedRoute);
 }
 
@@ -1982,8 +2033,10 @@ function renderRoute({ scroll = true, restoreY = null } = {}) {
     renderedRoute = routeKeyOf(r.type === "home" ? { type: "home" } : r);
     renderHomeFeed();
     updateNavActiveStates(currentCategory);
-    setDocTitle(currentCategory === "all" ? "" : getMarathiCategory(currentCategory));
-    seoForView(currentCategory === "all" ? "home" : "section", renderedRoute, { section: currentCategory });
+    if (!videoSlugInPath()) {                           // (a video's address is Home under the video: the page keeps the video's title and tags)
+      setDocTitle(currentCategory === "all" ? "" : getMarathiCategory(currentCategory));
+      seoForView(currentCategory === "all" ? "home" : "section", renderedRoute, { section: currentCategory });
+    }
   }
   normalizeAddress();
 
@@ -3858,7 +3911,8 @@ window.closeModals = function(silent) {
   const reader = document.getElementById("weekly-epaper-modal");
   if (reader && reader.classList.contains("active")) resetReader();   // free the PDF pages
   const videoWindow = document.getElementById("video-player-modal");
-  if (videoWindow && videoWindow.classList.contains("active")) stopVideoPlayer();   // the video stops with its window
+  const hadVideo = !!(videoWindow && videoWindow.classList.contains("active"));
+  if (hadVideo) stopVideoPlayer();   // the video stops with its window
   document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
   syncScrollLock();
   if (wasOpen && focusBeforeModal && document.contains(focusBeforeModal)) {
@@ -3866,6 +3920,7 @@ window.closeModals = function(silent) {
   }
   focusBeforeModal = null;
   if (wasOpen && silent !== true) releaseOverlayHistory();
+  if (hadVideo) leaveVideoAddress();
 };
 
 // Listen to Escape key & click outside
@@ -4211,6 +4266,12 @@ async function syncPortalWithApi() {
       if (typeof renderRoute === 'function') {
         renderRoute({ scroll: false });
       }
+    }
+    openVideoFromAddress();                // (/video/<words> of a video the backend brought)
+    if (!videoAddressDone && vidJson) {    // ... or of no video (any more): the Home page, under its own address
+      videoAddressDone = true;
+      replaceUrl("");
+      renderRoute({ scroll: false });
     }
   } catch (err) {
     console.warn('API sync fallback to local data:', err);

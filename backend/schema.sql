@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS articles (
   sort_order    INT           NULL,                                 -- the place in its section: news and blogs by date (newest = 1), Review by hand
   popular_order INT           NULL,                                 -- the place inside the Popular widget (1 = top), NULL when not in Popular
   random_order  INT           NULL,                                 -- the place inside the Random widget (1 = top), NULL when not in Random
-  slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>): made when the news is created, never changed by an edit
+  slug          VARCHAR(190)  NULL,                                 -- the words of the address (/blog/<slug>), short and in English letters: made when the news is created, never changed by an edit
+  old_slugs     VARCHAR(1000) NULL,                                 -- addresses it had before, with commas between them: such a link goes on to the address of today
   clicks        INT UNSIGNED  NOT NULL DEFAULT 0,                   -- how often readers opened it (POST /api/articles/<id>/read): the website shows views + clicks, its Review section lists the most viewed
   tags          VARCHAR(1000) NOT NULL DEFAULT '',                  -- the topics of the story, with commas between them (the website shows them under it)
   tags_en       VARCHAR(1000) NOT NULL DEFAULT '',                  -- ... in English
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS videos (
   duration_sec   INT UNSIGNED    NULL,
   size_bytes     BIGINT UNSIGNED NULL,
   sort_order     INT             NULL,                     -- the place on the website: 1 = first (the Admin Panel keeps the numbers 1..N)
+  slug           VARCHAR(190)    NULL,                     -- the words of its own address (/video/<slug>): made when it is uploaded, never changed by an edit
   created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

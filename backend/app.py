@@ -552,7 +552,9 @@ def create_video():
         return fail(str(e), 400)
     new_id = database.create_video(clean)
     database.publish_videos_file()
-    return jsonify({"success": True, "message": "व्हिडिओ यशस्वीरीत्या प्रकाशित झाला!", "video": database.get_video(new_id)}), 201
+    video = database.get_video(new_id)
+    indexnow.video_changed(video)                         # search engines hear of the video's page at once (live server only)
+    return jsonify({"success": True, "message": "व्हिडिओ यशस्वीरीत्या प्रकाशित झाला!", "video": video}), 201
 
 
 @api.route("/videos/<int:video_id>", methods=["PUT", "POST"])
@@ -574,6 +576,7 @@ def update_video(video_id):
     # a replaced video file / thumbnail is not kept in the storage
     removed = [_remove_upload(before[k], video_id) for k in ("video_url", "thumbnail") if before[k] != after[k]]
     database.publish_videos_file()
+    indexnow.video_changed(after)
     return ok(message="व्हिडिओ अद्यतनित करण्यात आला!", video=after, files_removed=sum(removed))
 
 
@@ -585,6 +588,7 @@ def delete_video(video_id):
         return fail("Video not found", 404)
     removed = [_remove_upload(row[k], video_id) for k in ("video_url", "thumbnail")]
     database.publish_videos_file()
+    indexnow.video_changed(row)                           # (search engines look again and drop it)
     return ok(message="व्हिडिओ यशस्वीरीत्या हटवला!", files_removed=sum(removed))
 
 
@@ -969,6 +973,7 @@ def register_frontend(app):
     for kind in ("blog", "rajkiy", "samajik", "review", "weekly"):
         app.add_url_rule(f"/{kind}/<slug>", f"story_page_{kind}", story_page(kind), strict_slashes=False)
         app.add_url_rule(f"/{kind}", f"section_page_{kind}", section_page(kind), strict_slashes=False)
+    app.add_url_rule("/video/<slug>", "story_page_video", story_page("video"), strict_slashes=False)       # (a video's own page: /video/<words>)
 
     @app.get("/<path:filename>")
     def site_file(filename):              # css/, js/, assets/, admin/... : plain files of the frontend folder
@@ -1046,7 +1051,10 @@ def create_app():
             database.backfill_published()
         database.ensure_tag_columns()        # ... and articles.tags / tags_en (the topics of a news / blog)
         if database.ensure_slug_column():    # ... and articles.slug (the words of the address, /blog/<words>), filled in for the news that has none
+            kept = database.ensure_old_slugs_column()    # ... and articles.old_slugs: long / Marathi-letter addresses made earlier get short ones,
             database.backfill_slugs()
+            if kept:
+                database.shorten_slugs()                 # ... and keep working (they are sent on to the new ones)
         database.ensure_clicks_column()      # ... and articles.clicks (how often readers opened a news / blog: the Review section)
         database.ensure_review_column()      # ... and articles.is_review (the Review placement ticked in the Admin Panel)
         database.renumber_all_by_date()      # news and blogs numbered by their date (a database numbered the older ways is put right)

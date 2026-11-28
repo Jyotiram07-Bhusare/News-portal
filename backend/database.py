@@ -11,7 +11,6 @@ import queue
 import re
 import threading
 import time
-import unicodedata
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -21,6 +20,7 @@ from pymysql.constants import CLIENT
 from pymysql.cursors import DictCursor
 
 import config
+import slugs
 
 PLACEMENT_FIELDS = ("is_lead", "is_popular", "is_random")
 TRUE_VALUES = ("1", "true", "True")
@@ -100,12 +100,20 @@ ORDER_GROUPS = {"rajkiy": ("rajkiy", "samajik"), "samajik": ("rajkiy", "samajik"
 # Sections numbered by their publication date, like the weekly issues: the story with the newest date ("प्रकाशन तारीख") is number 1 of its
 # list (the big story of its section), the one before it 2 ... Every save renumbers the list, so a new story lands in its place by itself.
 AUTO_NUMBERED = ("rajkiy", "samajik", "blogs")
-# The words of a news / blog's address (/blog/<slug>). Made once when it is created (the English headline when there is one, else the Marathi one) and never
-# changed by an edit, so a link that was shared keeps working. NULL only until backfill_slugs() has run (at start-up).
+# The words of a news / blog's address (/blog/<slug>): short and in English letters (slugs.py; the English headline when there is one, else the Marathi one).
+# Made once when it is created and never changed by an edit, so a link that was shared keeps working. NULL only until backfill_slugs() has run (at start-up).
 SLUG_COLUMNS = {
     "articles": (("slug", "VARCHAR(190) NULL"),),
 }
-SLUG_LIMIT = 90
+# Addresses a story had before (made before the short English ones: long, in Marathi letters), with commas between them: the website sends such a link on
+# to the story's address of today (seo.py). Filled by shorten_slugs().
+OLD_SLUG_COLUMNS = {
+    "articles": (("old_slugs", "VARCHAR(1000) NULL"),),
+}
+# The same words for a video's own address (/video/<slug>). A `videos` table made earlier gets the column in ensure_videos_table().
+VIDEO_SLUG_COLUMNS = {
+    "videos": (("slug", "VARCHAR(190) NULL"),),
+}
 # How often readers opened a news / blog (the website calls POST /api/articles/<id>/read). The website adds it to the views typed in the Admin
 # Panel; its Review section (रिव्ह्यू) lists the most viewed news and blogs. Only the counter changes: updated_at stays, so no other list is
 # reordered by a click.
@@ -228,7 +236,7 @@ def schema_statements() -> List[str]:
     return [s.strip() for s in sql.split(";") if s.strip()]
 
 
-_videos_state = {"ok": False}
+_videos_state = {"ok": False, "slug": False}
 
 
 def ensure_videos_table() -> None:
@@ -247,10 +255,22 @@ def ensure_videos_table() -> None:
                     cur.execute(statement)
         elif "sort_order" not in have:
             cur.execute("ALTER TABLE videos ADD COLUMN sort_order INT NULL")          # a videos table made before the order numbers existed
+        has_words = not have or "slug" in have
+        if not has_words:                                      # a videos table made before a video had its own address
+            try:
+                cur.execute("ALTER TABLE videos ADD COLUMN slug VARCHAR(190) NULL")
+                has_words = True
+            except pymysql.MySQLError as e:                     # 1060 = another process was first. No right to ALTER: init_db.py adds it; videos work without
+                has_words = bool(e.args) and e.args[0] == 1060
         cur.execute("SELECT COUNT(*) AS n FROM videos WHERE sort_order IS NULL")
         if cur.fetchone()["n"]:
             _renumber_videos(cur)                                                    # old rows get 1..N, newest first
-    _videos_state["ok"] = True
+        if has_words:
+            cur.execute("SELECT id, title, title_en FROM videos WHERE slug IS NULL OR slug = '' ORDER BY id")
+            for row in cur.fetchall():
+                words = _free_slug(cur, slugs.make(row["title_en"], row["title"], "video"), row["id"], table="videos")
+                cur.execute("UPDATE videos SET slug = %s WHERE id = %s", (words, row["id"]))
+    _videos_state.update(ok=True, slug=has_words)
 
 
 _settings_state = {"ok": False}
@@ -317,6 +337,7 @@ _review_state = {"ok": False, "checked": 0.0}
 _placement_order_state = {"ok": False, "checked": 0.0}
 _order_state = {"ok": False, "checked": 0.0}
 _slug_state = {"ok": False, "checked": 0.0}
+_old_slug_state = {"ok": False, "checked": 0.0}
 _clicks_state = {"ok": False, "checked": 0.0}
 _published_state = {"ok": False, "checked": 0.0}
 _tags_state = {"ok": False, "checked": 0.0}
@@ -451,6 +472,25 @@ def ensure_slug_column() -> bool:
     return has_slug()
 
 
+def has_old_slugs() -> bool:
+    """True when `articles` has old_slugs (the addresses a story had before)."""
+    return _has_columns(OLD_SLUG_COLUMNS, _old_slug_state)
+
+
+def ensure_old_slugs_column() -> bool:
+    """An older database gets articles.old_slugs here (once, at start-up). Returns whether the column is there."""
+    if has_old_slugs():
+        return True
+    try:
+        with connection() as conn:
+            conn.cursor().execute("ALTER TABLE articles ADD COLUMN old_slugs VARCHAR(1000) NULL")
+    except pymysql.err.OperationalError as e:
+        if not (e.args and e.args[0] == 1060):                  # 1060 = the column exists already (another process was first)
+            raise
+    _old_slug_state.update(ok=False, checked=0.0)
+    return has_old_slugs()
+
+
 def has_clicks() -> bool:
     """True when `articles` has clicks (how often readers opened a news / blog)."""
     return _has_columns(CLICK_COLUMNS, _clicks_state)
@@ -531,50 +571,53 @@ def backfill_published() -> int:
     return done
 
 
-def slugify(text: Any, limit: int = SLUG_LIMIT, _apostrophes: bool = False) -> str:
-    """'Solapur South: MLA wins!' -> 'solapur-south-mla-wins'. English letters and digits and Marathi letters stay, everything else becomes one hyphen
-    (an apostrophe just vanishes: "family's" -> 'familys'); at most `limit` characters, cut between words. Never empty."""
-    s = unicodedata.normalize("NFC", str(text or "")).lower()
-    if not _apostrophes:
-        s = re.sub(r"['\u2018\u2019]", "", s)
-    s = re.sub(r"[^a-z0-9\u0900-\u0963\u0966-\u097f]+", "-", s).strip("-")
-    if len(s) > limit:
-        s = s[:limit].rsplit("-", 1)[0] or s[:limit]
-    return s or "story"
-
-
-def _free_slug(cur, base: str, article_id: int = 0) -> str:
-    """`base`, or base-2, base-3 ... when another news already has it."""
+def _free_slug(cur, base: str, row_id: int = 0, old: bool = False, table: str = "articles") -> str:
+    """`base`, or base-2, base-3 ... when another row of `table` (articles / videos - always a constant) already has it, or (`old`) another story
+    had it before: an address that was shared once never starts to mean a different story."""
     slug, n = base, 1
     while True:
-        cur.execute("SELECT id FROM articles WHERE slug = %s AND id != %s LIMIT 1", (slug, article_id))
+        if old:
+            cur.execute("SELECT id FROM articles WHERE (slug = %s OR FIND_IN_SET(%s, old_slugs)) AND id != %s LIMIT 1", (slug, slug, row_id))
+        else:
+            cur.execute(f"SELECT id FROM {table} WHERE slug = %s AND id != %s LIMIT 1", (slug, row_id))
         if cur.fetchone() is None:
             return slug
         n += 1
-        slug = f"{base[:SLUG_LIMIT - len(str(n)) - 1]}-{n}"
+        slug = f"{base[:slugs.LIMIT - len(str(n)) - 1].rstrip('-')}-{n}"
 
 
 def backfill_slugs() -> int:
     """Give every news without words in its address one (start-up). Returns how many were given."""
     if not has_slug():
         return 0
+    english, old = "title_en" if has_english() else "'' AS title_en", has_old_slugs()
     with connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, title, " + ("title_en" if has_english() else "'' AS title_en") + " FROM articles WHERE slug IS NULL OR slug = '' ORDER BY id")
+        cur.execute(f"SELECT id, title, {english} FROM articles WHERE slug IS NULL OR slug = '' ORDER BY id")
         rows = cur.fetchall()
         for row in rows:
-            slug = _free_slug(cur, slugify(row["title_en"] if str(row["title_en"] or "").strip() else row["title"]), row["id"])
+            slug = _free_slug(cur, slugs.make(row["title_en"], row["title"]), row["id"], old)
             cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (slug, row["id"]))
-        done = len(rows)
-        if has_english():
-            # the first version turned an apostrophe into a hyphen ('family-s-joy'): put the words right, only for the slugs made exactly that way
-            cur.execute("SELECT id, slug, title_en FROM articles WHERE slug IS NOT NULL AND slug != '' AND (title_en LIKE %s OR title_en LIKE %s)", ("%'%", "%’%"))
-            for row in cur.fetchall():
-                old, new = slugify(row["title_en"], _apostrophes=True), slugify(row["title_en"])
-                if old != new and (row["slug"] == old or re.fullmatch(re.escape(old) + r"-\d+", row["slug"])):
-                    cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, new, row["id"]), row["id"]))
-                    done += 1
-        return done
+        return len(rows)
+
+
+def shorten_slugs() -> int:
+    """Addresses made before the short English ones (long, or in Marathi letters) get a new one (start-up). The one they had is kept in old_slugs, so a
+    link that was shared keeps working: the website sends it on to the new address. Nothing else of a story changes (its place in the lists neither), and
+    a second run finds nothing to do. Returns how many addresses were made short."""
+    if not (has_slug() and has_old_slugs()):              # (never without keeping the old address)
+        return 0
+    english = "title_en" if has_english() else "'' AS title_en"
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT id, slug, old_slugs, title, {english} FROM articles "
+                    "WHERE slug != '' AND (CHAR_LENGTH(slug) > %s OR LENGTH(slug) != CHAR_LENGTH(slug)) ORDER BY id", (slugs.LIMIT,))
+        rows = cur.fetchall()
+        for row in rows:
+            before = [s for s in str(row["old_slugs"] or "").split(",") if s]
+            new = _free_slug(cur, slugs.make(row["title_en"], row["title"]), row["id"], True)
+            cur.execute("UPDATE articles SET slug = %s, old_slugs = %s WHERE id = %s", (new, ",".join(dict.fromkeys(before + [row["slug"]])), row["id"]))
+        return len(rows)
 
 
 def english_ignored(data: Dict[str, Any]) -> bool:
@@ -651,12 +694,18 @@ def publish_articles_file() -> bool:
 
 
 def get_article_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    """The story with these words in its address - or the one that had them before (its "slug" is then another one: seo.py sends the visitor there)."""
     if not has_slug():
         return None
+    old = has_old_slugs()
     with connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT * FROM articles WHERE slug = %s LIMIT 1", (slug,))
-        return _row(cur.fetchone())
+        row = cur.fetchone()
+        if row is None and old:
+            cur.execute("SELECT * FROM articles WHERE FIND_IN_SET(%s, old_slugs) LIMIT 1", (slug,))
+            row = cur.fetchone()
+        return _row(row)
 
 
 def get_article(article_id: int) -> Optional[Dict[str, Any]]:
@@ -799,8 +848,8 @@ def create_article(data: Dict[str, Any]) -> int:
         )
         new_id = cur.lastrowid
         if has_slug():
-            english = str(data.get("title_en") or "").strip()
-            cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (_free_slug(cur, slugify(english or data.get("title")), new_id), new_id))
+            words = _free_slug(cur, slugs.make(data.get("title_en"), data.get("title")), new_id, has_old_slugs())
+            cur.execute("UPDATE articles SET slug = %s WHERE id = %s", (words, new_id))
         if has_order():
             if category in AUTO_NUMBERED:
                 _renumber_by_date(cur, _order_group(category))                 # its date decides its place; the others move over
@@ -1406,6 +1455,16 @@ def get_video(video_id: int) -> Optional[Dict[str, Any]]:
         return _row(cur.fetchone())
 
 
+def get_video_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    ensure_videos_table()
+    if not _videos_state["slug"]:
+        return None
+    with connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM videos WHERE slug = %s LIMIT 1", (slug,))
+        return _row(cur.fetchone())
+
+
 def create_video(data: Dict[str, Any]) -> int:
     ensure_videos_table()
     with connection() as conn:
@@ -1416,6 +1475,9 @@ def create_video(data: Dict[str, Any]) -> int:
             (*(_text(data, c) for c in VIDEO_TEXT), *(_video_number(data.get(c)) for c in VIDEO_NUMBERS)),
         )
         new_id = cur.lastrowid
+        if _videos_state["slug"]:                                    # the words of its own address, from the title it is uploaded with
+            words = _free_slug(cur, slugs.make(data.get("title_en"), data.get("title"), "video"), new_id, table="videos")
+            cur.execute("UPDATE videos SET slug = %s WHERE id = %s", (words, new_id))
         _renumber_videos(cur, new_id, _video_number(data.get("sort_order")) or 1)      # a new video goes to the top unless a place is given
         return new_id
 
@@ -1459,7 +1521,7 @@ def delete_video(video_id: int) -> Optional[Dict[str, Any]]:
 
 
 VIDEOS_DATA_FIELDS = ("id", "title", "title_en", "description", "description_en", "video_url", "thumbnail", "duration_sec", "size_bytes",
-                      "sort_order", "created_at")
+                      "sort_order", "created_at", "slug")
 
 
 def publish_videos_file() -> bool:
@@ -1468,7 +1530,7 @@ def publish_videos_file() -> bool:
     a file) go in. Written only when something changed (and only when PUBLISH_VIDEOS_FILE is on - a development PC). Returns True when it was rewritten."""
     if not config.PUBLISH_VIDEOS_FILE:
         return False
-    rows = [{k: v[k] for k in VIDEOS_DATA_FIELDS} for v in get_videos() if re.match(r"https?://", v["video_url"] or "")]
+    rows = [{k: v.get(k) for k in VIDEOS_DATA_FIELDS} for v in get_videos() if re.match(r"https?://", v["video_url"] or "")]
     return _write_js_data(
         "videos-data.js", "window.VIDEOS_DATA", rows,
         "// Written by the backend (Admin Panel > Videos) after every change - do not edit by hand.\n"

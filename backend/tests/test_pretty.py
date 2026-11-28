@@ -7,6 +7,7 @@ import pytest
 
 import config
 import database
+import indexnow
 import seo
 
 SITE = "https://www.example.org"
@@ -47,21 +48,7 @@ def story(db, id, slug, category="blogs", **fields):
     return row
 
 
-# ---------------------------------------------------------------------------------------------------- the words of an address
-def test_slugify():
-    assert database.slugify("Solapur South: MLA Wins!") == "solapur-south-mla-wins"
-    assert database.slugify("  --Hello,   World--  ") == "hello-world"
-    assert database.slugify("एक पाऊल, एका कुटुंबाचा आनंद!") == "एक-पाऊल-एका-कुटुंबाचा-आनंद"
-    assert database.slugify("लोकमंगल Annapurna योजना") == "लोकमंगल-annapurna-योजना"
-    assert database.slugify("१९ ते २५ ऑगस्ट २०२६") == "१९-ते-२५-ऑगस्ट-२०२६"
-    assert database.slugify("One Step, One Family's Joy") == "one-step-one-familys-joy"
-    assert database.slugify("Don’t wait") == "dont-wait"
-    assert database.slugify("!!!") == "story" and database.slugify("") == "story" and database.slugify(None) == "story"
-    assert database.slugify("<script>alert(1)</script>") == "script-alert-1-script"
-    long = database.slugify("word " * 60)
-    assert len(long) <= database.SLUG_LIMIT and not long.endswith("-") and long.startswith("word-word")
-
-
+# ---------------------------------------------------------------------------------------------------- the addresses (the words in them: test_slugs.py)
 def test_addresses_follow_the_setting(monkeypatch):
     row = {"id": 7, "slug": "a-b", "category": "blogs"}
     assert seo.story_path(row) == "blog/a-b"
@@ -157,20 +144,25 @@ def test_without_the_website_the_plain_preview_page_is_given(client, db, monkeyp
 
 
 class _Cur:
-    """A cursor over a few news rows: just enough SQL for backfill_slugs."""
+    """A cursor over a few news rows: just enough SQL for backfill_slugs and shorten_slugs."""
 
     def __init__(self, rows):
-        self.rows, self.result = rows, []
+        self.rows, self.result, self.updates = rows, [], 0
 
     def execute(self, sql, params=()):
         if sql.startswith("SELECT id, title,"):
             self.result = [r for r in self.rows if not r["slug"]]
-        elif sql.startswith("SELECT id, slug, title_en"):
-            self.result = [r for r in self.rows if r["slug"] and ("'" in r["title_en"] or "\u2019" in r["title_en"])]
-        elif sql.startswith("SELECT id FROM articles WHERE slug"):
-            self.result = [r for r in self.rows if r["slug"] == params[0] and r["id"] != params[1]][:1]
+        elif sql.startswith("SELECT id, slug, old_slugs"):
+            self.result = [dict(r) for r in self.rows if r["slug"] and (len(r["slug"]) > params[0] or not r["slug"].isascii())]
+        elif sql.startswith("SELECT id FROM articles WHERE (slug"):
+            self.result = [r for r in self.rows if params[0] in (r["slug"], *str(r["old_slugs"] or "").split(",")) and r["id"] != params[2]][:1]
+        elif sql.startswith("UPDATE articles SET slug = %s, old_slugs"):
+            next(r for r in self.rows if r["id"] == params[2]).update(slug=params[0], old_slugs=params[1])
+            self.updates += 1
         elif sql.startswith("UPDATE articles SET slug"):
             next(r for r in self.rows if r["id"] == params[1])["slug"] = params[0]
+        else:
+            raise AssertionError(sql)
 
     def fetchall(self):
         return self.result
@@ -179,12 +171,8 @@ class _Cur:
         return self.result[0] if self.result else None
 
 
-def test_backfill_puts_the_apostrophe_words_right(monkeypatch):
+def _fake_database(monkeypatch, rows, old_column=True):
     from contextlib import contextmanager
-    rows = [{"id": 1, "title": "x", "title_en": "One Family's Joy", "slug": "one-family-s-joy"},          # made by the first version -> repaired
-            {"id": 2, "title": "x", "title_en": "One Family's Joy", "slug": "one-family-s-joy-2"},        # same, with a number -> repaired (-2 is free after id 1 moved)
-            {"id": 3, "title": "x", "title_en": "Don't wait", "slug": "my-own-words"},                    # an address that is not made from the headline stays
-            {"id": 4, "title": "नवी बातमी", "title_en": "", "slug": ""}]                                   # no address yet -> given one
     cur = _Cur(rows)
 
     @contextmanager
@@ -193,10 +181,124 @@ def test_backfill_puts_the_apostrophe_words_right(monkeypatch):
 
     monkeypatch.setattr(database, "connection", fake_connection)
     monkeypatch.setattr(database, "has_slug", lambda: True)
+    monkeypatch.setattr(database, "has_old_slugs", lambda: old_column)
     monkeypatch.setattr(database, "has_english", lambda: True)
-    assert database.backfill_slugs() == 3
-    assert [r["slug"] for r in rows] == ["one-familys-joy", "one-familys-joy-2", "my-own-words", "नवी-बातमी"]
-    assert database.backfill_slugs() == 0
+    return cur
+
+
+def news(id, title, title_en="", slug="", old_slugs=None):
+    return {"id": id, "title": title, "title_en": title_en, "slug": slug, "old_slugs": old_slugs}
+
+
+LONG_MARATHI = "सोलापूर-जिल्हा-बँकेच्या-संचालकपदी-मनिष-देशमुख-विजयी"
+LONG_ENGLISH = "one-step-one-familys-joy-lokmangal-foundations-49th-sarvadharmiya-community-marriage"
+
+
+def test_long_and_marathi_addresses_get_short_ones_and_keep_the_old(monkeypatch):
+    rows = [news(1, "सोलापूर जिल्हा बँकेच्या संचालकपदी मनिष देशमुख विजयी!", slug=LONG_MARATHI),
+            news(2, "x", "One Step, One Family's Joy! Lokmangal Foundation's 49th Sarvadharmiya Community Marriage", slug=LONG_ENGLISH),
+            news(3, "x", "A short one", slug="my-own-words"),                                          # short and in English letters: it stays
+            news(4, "नवी बातमी", slug="नवी-बातमी", old_slugs="an-even-older-one")]
+    cur = _fake_database(monkeypatch, rows)
+    assert database.shorten_slugs() == 3
+    assert [r["slug"] for r in rows] == ["solapur-jilha-bankechya-sanchalakpadi-manish-deshmukh", "one-step-one-family-joy", "my-own-words", "navi-batmi"]
+    assert [r["old_slugs"] for r in rows] == [LONG_MARATHI, LONG_ENGLISH, None, "an-even-older-one,नवी-बातमी"]
+    assert database.shorten_slugs() == 0 and cur.updates == 3                                          # a second start changes nothing
+
+
+def test_two_stories_never_share_an_address_old_ones_included(monkeypatch):
+    rows = [news(1, "x", "Same headline", slug="same-headline"),
+            news(2, "x", "Other", slug="other", old_slugs="same-headline-2"),                          # (story 2 had these words once: they stay its own)
+            news(3, "x", "Same headline", slug="same-headline-" + "x" * 60),
+            news(4, "x", "Same headline")]
+    _fake_database(monkeypatch, rows)
+    assert database.backfill_slugs() == 1 and database.shorten_slugs() == 1
+    assert [r["slug"] for r in rows] == ["same-headline", "other", "same-headline-4", "same-headline-3"]
+
+
+def test_no_address_is_changed_while_the_old_one_could_not_be_kept(monkeypatch):
+    rows = [news(1, "नवी बातमी", slug="नवी-बातमी")]
+    _fake_database(monkeypatch, rows, old_column=False)
+    assert database.shorten_slugs() == 0 and rows[0]["slug"] == "नवी-बातमी"
+
+
+def test_an_address_a_story_had_before_goes_to_the_one_it_has_now(client, db):
+    story(db, 7, "solapur-bank-winner", "rajkiy", categoryLabel="राजकीय", old_slugs=f"{LONG_MARATHI},older-words")
+    for old in ("%E0%A4%B8%E0%A5%8B%E0%A4%B2%E0%A4%BE%E0%A4%AA%E0%A5%82%E0%A4%B0-%E0%A4%9C%E0%A4%BF%E0%A4%B2%E0%A5%8D%E0%A4%B9%E0%A4%BE-"
+                "%E0%A4%AC%E0%A4%81%E0%A4%95%E0%A5%87%E0%A4%9A%E0%A5%8D%E0%A4%AF%E0%A4%BE-%E0%A4%B8%E0%A4%82%E0%A4%9A%E0%A4%BE%E0%A4%B2%E0%A4%95%E0%A4%AA%E0%A4%A6%E0%A5%80-"
+                "%E0%A4%AE%E0%A4%A8%E0%A4%BF%E0%A4%B7-%E0%A4%A6%E0%A5%87%E0%A4%B6%E0%A4%AE%E0%A5%81%E0%A4%96-%E0%A4%B5%E0%A4%BF%E0%A4%9C%E0%A4%AF%E0%A5%80", "older-words"):
+        reply = client.get(f"/api/page/rajkiy/{old}")
+        assert reply.status_code == 301 and reply.headers["Location"] == f"{SITE}/rajkiy/solapur-bank-winner", old
+    reply = client.get("/api/page/blog/older-words?lang=en")                                           # (the wrong section too: one step to the right page)
+    assert reply.status_code == 301 and reply.headers["Location"] == f"{SITE}/rajkiy/solapur-bank-winner?lang=en"
+    assert client.get("/api/page/rajkiy/solapur-bank-winner").status_code == 200
+
+
+# ---------------------------------------------------------------------------------------------------- the page of a video
+def video(db, id, slug, **fields):
+    row = {"id": id, "slug": slug, "title": f"व्हिडिओ {id}", "title_en": f"Video {id}", "description": "<b>पाण्यासाठी</b> काम", "description_en": "Work for water",
+           "video_url": "https://media.example.org/videos/a_1790000000_abc123.mp4", "thumbnail": "https://media.example.org/images/p.jpg", "duration_sec": 95,
+           "sort_order": id, "created_at": "2026-10-13 06:24:00", **fields}
+    db.videos[id] = row
+    return row
+
+
+def test_page_of_a_video_has_its_title_picture_and_player(client, db):
+    video(db, 3, "jalsandharan")
+    reply = client.get("/api/page/video/jalsandharan")
+    page = reply.get_data(as_text=True)
+    assert reply.status_code == 200 and "<title>व्हिडिओ 3 | लोकमंगल न्यूज पोर्टल</title>" in page and "Home title" not in page and "seed story" not in page
+    assert f'<link rel="canonical" href="{SITE}/video/jalsandharan" />' in page and '<meta property="og:type" content="video.other" />' in page
+    assert '<meta property="og:image" content="https://media.example.org/images/p.jpg" />' in page and 'content="पाण्यासाठी काम"' in page
+    assert '<video controls preload="none" poster="https://media.example.org/images/p.jpg" src="https://media.example.org/videos/a_1790000000_abc123.mp4">' in page
+    data = json.loads(re.search(r'id="ld-view">(.*?)</script>', page, re.S).group(1))[0]
+    assert data["@type"] == "VideoObject" and data["contentUrl"].endswith(".mp4") and data["duration"] == "PT1M35S"
+    assert data["uploadDate"] == "2026-10-13T11:54:00+05:30" and data["thumbnailUrl"] == ["https://media.example.org/images/p.jpg"]
+    english = client.get("/api/page/video/jalsandharan?lang=en").get_data(as_text=True)
+    assert "<title>Video 3 | Lokmangal News Portal</title>" in english and "Work for water" in english
+
+
+def test_page_of_a_youtube_video(client, db):
+    video(db, 4, "on-youtube", video_url="https://youtu.be/abcdefghijk", thumbnail="", description="", duration_sec=None)
+    page = client.get("/api/page/video/on-youtube").get_data(as_text=True)
+    assert '<iframe src="https://www.youtube-nocookie.com/embed/abcdefghijk"' in page
+    assert '<meta property="og:image" content="https://img.youtube.com/vi/abcdefghijk/hqdefault.jpg" />' in page
+    data = json.loads(re.search(r'id="ld-view">(.*?)</script>', page, re.S).group(1))[0]
+    assert data["embedUrl"] == "https://www.youtube.com/embed/abcdefghijk" and "duration" not in data and "contentUrl" not in data
+
+
+def test_unknown_and_wrongly_written_video_addresses(client, db):
+    video(db, 3, "jalsandharan")
+    reply = client.get("/api/page/video/Jalsandharan")
+    assert reply.status_code == 301 and reply.headers["Location"] == f"{SITE}/video/jalsandharan"
+    reply = client.get("/api/page/video/nothing")
+    assert reply.status_code == 404 and '<meta name="robots" content="noindex" />' in reply.get_data(as_text=True)
+
+
+def test_nothing_in_a_video_can_break_out_of_the_page(client, db):
+    video(db, 3, "x", title='</title><script>alert(1)</script>"', description='<img src=x onerror=alert(2)>', video_url='https://e.example/a.mp4?"><script>alert(3)</script>')
+    page = client.get("/api/page/video/x").get_data(as_text=True)
+    assert "<script>alert" not in page and "onerror=alert" not in page and page.count("<title>") == 1
+
+
+def test_videos_are_in_the_sitemap(client, db):
+    video(db, 3, "jalsandharan")
+    video(db, 4, "")                                                                                   # (no words yet: not listed)
+    xml = client.get("/api/sitemap.xml").data
+    locs = [u.find(SM + "loc").text for u in ET.fromstring(xml).findall(SM + "url")]
+    assert [u for u in locs if "/video/" in u] == [f"{SITE}/video/jalsandharan"]
+
+
+def test_a_saved_video_is_told_to_the_search_engines(client, admin, db, monkeypatch):
+    told = []
+    monkeypatch.setattr(config, "INDEXNOW_KEY", "k" * 32)
+    monkeypatch.setattr(indexnow, "submit", lambda urls: told.append(list(urls)) or list(urls))
+    new = client.post("/api/videos", headers=admin, json={"title": "नवा व्हिडिओ", "video_url": "https://youtu.be/abcdefghijk"}).get_json()["video"]
+    db.videos[new["id"]]["slug"] = "nava-video"
+    client.put(f"/api/videos/{new['id']}", headers=admin, json={"title": "बदल"})
+    assert told[-1] == [f"{SITE}/video/nava-video", f"{SITE}/"]
+    client.delete(f"/api/videos/{new['id']}", headers=admin)
+    assert told[-1] == [f"{SITE}/video/nava-video", f"{SITE}/"]
 
 
 def test_page_of_a_section_has_its_own_preview(client, db):

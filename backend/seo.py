@@ -12,6 +12,7 @@ card for every story, and a crawler that does not run JavaScript would find no s
                              preview tags, structured data and text put in. The website passes /blog/... on to it (deploy.yml adds the Amplify rules), so a
                              link preview and a crawler see the story; the page then starts the website, which opens the same story.
     /api/page/<kind>         the same for a section's address (/blog, /rajkiy ...): the section's own name and description in the preview, not Home's.
+    /api/page/video/<words>  the same for one video (/video/<words>): its title, description and picture; the website then plays it.
     /api/sitemap.xml .txt    every address, made fresh from the database (the website's /sitemap.xml passes it on: deploy.yml)
     /api/news-sitemap.xml    Google News: the news of the last 48 hours
     /api/og-image/<id>.jpg   the photo of a news / blog as a small JPEG (1200 px, under 300 KB) for the preview card (WhatsApp skips photos of several MB)
@@ -79,6 +80,8 @@ SECTION_PAGES = {   # key -> {language: (name, description)} of a section's own 
 SECTION_PATH = {"rajkiy": "rajkiy", "samajik": "samajik", "blogs": "blog", "review": "review", "weekly": "weekly"}    # the first word of a pretty address
 SECTION_OF_PATH = {path: key for key, path in SECTION_PATH.items()}
 PAGE_KINDS = {"blog": "blogs", "rajkiy": "rajkiy", "samajik": "samajik", "review": "review"}                         # ... and the section it stands for
+VIDEO_NAME = {"mr": "व्हिडिओ", "en": "Videos"}
+_YOUTUBE = re.compile(r"https?://(?:www\.|m\.|music\.)?(?:youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#\s]*&)?v=|embed/|shorts/|live/|v/)|youtu\.be/)([\w-]{11})(?![\w-])", re.I)
 STORY_SECTIONS = ("rajkiy", "samajik", "blogs", "review")      # sections whose items are stories (the weekly issues are listed on their own)
 DEFAULT_IMAGE = "assets/og-default.jpg"                        # the card shown when a story has no picture a preview can use
 LOGO = "assets/logo-192.jpg"
@@ -239,6 +242,12 @@ def section_path(section: str) -> str:
     return SECTION_PATH[section] if config.PRETTY_URLS else f"?cat={section}"
 
 
+def video_path(row: Dict[str, Any]) -> str:
+    """'video/<words>': a video's own address. "" while it has none (PRETTY_URLS off, or no words yet)."""
+    slug = str(row.get("slug") or "")
+    return f"video/{quote(slug, safe='-')}" if config.PRETTY_URLS and slug else ""
+
+
 def with_lang(url: str, lang: str) -> str:
     return url + ((("&" if "?" in url else "?") + "lang=en") if lang == "en" else "")
 
@@ -328,6 +337,39 @@ def issue_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
             "section": SECTIONS["weekly"][0 if lang == "mr" else 1], "published": published, "published_iso": data.get("datePublished", ""),
             "modified_iso": data.get("datePublished", ""), "canonical": canonical,
             "target": with_lang(canonical, lang), "jsonld": data}
+
+
+def video_story(row: Dict[str, Any], lang: str, site: str) -> Dict[str, Any]:
+    """The same for one video (row of the videos table): `media` is its player."""
+    lang = "en" if lang == "en" and str(row.get("title_en") or "").strip() else "mr"
+    esc = lambda text: html.escape(str(text), quote=True)       # noqa: E731
+    title = _pick(row, "title", lang)
+    description = plain_text(_pick(row, "description", lang))
+    summary = summary_of(_pick(row, "description", lang), html.escape(title))     # (a video without a description: its title)
+    address = str(row.get("video_url") or "")
+    found = _YOUTUBE.match(address)
+    youtube = found.group(1) if found else ""
+    thumbnail = str(row.get("thumbnail") or "") or (f"https://img.youtube.com/vi/{youtube}/hqdefault.jpg" if youtube else "")
+    image = preview_image(thumbnail, site)
+    canonical = f"{site}/{video_path(row)}"
+    uploaded = _india(row.get("created_at"))
+    data: Dict[str, Any] = {"@context": "https://schema.org", "@type": "VideoObject", "name": title, "description": summary, "thumbnailUrl": [image],
+                            "url": canonical, "inLanguage": lang, "publisher": _publisher(site, lang)}
+    if uploaded:
+        data["uploadDate"] = uploaded.isoformat()
+    seconds = int(row.get("duration_sec") or 0)
+    if seconds:
+        data["duration"] = f"PT{seconds // 60}M{seconds % 60}S"
+    if youtube:
+        data["embedUrl"] = f"https://www.youtube.com/embed/{youtube}"
+        player = f'<iframe src="https://www.youtube-nocookie.com/embed/{youtube}" title="{esc(title)}" loading="lazy" allowfullscreen></iframe>'
+    else:
+        data["contentUrl"] = absolute(address, site)
+        player = f'<video controls preload="none" poster="{esc(image)}" src="{esc(data["contentUrl"])}"></video>'
+    return {"lang": lang, "type": "video.other", "title": title, "summary": summary, "image": image,
+            "body": f"<p>{esc(description)}</p>" if description else "", "media": f'<div class="single-post-media">{player}</div>', "author": "",
+            "section": VIDEO_NAME[lang], "published": uploaded.date() if uploaded else None, "published_iso": "", "modified_iso": "",
+            "canonical": canonical, "target": with_lang(canonical, lang), "jsonld": data}
 
 
 # ---------------------------------------------------------------------------------------------------- the share page
@@ -483,7 +525,7 @@ def _ssr_body(story: Dict[str, Any]) -> str:
     return (f'<h1 class="single-post-headline">{esc(story["title"])}</h1>\n'
             f'{published}'
             f'<p class="ssr-meta">{esc(meta)}</p>\n'
-            f'<div class="single-post-media"><img src="{esc(story["image"])}" alt="{esc(story["title"])}"></div>\n'
+            + (story.get("media") or f'<div class="single-post-media"><img src="{esc(story["image"])}" alt="{esc(story["title"])}"></div>') + "\n"
             f'<div class="single-article-content">{story["body"]}</div>'
             + (('\n<p class="article-tags">' + " ".join(f'<span class="article-tag"><a class="tag-link" href="/?tag={quote(t, safe="")}">#{esc(t)}</a></span>' for t in story["tags"]) + "</p>")
                if story.get("tags") else ""))
@@ -507,9 +549,17 @@ def page_response(kind: str, slug: str) -> Response:
         if row:
             story = issue_story(row, lang, site)
             crumbs = [(SITE_NAME[story["lang"]], site + "/"), (story["section"], f"{site}/{section_path('weekly')}"), (story["title"], story["canonical"])]
+    elif kind == "video":
+        row = database.get_video_by_slug(slug)
+        if row and str(row.get("slug")) != slug:                                       # (written with capitals: the one spelling)
+            return redirect(with_lang(f"{site}/{video_path(row)}", lang), code=301)
+        if row:
+            story = video_story(row, lang, site)
+            crumbs = [(SITE_NAME[story["lang"]], site + "/"), (story["title"], story["canonical"])]
     elif kind in PAGE_KINDS:
         row = database.get_article_by_slug(slug)
-        if row and SECTION_PATH.get(str(row.get("category"))) != kind:                 # the right section's address for it
+        # the right section's address for it, and today's words: a link with the words it had before goes on to the new ones
+        if row and (SECTION_PATH.get(str(row.get("category"))) != kind or str(row.get("slug") or "") != slug):
             return redirect(with_lang(f"{site}/{story_path(row)}", lang), code=301)
         if row:
             story = article_story(row, lang, site)
@@ -671,6 +721,12 @@ def sitemap():
         day = _day(row.get("updated_at")) or _day(row.get("created_at"))
         touch("weekly", day)
         entries.append(_url_entry(f"{site}/{issue_path(row['issue_no'])}", day, [absolute(row.get("image"), site)]))
+
+    for row in database.get_videos():
+        if video_path(row):
+            day = _day(row.get("created_at"))
+            touch("video", day)
+            entries.append(_url_entry(f"{site}/{video_path(row)}", day, [absolute(row.get("thumbnail"), site)]))
 
     top = [_url_entry(site + "/", max(newest.values(), default=""))]
     for section in (*STORY_SECTIONS, "weekly"):
